@@ -3,8 +3,8 @@
 // config.js is gitignored and will NOT be uploaded
 
 const CONFIG = {
-    SUPABASE_URL: 'https://your-project.supabase.co',
-    SUPABASE_ANON_KEY: 'your-anon-key-here'
+    SUPABASE_URL: 'https://your-project',
+    SUPABASE_ANON_KEY: 'your KEY here'
 };
 
 window.CONFIG = CONFIG;
