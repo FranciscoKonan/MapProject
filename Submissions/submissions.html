@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submissions | MappingTrace</title>
+    
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS (for map previews if needed) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Your CSS files from parent folder -->
+    <link rel="stylesheet" href="../globalCSS.css">
+    <link rel="stylesheet" href="../layoutCSS.css">
+    <link rel="stylesheet" href="../tableCSS.css">
+    
+    <!-- Submissions specific CSS -->
+    <link rel="stylesheet" href="submissions.css">
+    
+    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+</head>
+<body>
+    <div class="layout">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <i class="fas fa-map-marked-alt"></i>
+                    <span>MappingTrace</span>
+                </h2>
+            </div>
+            <nav class="menu">
+                <a href="../Dashboard.html" data-title="Dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="../LiveMapping/live-mapping.html" data-title="Live Mapping">
+                    <i class="fas fa-map"></i>
+                    <span>Live Mapping</span>
+                </a>
+                <a href="#" class="active" data-title="Submissions">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Submissions</span>
+                </a>
+                <a href="../QualityAlerts/quality-alerts.html" data-title="Quality Alerts">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Quality Alerts</span>
+                </a>
+                <a href="../Exports/exports.html" data-title="Exports">
+                    <i class="fas fa-file-export"></i>
+                    <span>Exports</span>
+                </a>
+                <div class="menu-bottom">
+                    <a href="../login.html" id="logoutBtn" data-title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main">
+            <!-- HEADER -->
+            <div class="main-header">
+                <div class="header-title">
+                    <h1><i class="fas fa-clipboard-list"></i> Submissions</h1>
+                    <div class="breadcrumb">Home / Submissions</div>
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar">FK</div>
+                    <div class="user-details">
+                        <div class="user-name">Francisco Konan</div>
+                        <div class="user-role">Admin</div>
+                    </div>
+                    <button class="sync-btn" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="notifications-btn" id="notificationsBtn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TABLE SECTION -->
+            <section class="table-section" style="padding-top: 20px; height: calc(100vh - 70px);">
+                <div class="table-header">
+                    <h3><i class="fas fa-history"></i> Farm Submissions</h3>
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <input type="text" id="tableSearch" placeholder="Search by ID, farmer, cooperative...">
+                            <button onclick="filterTable()"><i class="fas fa-search"></i></button>
+                        </div>
+                        
+                        <!-- Supplier Filter with Search -->
+                        <div class="filter-group">
+                            <div class="filter-search-container">
+                                <i class="fas fa-search search-icon"></i>
+                                <input type="text" id="supplierSearch" class="filter-search" placeholder="Search suppliers..." autocomplete="off">
+                            </div>
+                            <select id="supplierFilter" class="filter-select filter-select-with-search" onchange="filterBySupplier()">
+                                <option value="all">All Suppliers</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Cooperative Filter with Search -->
+                        <div class="filter-group">
+                            <div class="filter-search-container">
+                                <i class="fas fa-search search-icon"></i>
+                                <input type="text" id="coopSearch" class="filter-search" placeholder="Search cooperatives..." autocomplete="off">
+                            </div>
+                            <select id="cooperativeFilter" class="filter-select filter-select-with-search" onchange="filterByCooperative()">
+                                <option value="all">All Cooperatives</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Status Filter -->
+                        <select id="statusFilter" class="filter-select" onchange="filterTable()">
+                            <option value="all">All Status</option>
+                            <option value="validated">Validated</option>
+                            <option value="pending">Pending</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+        
+                        <!-- Toggle Group View Button (like dashboard) -->
+                        <button id="toggleViewBtn" class="btn-icon" onclick="toggleView()" title="Toggle Group View">
+                            <i class="fas fa-layer-group"></i>
+                        </button>
+                        
+                        <!-- Refresh Button -->
+                        <button onclick="refreshTable()" class="btn-icon" title="Refresh">
+                            <i class="fas fa-redo-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Stats Summary (like dashboard KPI but smaller) -->
+                <div class="submissions-stats">
+                    <div class="stat-chip pending">
+                        <i class="fas fa-clock"></i>
+                        <span id="pendingCount">0</span> Pending
+                    </div>
+                    <div class="stat-chip validated">
+                        <i class="fas fa-check-circle"></i>
+                        <span id="validatedCount">0</span> Validated
+                    </div>
+                    <div class="stat-chip rejected">
+                        <i class="fas fa-times-circle"></i>
+                        <span id="rejectedCount">0</span> Rejected
+                    </div>
+                    <div class="stat-chip total">
+                        <i class="fas fa-tractor"></i>
+                        <span id="totalCount">0</span> Total
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable('id')">Farmer ID <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('farmerName')">Farmer Name <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('cooperative')">Cooperative <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('supplier')">Supplier <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('area')">Area (ha) <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('status')">Status <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('enumerator')">Enumerator <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('updatedBy')">Updated By <i class="fas fa-sort"></i></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                
+                <div class="table-footer">
+                    <div class="table-stats">Showing <span id="showingCount">0-0</span> of <span id="totalCountFooter">0</span> records</div>
+                    <div class="pagination">
+                        <button onclick="prevPage()" class="pagination-btn" id="prevBtn" disabled><i class="fas fa-chevron-left"></i></button>
+                        <div class="page-numbers" id="pageNumbers"></div>
+                        <button onclick="nextPage()" class="pagination-btn" id="nextBtn"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Third Party Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Supabase Initialization -->
+    <script>
+        (function() {
+            console.log('Submissions: Initializing Supabase...');
+            
+            function initSupabase() {
+                if (typeof window.supabase === 'undefined') {
+                    console.log('⏳ Waiting for Supabase library...');
+                    setTimeout(initSupabase, 100);
+                    return;
+                }
+                
+                try {
+                    const supabaseUrl = window.CONFIG.SUPABASE_URL;
+                    const supabaseAnonKey = window.CONFIG.SUPABASE_ANON_KEY;
+                    
+                    const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey, {
+                        auth: {
+                            autoRefreshToken: true,
+                            persistSession: true,
+                            detectSessionInUrl: true
+                        }
+                    });
+                    
+                    window.supabase = supabaseClient;
+                    console.log('✅ Submissions: Supabase client initialized');
+                    
+                    // Dispatch an event when Supabase is ready
+                    window.dispatchEvent(new CustomEvent('supabase-ready'));
+                    
+                } catch (error) {
+                    console.error('❌ Submissions: Supabase init failed:', error);
+                    setTimeout(initSupabase, 1000);
+                }
+            }
+            
+            initSupabase();
+        })();
+    </script>
+
+    <!-- Core JS Files from parent folder -->
+    <script src="../globalJS.js"></script>
+    <script src="../authJS.js"></script>
+    <script src="../farmVisualJS.js"></script>
+    <script src="../notificationJS.js"></script>
+    
+    <!-- Submissions JavaScript -->
+    <script src="submissions.js"></script>
+</body>
+</html>

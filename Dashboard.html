@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | MappingTrace</title>
+    
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    
+    <!-- Our CSS Files -->
+    <link rel="stylesheet" href="globalCSS.css">
+    <link rel="stylesheet" href="layoutCSS.css">
+    <link rel="stylesheet" href="mapCSS.css">
+    <link rel="stylesheet" href="tableCSS.css">
+    <link rel="stylesheet" href="alertCSS.css">
+    
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+</head>
+<body>
+    <div class="layout">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <i class="fas fa-map-marked-alt"></i> 
+                    <span>MappingTrace</span>
+                </h2>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <nav class="menu">
+                <a href="#" class="active" data-title="Dashboard">
+                    <i class="fas fa-tachometer-alt"></i> 
+                    <span>Dashboard</span>
+                </a>
+                <a href="LiveMapping/live-mapping.html" data-title="Live Mapping">
+                    <i class="fas fa-map"></i> 
+                    <span>Live Mapping</span>
+                </a>
+                <a href="Submissions/submissions.html" data-title="Submissions">
+                    <i class="fas fa-clipboard-list"></i> 
+                    <span>Submissions</span>
+                </a>
+                <a href="QualityAlerts/quality-alerts.html" data-title="Quality Alerts">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    <span>Quality Alerts</span>
+                </a>
+                <a href="Exports/exports.html" data-title="Exports">
+                    <i class="fas fa-file-export"></i> 
+                    <span>Exports</span>
+                </a>
+                <div class="menu-bottom">
+                    <a href="login.html" id="logoutBtn" data-title="Logout">
+                        <i class="fas fa-sign-out-alt"></i> 
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main">
+            <header class="main-header">
+                <div class="header-title">
+                    <h1>Dashboard</h1>
+                    <div class="breadcrumb">Home / Dashboard</div>
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar">FK</div>
+                    <div class="user-details">
+                        <div class="user-name">Francisco Konan</div>
+                        <div class="user-role">Admin</div>
+                    </div>
+                    <button class="sync-btn" onclick="manualSync()" id="syncKoboBtn">
+                        <i class="fas fa-sync-alt"></i> Sync with Kobo
+                    </button>
+                    <button class="notifications-btn" id="notificationsBtn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notificationBadge">0</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- KPI SECTION -->
+            <section class="kpis">
+                <div class="kpi">
+                    <div class="kpi-icon"><i class="fas fa-tractor"></i></div>
+                    <div class="kpi-content">
+                        <h4>Farms Mapped</h4>
+                        <p class="kpi-value" id="farmsCount">0</p>
+                        <div class="trend up"><i class="fas fa-arrow-up"></i> 12% from last month</div>
+                    </div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-icon"><i class="fas fa-vector-square"></i></div>
+                    <div class="kpi-content">
+                        <h4>Total Area (ha)</h4>
+                        <p class="kpi-value" id="totalArea">0</p>
+                        <div class="trend up"><i class="fas fa-arrow-up"></i> 8% from last month</div>
+                    </div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-icon"><i class="fas fa-th-large"></i></div>
+                    <div class="kpi-content">
+                        <h4>Active Plots</h4>
+                        <p class="kpi-value" id="activePlots">0</p>
+                        <div class="trend down"><i class="fas fa-arrow-down"></i> 3% from last month</div>
+                    </div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="kpi-content">
+                        <h4>Quality Alerts</h4>
+                        <p class="kpi-value" id="alertsCount">0</p>
+                        <div class="trend up"><i class="fas fa-arrow-up"></i> 5 new today</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MAP & ALERTS SECTION -->
+            <section class="map-alerts-grid">
+                <div class="map-container">
+                    <div class="map-header">
+                        <h3><i class="fas fa-map-marked-alt"></i> LIVE MAP</h3>
+                        <div class="map-actions">
+                            <div class="base-layer-selector">
+                                <button class="map-action-btn active" onclick="setBaseLayer('satellite')" id="btnSatellite"><i class="fas fa-satellite"></i> Satellite</button>
+                                <button class="map-action-btn" onclick="setBaseLayer('streets')" id="btnStreets"><i class="fas fa-road"></i> Streets</button>
+                                <button class="map-action-btn" onclick="setBaseLayer('terrain')" id="btnTerrain"><i class="fas fa-mountain"></i> Terrain</button>
+                            </div>
+                            <button class="map-action-btn" onclick="refreshMapData()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                            <button class="map-action-btn" onclick="exportMapData()"><i class="fas fa-download"></i> Export</button>
+                        </div>
+                    </div>
+                    
+                    <div class="map-toolbar">
+                        <button class="map-btn" onclick="zoomIn()" title="Zoom In"><i class="fas fa-plus"></i></button>
+                        <button class="map-btn" onclick="zoomOut()" title="Zoom Out"><i class="fas fa-minus"></i></button>
+                        <button class="map-btn" onclick="resetView()" title="Reset View"><i class="fas fa-home"></i></button>
+                        <button class="map-btn" onclick="locateMe()" title="My Location"><i class="fas fa-location-crosshairs"></i></button>
+                        <button class="map-btn" onclick="toggleDrawMode()" title="Draw Polygon"><i class="fas fa-draw-polygon"></i></button>
+                        <button class="map-btn" onclick="toggleLegend()" title="Toggle Legend"><i class="fas fa-layer-group"></i></button>
+                        <button class="map-btn" onclick="zoomToAllFarms()" title="Show All Farms"><i class="fas fa-globe"></i></button>
+                    </div>
+                    
+                    <div id="map"></div>
+                    
+                    <!-- Map Overlay -->
+                    <div class="map-overlay">
+                        <div class="map-search-box">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="mapSearch" placeholder="Search farm ID, name, or location..." onkeyup="if(event.key==='Enter') performSearch()">
+                            <button onclick="performSearch()"><i class="fas fa-search"></i> Search</button>
+                        </div>
+                        <div class="map-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Farms:</span>
+                                <span class="stat-value" id="mapFarmsCount">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Area:</span>
+                                <span class="stat-value" id="mapTotalArea">0 ha</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Selected:</span>
+                                <span class="stat-value" id="selectedFarmName">None</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Map Legend -->
+                    <div class="map-legend" id="mapLegend" style="display: none;">
+                        <div class="legend-header">
+                            <h4><i class="fas fa-layer-group"></i> Legend</h4>
+                            <button onclick="toggleLegend()"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="legend-content">
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #4CAF50;"></div>
+                                <span>Validated</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #FFC107;"></div>
+                                <span>Pending</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #F44336;"></div>
+                                <span>Rejected</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #dc2626;"></div>
+                                <span>Critical Alert</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #f97316;"></div>
+                                <span>High Alert</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #ca8a04;"></div>
+                                <span>Medium Alert</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #0284c7;"></div>
+                                <span>Low Alert</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ALERTS SECTION -->
+                <div class="alerts-container">
+                    <div class="alerts-header">
+                        <h3><i class="fas fa-exclamation-triangle"></i> Quality Alerts</h3>
+                        <span class="alerts-count" id="alertsBadge">0</span>
+                    </div>
+                    <div class="alerts-list" id="alertsList">
+                        <div class="alerts-empty-state">
+                            <i class="fas fa-check-circle"></i>
+                            <h4>No Alerts</h4>
+                            <p>All systems are running smoothly.</p>
+                        </div>
+                    </div>
+                    <div class="alerts-footer">
+                        <button onclick="viewAllAlerts()" class="btn-secondary"><i class="fas fa-list"></i> View All</button>
+                        <button onclick="refreshAlerts()" class="btn-primary"><i class="fas fa-redo-alt"></i> Refresh</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TABLE SECTION -->
+            <section class="table-section">
+                <div class="table-header">
+                    <h3><i class="fas fa-history"></i> Recent Submissions</h3>
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <input type="text" id="tableSearch" placeholder="Search by ID, farmer, cooperative...">
+                            <button onclick="filterTable()"><i class="fas fa-search"></i></button>
+                        </div>
+                        
+                        <!-- Supplier Filter -->
+                        <select id="supplierFilter" class="filter-select" onchange="filterBySupplier()">
+                            <option value="all">All Suppliers</option>
+                        </select>
+                        
+                        <select id="statusFilter" class="filter-select" onchange="filterTable()">
+                            <option value="all">All Status</option>
+                            <option value="validated">Validated</option>
+                            <option value="pending">Pending</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+        
+                        <button id="toggleViewBtn" class="btn-icon" onclick="toggleView()" title="Toggle Group View">
+                             <i class="fas fa-layer-group"></i>
+                         </button>
+                        <button onclick="refreshTable()" class="btn-icon" title="Refresh"><i class="fas fa-redo-alt"></i></button>
+                        <button onclick="exportTableData()" class="btn-icon" title="Export"><i class="fas fa-download"></i></button>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable('id')">Farmer ID <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('farmerName')">Farmer Name <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('cooperative')">Cooperative <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('area')">Area (ha) <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('submissionDate')">Submission Date <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable('status')">Status <i class="fas fa-sort"></i></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                
+                <div class="table-footer">
+                    <div class="table-stats">Showing <span id="showingCount">0-0</span> of <span id="totalCount">0</span> records</div>
+                    <div class="pagination">
+                        <button onclick="prevPage()" class="pagination-btn" id="prevBtn" disabled><i class="fas fa-chevron-left"></i></button>
+                        <div class="page-numbers" id="pageNumbers"><span class="page-number active">1</span></div>
+                        <button onclick="nextPage()" class="pagination-btn" id="nextBtn"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Third Party Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+    <!-- Supabase Initialization -->
+    <script>
+        (function() {
+            const supabaseUrl = window.CONFIG.SUPABASE_URL;
+            const supabaseAnonKey = window.CONFIG.SUPABASE_ANON_KEY;
+            try {
+                window.supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+                console.log('✅ Supabase client initialized with ANON key');
+            } catch (error) {
+                console.error('❌ Supabase init failed:', error);
+            }
+        })();
+    </script>
+
+    <!-- Core JS Files -->
+    <script src="config.js"></script>
+    <script src="globalJS.js"></script>
+    <script src="authJS.js"></script>
+    <script src="mapInitJS.js"></script>
+    <script src="mapControlJS.js"></script>
+    <script src="farmVisualJS.js"></script>
+    <script src="notificationJS.js"></script>
+    <script src="tableJS.js"></script>
+    <script src="alerts-new.js"></script>
+
+    <!-- Dashboard-specific map functions -->
+    <script>
+        // ===========================================
+        // MAP FUNCTIONS FOR DASHBOARD - FIXED
+        // ===========================================
+        
+        let currentBaseLayer = 'satellite';
+        
+        // Wait for map to be initialized
+        function waitForMap(callback) {
+            if (window.map) {
+                callback(window.map);
+            } else {
+                console.log('⏳ Waiting for map...');
+                setTimeout(() => waitForMap(callback), 200);
+            }
+        }
+        
+        // Set base layer function
+        window.setBaseLayer = function(type) {
+            console.log('🗺️ Switching to', type, 'layer');
+            
+            // Update button states
+            document.getElementById('btnSatellite').classList.remove('active');
+            document.getElementById('btnStreets').classList.remove('active');
+            document.getElementById('btnTerrain').classList.remove('active');
+            document.getElementById('btn' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
+            
+            waitForMap(function(map) {
+                // Remove existing tile layers
+                map.eachLayer(function(layer) {
+                    if (layer instanceof L.TileLayer) {
+                        map.removeLayer(layer);
+                    }
+                });
+                
+                // Add new base layer
+                if (type === 'satellite') {
+                    L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                        maxZoom: 20,
+                        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                        attribution: 'Google Satellite'
+                    }).addTo(map);
+                } else if (type === 'streets') {
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '© OpenStreetMap'
+                    }).addTo(map);
+                } else if (type === 'terrain') {
+                    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 17,
+                        attribution: '© OpenTopoMap'
+                    }).addTo(map);
+                }
+                
+                currentBaseLayer = type;
+                console.log('✅ Switched to', type, 'layer');
+            });
+        };
+        
+        // Zoom functions
+        window.zoomIn = function() {
+            waitForMap(function(map) { map.zoomIn(); });
+        };
+        
+        window.zoomOut = function() {
+            waitForMap(function(map) { map.zoomOut(); });
+        };
+        
+        window.resetView = function() {
+            waitForMap(function(map) { 
+                map.setView([7.539989, -5.547080], 8);
+                if (window.notification) window.notification.info('Map view reset');
+            });
+        };
+        
+        window.locateMe = function() {
+            waitForMap(function(map) {
+                map.locate({setView: true, maxZoom: 16});
+                
+                map.on('locationfound', function(e) {
+                    L.marker(e.latlng).addTo(map)
+                        .bindPopup('You are here').openPopup();
+                });
+                
+                map.on('locationerror', function() {
+                    if (window.notification) {
+                        window.notification.error('Location access denied');
+                    }
+                });
+            });
+        };
+        
+        window.toggleDrawMode = function() {
+            console.log('Draw mode toggled');
+            if (window.notification) {
+                window.notification.info('Draw mode - coming soon');
+            }
+        };
+        
+        window.toggleLegend = function() {
+            const legend = document.getElementById('mapLegend');
+            if (legend) {
+                if (legend.style.display === 'none' || !legend.style.display) {
+                    legend.style.display = 'block';
+                } else {
+                    legend.style.display = 'none';
+                }
+            }
+        };
+        
+        window.zoomToAllFarms = function() {
+            waitForMap(function(map) {
+                if (window.farmLayers && window.farmLayers.size > 0) {
+                    const bounds = L.latLngBounds();
+                    window.farmLayers.forEach(layer => {
+                        if (layer.getBounds && layer.getBounds().isValid()) {
+                            bounds.extend(layer.getBounds());
+                        }
+                    });
+                    
+                    if (bounds.isValid()) {
+                        map.fitBounds(bounds, {padding: [50, 50]});
+                    } else {
+                        resetView();
+                    }
+                } else {
+                    resetView();
+                }
+            });
+        };
+        
+        window.performSearch = function() {
+            const searchTerm = document.getElementById('mapSearch').value;
+            if (!searchTerm) {
+                if (window.notification) window.notification.warning('Enter search term');
+                return;
+            }
+            console.log('Searching for:', searchTerm);
+            
+            // Search in farm layers
+            if (window.farmLayers && window.farmLayers.size > 0) {
+                let found = false;
+                for (const [id, layer] of window.farmLayers) {
+                    if (layer.farmData && 
+                        (layer.farmData.farmerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         layer.farmData.farmId?.toLowerCase().includes(searchTerm.toLowerCase()))) {
+                        
+                        waitForMap(function(map) {
+                            map.fitBounds(layer.getBounds());
+                            layer.setStyle({ weight: 4, color: '#FF5722' });
+                            setTimeout(() => {
+                                layer.setStyle({ weight: 2, color: layer.farmData?.status === 'validated' ? '#4CAF50' : 
+                                               layer.farmData?.status === 'pending' ? '#FFC107' : '#F44336' });
+                            }, 2000);
+                        });
+                        found = true;
+                        break;
+                    }
+                }
+                
+                if (found) {
+                    if (window.notification) window.notification.success('Farm found');
+                } else {
+                    if (window.notification) window.notification.info('No matching farms found');
+                }
+            }
+        };
+        
+        window.refreshMapData = function() {
+            console.log('Refreshing map data');
+            if (window.notification) {
+                window.notification.info('Refreshing map data...');
+            }
+            if (window.loadFarms) {
+                window.loadFarms();
+            }
+        };
+        
+        window.exportMapData = function() {
+            console.log('Exporting map data');
+            if (window.exportMapData && typeof window.exportMapData === 'function') {
+                window.exportMapData();
+            } else {
+                if (window.notification) window.notification.info('Export function not available');
+            }
+        };
+        
+        // Sync functions
+        window.manualSync = function() {
+            console.log('Manual sync triggered');
+            const btn = document.getElementById('syncKoboBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                if (window.notification) {
+                    window.notification.success('Sync completed');
+                }
+            }, 2000);
+        };
+    </script>
+
+    <!-- Update user info in header -->
+    <script>
+        (function() {
+            'use strict';
+            
+            console.log('👤 Updating user header...');
+            
+            function updateUserHeader() {
+                // Try to get user from localStorage first (faster)
+                try {
+                    const cachedUser = localStorage.getItem('mappingtrace_user');
+                    if (cachedUser) {
+                        const user = JSON.parse(cachedUser);
+                        console.log('📦 Using cached user:', user);
+                        
+                        const userNameEl = document.querySelector('.user-name');
+                        const userRoleEl = document.querySelector('.user-role');
+                        const userAvatarEl = document.querySelector('.user-avatar');
+                        
+                        if (userNameEl) userNameEl.textContent = user.fullName || 'User';
+                        if (userRoleEl) userRoleEl.textContent = user.role || 'User';
+                        if (userAvatarEl) userAvatarEl.textContent = user.avatar || 'U';
+                        
+                        // If we have cached data, we're done for now
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Error reading cached user:', e);
+                }
+                
+                // If no cached user, try to get from Supabase
+                if (window.supabase && window.supabase.auth) {
+                    (async function() {
+                        try {
+                            const { data: { session }, error } = await window.supabase.auth.getSession();
+                            
+                            if (error) {
+                                console.error('Error getting session:', error);
+                                return;
+                            }
+                            
+                            if (session && session.user) {
+                                const user = session.user;
+                                const userMetadata = user.user_metadata || {};
+                                const email = user.email || 'User';
+                                
+                                // Get full name - check multiple possible fields
+                                let fullName = userMetadata.full_name || 
+                                            userMetadata.name || 
+                                            `${userMetadata.first_name || ''} ${userMetadata.last_name || ''}`.trim() ||
+                                            email.split('@')[0] || 
+                                            'User';
+                                
+                                // Capitalize each word for better display
+                                fullName = fullName.split(' ')
+                                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                                    .join(' ');
+                                
+                                // Get role - check multiple possible fields
+                                let role = userMetadata.role || 'user';
+                                
+                                // Format role for display
+                                const roleDisplay = {
+                                    'field_officer': 'Field Officer',
+                                    'validator': 'Validator',
+                                    'admin': 'Administrator',
+                                    'viewer': 'Viewer',
+                                    'user': 'User'
+                                };
+                                
+                                const displayRole = roleDisplay[role] || 
+                                                role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                
+                                // Get initials for avatar
+                                const initials = fullName
+                                    .split(' ')
+                                    .map(n => n[0])
+                                    .join('')
+                                    .toUpperCase()
+                                    .substring(0, 2) || 'U';
+                                
+                                // Update DOM
+                                const userNameEl = document.querySelector('.user-name');
+                                const userRoleEl = document.querySelector('.user-role');
+                                const userAvatarEl = document.querySelector('.user-avatar');
+                                
+                                if (userNameEl) userNameEl.textContent = fullName;
+                                if (userRoleEl) userRoleEl.textContent = displayRole;
+                                if (userAvatarEl) userAvatarEl.textContent = initials;
+                                
+                                // Store in localStorage for next time
+                                localStorage.setItem('mappingtrace_user', JSON.stringify({
+                                    fullName: fullName,
+                                    role: displayRole,
+                                    avatar: initials,
+                                    email: user.email
+                                }));
+                                
+                                console.log('✅ Header updated with Supabase data:', { fullName, displayRole, initials });
+                            } else {
+                                console.log('⚠️ No active session, keeping default values');
+                            }
+                        } catch (err) {
+                            console.error('Error updating from Supabase:', err);
+                        }
+                    })();
+                }
+            }
+            
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', updateUserHeader);
+            } else {
+                updateUserHeader();
+            }
+            
+            // Also run after a short delay to ensure everything is loaded
+            setTimeout(updateUserHeader, 500);
+        })();
+    </script>
+
+    <!-- Update Live Mapping link with token -->
+    <script>
+        (function() {
+            console.log('🔧 Setting up Live Mapping link...');
+            
+            async function updateLiveMappingLink() {
+                try {
+                    const liveMappingLink = document.querySelector('a[href*="live-mapping.html"]');
+                    if (!liveMappingLink) {
+                        console.log('⚠️ Live Mapping link not found');
+                        return;
+                    }
+                    
+                    console.log('✅ Found Live Mapping link');
+                    
+                    if (!window.supabase) {
+                        console.log('⏳ Waiting for Supabase...');
+                        setTimeout(updateLiveMappingLink, 500);
+                        return;
+                    }
+                    
+                    const { data: { session }, error } = await window.supabase.auth.getSession();
+                    
+                    if (error) {
+                        console.error('❌ Session error:', error);
+                        return;
+                    }
+                    
+                    if (session && session.access_token) {
+                        const token = encodeURIComponent(session.access_token);
+                        liveMappingLink.href = `LiveMapping/live-mapping.html?token=${token}`;
+                        console.log('✅ Token added to Live Mapping link');
+                    } else {
+                        console.log('⚠️ No active session found');
+                        liveMappingLink.href = 'LiveMapping/live-mapping.html?no-session=1';
+                    }
+                } catch (e) {
+                    console.error('❌ Error:', e);
+                }
+            }
+            
+            setTimeout(updateLiveMappingLink, 1000);
+        })();
+    </script>
+
+    <!-- Fix for farmLayers and dashboard initialization -->
+    <script>
+        // Initialize global farmLayers if not exists
+        if (typeof window.farmLayers === 'undefined') {
+            window.farmLayers = new Map();
+            console.log('✅ Created global farmLayers');
+        }
+        
+        // Update notification badge function
+        window.updateNotificationBadge = function(count) {
+            const badge = document.getElementById('notificationBadge');
+            if (!badge) return;
+            
+            if (count > 0) {
+                badge.style.display = 'flex';
+                if (count > 99) {
+                    badge.textContent = '99+';
+                    badge.classList.add('large');
+                } else if (count > 9) {
+                    badge.textContent = '9+';
+                    badge.classList.add('large');
+                } else {
+                    badge.textContent = count;
+                    badge.classList.remove('large');
+                }
+            } else {
+                badge.style.display = 'none';
+            }
+        };
+        
+        // Initialize map stats
+        function updateMapStats() {
+            const farmsCount = document.getElementById('mapFarmsCount');
+            const totalArea = document.getElementById('mapTotalArea');
+            const selectedFarm = document.getElementById('selectedFarmName');
+            
+            if (farmsCount) farmsCount.textContent = window.farmLayers?.size || 0;
+            
+            // Calculate total area
+            let area = 0;
+            if (window.farmLayers) {
+                window.farmLayers.forEach(layer => {
+                    if (layer.farmData?.area) {
+                        area += parseFloat(layer.farmData.area) || 0;
+                    }
+                });
+            }
+            if (totalArea) totalArea.textContent = area.toFixed(1) + ' ha';
+            
+            // Update selected farm name
+            if (selectedFarm && window.selectedFarm) {
+                const layer = window.farmLayers?.get(window.selectedFarm);
+                if (layer && layer.farmData) {
+                    selectedFarm.textContent = layer.farmData.farmerName || layer.farmData.farmId || 'Selected';
+                }
+            }
+        }
+        
+        // Listen for map updates
+        window.addEventListener('farms-updated', updateMapStats);
+        window.addEventListener('map-ready', updateMapStats);
+        
+        // Debug function
+        window.debugTable = function() {
+            console.log('=== TABLE DEBUG ===');
+            console.log('DataManager farms:', window.dataManager?.farms.length);
+            console.log('Table data:', window.tableData?.length);
+            console.log('Suppliers:', window.tableData?.map(f => f.supplier));
+            console.log('Grouped view:', window.groupedView);
+        };
+        
+        // Update notification badge periodically
+        setInterval(() => {
+            if (window.alertsData) {
+                window.updateNotificationBadge(window.alertsData.length);
+            }
+        }, 1000);
+    </script>
+    
+</body>
+</html>

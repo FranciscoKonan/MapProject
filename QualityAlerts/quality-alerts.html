@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quality Alerts | MappingTrace</title>
+    
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Root CSS files (going up one level) -->
+    <link rel="stylesheet" href="../globalCSS.css">
+    <link rel="stylesheet" href="../layoutCSS.css">
+    <link rel="stylesheet" href="../alertCSS.css">
+    
+    <!-- Quality Alerts CSS -->
+    <link rel="stylesheet" href="quality-alerts.css">
+    
+    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+</head>
+<body>
+    <div class="layout">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <i class="fas fa-map-marked-alt"></i>
+                    <span>MappingTrace</span>
+                </h2>
+            </div>
+            <nav class="menu">
+                <a href="../Dashboard.html" data-title="Dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="../LiveMapping/live-mapping.html" data-title="Live Mapping">
+                    <i class="fas fa-map"></i>
+                    <span>Live Mapping</span>
+                </a>
+                <a href="../Submissions/submissions.html" data-title="Submissions">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Submissions</span>
+                </a>
+                <a href="#" class="active" data-title="Quality Alerts">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Quality Alerts</span>
+                </a>
+                <a href="../Exports/exports.html" data-title="Exports">
+                    <i class="fas fa-file-export"></i>
+                    <span>Exports</span>
+                </a>
+                <div class="menu-bottom">
+                    <a href="../login.html" id="logoutBtn" data-title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main">
+            <!-- HEADER -->
+            <div class="main-header">
+                <div class="header-title">
+                    <h1><i class="fas fa-exclamation-triangle"></i> Quality Alerts</h1>
+                    <div class="breadcrumb">Home / Quality Alerts</div>
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar">FK</div>
+                    <div class="user-details">
+                        <div class="user-name">Francisco Konan</div>
+                        <div class="user-role">Admin</div>
+                    </div>
+                    <button class="sync-btn" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="notifications-btn" id="notificationsBtn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ALERTS DASHBOARD -->
+            <div class="alerts-dashboard">
+                <!-- Alert Stats Cards -->
+                <div class="alert-stats-grid">
+                    <div class="alert-stat-card critical">
+                        <div class="alert-stat-icon">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
+                        <div class="alert-stat-content">
+                            <span class="alert-stat-label">Critical</span>
+                            <span class="alert-stat-value" id="criticalCount">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="alert-stat-card high">
+                        <div class="alert-stat-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="alert-stat-content">
+                            <span class="alert-stat-label">High</span>
+                            <span class="alert-stat-value" id="highCount">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="alert-stat-card medium">
+                        <div class="alert-stat-icon">
+                            <i class="fas fa-exclamation"></i>
+                        </div>
+                        <div class="alert-stat-content">
+                            <span class="alert-stat-label">Medium</span>
+                            <span class="alert-stat-value" id="mediumCount">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="alert-stat-card low">
+                        <div class="alert-stat-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="alert-stat-content">
+                            <span class="alert-stat-label">Low</span>
+                            <span class="alert-stat-value" id="lowCount">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="alert-stat-card total">
+                        <div class="alert-stat-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div class="alert-stat-content">
+                            <span class="alert-stat-label">Total Alerts</span>
+                            <span class="alert-stat-value" id="totalAlerts">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters Section -->
+<!-- Filters Section - Updated with Search Bars -->
+<div class="alerts-filters">
+    <div class="filter-group">
+        <label for="alertTypeFilter">Alert Type</label>
+        <select id="alertTypeFilter" class="filter-select">
+            <option value="all">All Types</option>
+            <option value="overlap">Overlap Detection</option>
+            <option value="boundary">Boundary Issue</option>
+            <option value="area">Area Mismatch</option>
+            <option value="data">Missing Data</option>
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label for="alertSeverityFilter">Severity</label>
+        <select id="alertSeverityFilter" class="filter-select">
+            <option value="all">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label for="alertSupplierFilter">Supplier</label>
+        <div class="filter-search-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="supplierSearch" class="filter-search" placeholder="Search suppliers..." autocomplete="off">
+        </div>
+        <select id="alertSupplierFilter" class="filter-select filter-select-with-search">
+            <option value="all">All Suppliers</option>
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label for="alertCoopFilter">Cooperative</label>
+        <div class="filter-search-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="coopSearch" class="filter-search" placeholder="Search cooperatives..." autocomplete="off">
+        </div>
+        <select id="alertCoopFilter" class="filter-select filter-select-with-search">
+            <option value="all">All Cooperatives</option>
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label for="alertStatusFilter">Status</label>
+        <select id="alertStatusFilter" class="filter-select">
+            <option value="all">All Status</option>
+            <option value="new">New</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="resolved">Resolved</option>
+            <option value="ignored">Ignored</option>
+        </select>
+    </div>
+    
+    <div class="filter-actions">
+        <button class="btn-primary" id="applyFiltersBtn">
+            <i class="fas fa-search"></i> Apply
+        </button>
+        <button class="btn-secondary" id="clearFiltersBtn">
+            <i class="fas fa-times"></i> Clear
+        </button>
+    </div>
+</div>
+                <!-- Export Options -->
+                <div class="export-options-bar">
+                    <span class="export-label"><i class="fas fa-download"></i> Export:</span>
+                    <button class="export-btn" id="exportCSV">CSV</button>
+                    <button class="export-btn" id="exportExcel">Excel</button>
+                    <button class="export-btn" id="exportGeoJSON">GeoJSON</button>
+                    <button class="export-btn" id="exportJSON">JSON</button>
+                    <span class="export-count" id="exportCount">0 alerts</span>
+                </div>
+
+                <!-- Alerts List -->
+                <div class="alerts-list-container">
+                    <div class="alerts-list-header">
+                        <h3><i class="fas fa-list"></i> Active Alerts</h3>
+                        <div class="alerts-bulk-actions">
+                            <button class="btn-icon" id="markAllReadBtn" title="Mark all as read">
+                                <i class="fas fa-check-double"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="alerts-list" id="alertsList"></div>
+                    
+                    <div class="alerts-pagination">
+                        <button class="pagination-btn" id="prevPageBtn" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span id="pageInfo">Page 1 of 1</span>
+                        <button class="pagination-btn" id="nextPageBtn" disabled>
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Third Party Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+    <!-- Supabase Initialization -->
+    <script>
+        (function() {
+            const supabaseUrl = window.CONFIG.SUPABASE_URL;
+            const supabaseAnonKey = window.CONFIG.SUPABASE_ANON_KEY;
+            window.supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+        })();
+    </script>
+
+    <!-- CRITICAL: Load Dashboard Alert System FIRST -->
+    <script src="../alerts-new.js"></script>
+    
+    <!-- Core JS Files -->
+    <script src="../globalJS.js"></script>
+    <script src="../authJS.js"></script>
+    <script src="../notificationJS.js"></script>
+    
+    <!-- Quality Alerts JavaScript (loads after alerts-new.js) -->
+    <script src="quality-alerts.js"></script>
+</body>
+</html>
