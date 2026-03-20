@@ -299,6 +299,9 @@
     <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
+        <!-- ✅ CONFIG MUST LOAD FIRST BEFORE ANY CODE THAT USES IT -->
+    <script src="config.js"></script>
+
     <!-- Supabase Initialization -->
     <script>
         (function() {
@@ -314,7 +317,6 @@
     </script>
 
     <!-- Core JS Files -->
-    <script src="config.js"></script>
     <script src="globalJS.js"></script>
     <script src="authJS.js"></script>
     <script src="mapInitJS.js"></script>
