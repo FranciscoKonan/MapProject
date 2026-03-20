@@ -19,7 +19,9 @@
     <link rel="stylesheet" href="mapCSS.css">
     <link rel="stylesheet" href="tableCSS.css">
     <link rel="stylesheet" href="alertCSS.css">
-    
+
+        <!-- ✅ IMPORTANT: Load config.js FIRST -->
+    <script src="config.js"></script>
     <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
 </head>
 <body>
@@ -298,9 +300,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-
-        <!-- ✅ CONFIG MUST LOAD FIRST BEFORE ANY CODE THAT USES IT -->
-    <script src="config.js"></script>
 
     <!-- Supabase Initialization -->
     <script>
