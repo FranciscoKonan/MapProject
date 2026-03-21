@@ -101,15 +101,25 @@
                     <div class="panel-section">
                         <h3><i class="fas fa-filter"></i> Data Filters</h3>
                         
+                        <!-- Supplier Filter with Search -->
                         <div class="filter-group">
                             <label><i class="fas fa-building"></i> Supplier</label>
+                            <div class="filter-search-container">
+                                <i class="fas fa-search search-icon"></i>
+                                <input type="text" id="supplierSearch" class="filter-search" placeholder="Search suppliers...">
+                            </div>
                             <select id="supplierFilter" class="filter-select">
                                 <option value="all">All Suppliers</option>
                             </select>
                         </div>
                         
+                        <!-- Cooperative Filter with Search -->
                         <div class="filter-group">
                             <label><i class="fas fa-users"></i> Cooperative</label>
+                            <div class="filter-search-container">
+                                <i class="fas fa-search search-icon"></i>
+                                <input type="text" id="coopSearch" class="filter-search" placeholder="Search cooperatives...">
+                            </div>
                             <select id="cooperativeFilter" class="filter-select">
                                 <option value="all">All Cooperatives</option>
                             </select>
@@ -230,7 +240,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     
-    <!-- Direct Supabase Configuration (Same as working login/register) -->
+    <!-- Direct Supabase Configuration -->
     <script>
         // Supabase credentials - same as working login and register
         const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
