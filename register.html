@@ -521,10 +521,10 @@
     <!-- Supabase library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- ✅ CRITICAL: Load config.js FIRST -->
+    <!-- ✅ CRITICAL: Load config.js -->
     <script src="config.js"></script>
     
-    <!-- Supabase initialization -->
+    <!-- Supabase initialization with retry logic -->
     <script>
         (function() {
             'use strict';
@@ -534,22 +534,27 @@
             // Check if CONFIG is loaded
             if (!window.CONFIG) {
                 console.error('❌ CONFIG not loaded! Make sure config.js exists.');
-                const container = document.getElementById('notificationContainer');
-                if (container) {
-                    const notif = document.createElement('div');
-                    notif.className = 'notification notification-error';
-                    notif.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>Configuration error. Please refresh the page.</span>';
-                    container.appendChild(notif);
-                }
+                window.supabaseReady = false;
+                window.supabaseInitError = 'CONFIG not loaded';
                 return;
             }
             
             console.log('✅ CONFIG loaded:', window.CONFIG.SUPABASE_URL);
             
+            let retryCount = 0;
+            const maxRetries = 15;
+            
             function initSupabase() {
                 if (typeof window.supabase === 'undefined') {
-                    console.log('⏳ Waiting for Supabase library...');
-                    setTimeout(initSupabase, 100);
+                    retryCount++;
+                    if (retryCount < maxRetries) {
+                        console.log(`⏳ Waiting for Supabase library... (attempt ${retryCount}/${maxRetries})`);
+                        setTimeout(initSupabase, 500);
+                    } else {
+                        console.error('❌ Supabase library failed to load after multiple attempts');
+                        window.supabaseReady = false;
+                        window.supabaseInitError = 'Supabase library timeout';
+                    }
                     return;
                 }
                 
@@ -559,19 +564,29 @@
                     
                     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
                         console.error('❌ Missing Supabase credentials in CONFIG');
+                        window.supabaseReady = false;
+                        window.supabaseInitError = 'Missing credentials';
                         return;
                     }
                     
+                    // Create Supabase client
                     window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    window.supabaseReady = true;
                     console.log('✅ Supabase client initialized successfully');
                     console.log('📍 URL:', SUPABASE_URL);
                     
+                    // Dispatch event to notify that Supabase is ready
+                    window.dispatchEvent(new Event('supabase-ready'));
+                    
                 } catch (err) {
                     console.error('❌ Failed to initialize Supabase:', err);
+                    window.supabaseReady = false;
+                    window.supabaseInitError = err.message;
                     setTimeout(initSupabase, 1000);
                 }
             }
             
+            // Start initialization
             initSupabase();
         })();
     </script>
@@ -634,7 +649,6 @@
         // PASSWORD FUNCTIONS
         // ===========================================
         
-        // Toggle password visibility
         window.togglePassword = function(fieldId, iconElement) {
             const field = document.getElementById(fieldId);
             if (field.type === 'password') {
@@ -648,7 +662,6 @@
             }
         };
         
-        // Check password strength
         window.checkPasswordStrength = function() {
             const password = document.getElementById('password').value;
             const bar = document.getElementById('passwordStrengthBar');
@@ -663,20 +676,32 @@
             };
             
             // Update requirement icons
-            document.getElementById('req-length').innerHTML = `<i class="fas fa-${requirements.length ? 'check-circle' : 'circle'}"></i> At least 8 characters`;
-            document.getElementById('req-length').className = `requirement ${requirements.length ? 'valid' : 'invalid'}`;
+            const reqLength = document.getElementById('req-length');
+            const reqLower = document.getElementById('req-lower');
+            const reqUpper = document.getElementById('req-upper');
+            const reqNumber = document.getElementById('req-number');
+            const reqSpecial = document.getElementById('req-special');
             
-            document.getElementById('req-lower').innerHTML = `<i class="fas fa-${requirements.lower ? 'check-circle' : 'circle'}"></i> At least 1 lowercase letter`;
-            document.getElementById('req-lower').className = `requirement ${requirements.lower ? 'valid' : 'invalid'}`;
-            
-            document.getElementById('req-upper').innerHTML = `<i class="fas fa-${requirements.upper ? 'check-circle' : 'circle'}"></i> At least 1 uppercase letter`;
-            document.getElementById('req-upper').className = `requirement ${requirements.upper ? 'valid' : 'invalid'}`;
-            
-            document.getElementById('req-number').innerHTML = `<i class="fas fa-${requirements.number ? 'check-circle' : 'circle'}"></i> At least 1 number`;
-            document.getElementById('req-number').className = `requirement ${requirements.number ? 'valid' : 'invalid'}`;
-            
-            document.getElementById('req-special').innerHTML = `<i class="fas fa-${requirements.special ? 'check-circle' : 'circle'}"></i> At least 1 special character`;
-            document.getElementById('req-special').className = `requirement ${requirements.special ? 'valid' : 'invalid'}`;
+            if (reqLength) {
+                reqLength.innerHTML = `<i class="fas fa-${requirements.length ? 'check-circle' : 'circle'}"></i> At least 8 characters`;
+                reqLength.className = `requirement ${requirements.length ? 'valid' : 'invalid'}`;
+            }
+            if (reqLower) {
+                reqLower.innerHTML = `<i class="fas fa-${requirements.lower ? 'check-circle' : 'circle'}"></i> At least 1 lowercase letter`;
+                reqLower.className = `requirement ${requirements.lower ? 'valid' : 'invalid'}`;
+            }
+            if (reqUpper) {
+                reqUpper.innerHTML = `<i class="fas fa-${requirements.upper ? 'check-circle' : 'circle'}"></i> At least 1 uppercase letter`;
+                reqUpper.className = `requirement ${requirements.upper ? 'valid' : 'invalid'}`;
+            }
+            if (reqNumber) {
+                reqNumber.innerHTML = `<i class="fas fa-${requirements.number ? 'check-circle' : 'circle'}"></i> At least 1 number`;
+                reqNumber.className = `requirement ${requirements.number ? 'valid' : 'invalid'}`;
+            }
+            if (reqSpecial) {
+                reqSpecial.innerHTML = `<i class="fas fa-${requirements.special ? 'check-circle' : 'circle'}"></i> At least 1 special character`;
+                reqSpecial.className = `requirement ${requirements.special ? 'valid' : 'invalid'}`;
+            }
             
             const score = Object.values(requirements).filter(Boolean).length;
             
@@ -697,13 +722,16 @@
                 color = '#4caf50';
             }
             
-            bar.style.width = (score * 20) + '%';
-            bar.style.backgroundColor = color;
-            text.textContent = strength;
-            text.style.color = color;
+            if (bar) {
+                bar.style.width = (score * 20) + '%';
+                bar.style.backgroundColor = color;
+            }
+            if (text) {
+                text.textContent = strength;
+                text.style.color = color;
+            }
         };
         
-        // Check password match
         window.checkPasswordMatch = function() {
             const password = document.getElementById('password').value;
             const confirm = document.getElementById('confirmPassword').value;
@@ -719,21 +747,64 @@
         };
         
         // ===========================================
-        // REGISTRATION HANDLER
+        // REGISTRATION HANDLER WITH WAIT FOR SUPABASE
         // ===========================================
         
-        // Wait for DOM to load
-        document.addEventListener('DOMContentLoaded', function() {
+        let supabaseClient = null;
+        
+        // Function to wait for Supabase to be ready
+        function waitForSupabase() {
+            return new Promise((resolve) => {
+                if (window.supabaseReady && window.supabase) {
+                    resolve(window.supabase);
+                } else if (window.supabase && window.supabase.auth) {
+                    resolve(window.supabase);
+                } else {
+                    const checkInterval = setInterval(() => {
+                        if (window.supabaseReady && window.supabase) {
+                            clearInterval(checkInterval);
+                            resolve(window.supabase);
+                        } else if (window.supabase && window.supabase.auth) {
+                            clearInterval(checkInterval);
+                            resolve(window.supabase);
+                        }
+                    }, 300);
+                    
+                    // Timeout after 15 seconds
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        console.error('❌ Timeout waiting for Supabase');
+                        resolve(null);
+                    }, 15000);
+                }
+            });
+        }
+        
+        // Wait for DOM and Supabase to be ready
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('📄 DOM loaded, waiting for Supabase...');
+            
+            // Wait for Supabase to be ready
+            supabaseClient = await waitForSupabase();
+            
+            if (!supabaseClient) {
+                console.error('❌ Supabase not available after waiting');
+                notification.error('Failed to initialize. Please refresh the page.');
+                return;
+            }
+            
+            console.log('✅ Supabase is ready for registration');
+            
             const registerForm = document.getElementById('registerForm');
             if (!registerForm) return;
             
             registerForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
-                // Check if Supabase is ready
+                // Double-check Supabase is ready
                 if (!window.supabase || !window.supabase.auth) {
-                    notification.error('Supabase not initialized. Please refresh the page.');
-                    console.error('❌ Supabase not available');
+                    notification.error('Supabase not ready. Please refresh the page.');
+                    console.error('❌ Supabase still not available');
                     return;
                 }
                 
@@ -792,7 +863,8 @@
                                 last_name: lastName,
                                 full_name: `${firstName} ${lastName}`,
                                 role: role,
-                                organization: organization || ''
+                                organization: organization || '',
+                                created_at: new Date().toISOString()
                             },
                             emailRedirectTo: window.location.origin + '/Dashboard.html'
                         }
@@ -801,7 +873,7 @@
                     if (error) throw error;
                     
                     if (data?.user && data?.session) {
-                        // Auto-logged in
+                        // Auto-logged in (email confirmation disabled)
                         notification.success('Account created! Redirecting to dashboard...');
                         
                         // Store user info
@@ -816,6 +888,14 @@
                             avatar: initials,
                             email: user.email
                         }));
+                        
+                        // Store session
+                        if (data.session) {
+                            localStorage.setItem('supabase.auth.token', JSON.stringify({
+                                currentSession: data.session,
+                                expiresAt: data.session.expires_at
+                            }));
+                        }
                         
                         // Redirect to dashboard
                         setTimeout(() => {
@@ -833,6 +913,11 @@
                         setTimeout(() => {
                             window.location.href = 'login.html?registered=true';
                         }, 3000);
+                    } else {
+                        notification.success('Registration successful! Please check your email.');
+                        setTimeout(() => {
+                            window.location.href = 'login.html';
+                        }, 2000);
                     }
                     
                 } catch (error) {
@@ -841,10 +926,18 @@
                     let errorMessage = 'Registration failed';
                     if (error.message.includes('User already registered')) {
                         errorMessage = 'Email already registered. Please login instead.';
+                        // Offer to redirect to login
+                        setTimeout(() => {
+                            if (confirm('Email already registered. Go to login page?')) {
+                                window.location.href = 'login.html';
+                            }
+                        }, 500);
                     } else if (error.message.includes('Password should be at least 6 characters')) {
-                        errorMessage = 'Password must be at least 6 characters long';
+                        errorMessage = 'Password must be at least 8 characters long';
                     } else if (error.message.includes('rate limit')) {
                         errorMessage = 'Too many attempts. Please try again later.';
+                    } else if (error.message.includes('invalid')) {
+                        errorMessage = 'Invalid email format';
                     } else {
                         errorMessage = error.message;
                     }
@@ -862,7 +955,7 @@
         (async function() {
             const checkSession = async () => {
                 if (!window.supabase || !window.supabase.auth) {
-                    setTimeout(checkSession, 500);
+                    setTimeout(checkSession, 1000);
                     return;
                 }
                 
@@ -877,7 +970,7 @@
                 }
             };
             
-            setTimeout(checkSession, 1000);
+            setTimeout(checkSession, 1500);
         })();
     </script>
 </body>
