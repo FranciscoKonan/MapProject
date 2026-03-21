@@ -338,6 +338,7 @@
     align-items: center;
     gap: 12px;
     margin-bottom: 10px;
+    flex-wrap: wrap;
 }
 
 .alert-severity {
@@ -393,18 +394,11 @@
     margin: 4px 0;
 }
 
-.alert-farm-info {
-    background: #f1f5f9;
-    padding: 8px 12px;
-    border-radius: 8px;
-    margin: 8px 0;
-    font-size: 12px;
-}
-
 .alert-actions {
     margin-left: 44px;
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
 }
 
 .alert-action-btn {
@@ -459,6 +453,11 @@
 
 .alert-badge.resolved {
     background: #22c55e;
+    color: white;
+}
+
+.alert-badge.ignored {
+    background: #94a3b8;
     color: white;
 }
 
@@ -529,7 +528,6 @@
 
 .modal-header {
     padding: 20px;
-    background: linear-gradient(135deg, #dc2626, #f97316);
     color: white;
     display: flex;
     justify-content: space-between;
@@ -580,6 +578,7 @@
     margin-top: 20px;
     padding-top: 15px;
     border-top: 1px solid #e2e8f0;
+    flex-wrap: wrap;
 }
 
 .modal-btn {
@@ -636,6 +635,11 @@
     to { transform: translateX(0); opacity: 1; }
 }
 
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+
 /* ===========================================
    RESPONSIVE
    =========================================== */
@@ -687,7 +691,6 @@
     
     .alert-actions {
         margin-left: 0;
-        flex-wrap: wrap;
     }
     
     .export-options-bar {
@@ -696,5 +699,14 @@
     
     .export-count {
         margin-left: 0;
+    }
+    
+    .modal-row {
+        flex-direction: column;
+    }
+    
+    .modal-label {
+        width: 100%;
+        margin-bottom: 5px;
     }
 }
