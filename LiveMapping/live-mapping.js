@@ -14,69 +14,36 @@ let farmLayers = new Map();
 let uniqueSuppliers = [];
 let uniqueCooperatives = [];
 let selectedFarm = null;
-let supplierSearchTerm = '';
-let coopSearchTerm = '';
 let supabaseReady = false;
 
 // ===========================================
-// WAIT FOR SUPABASE READY
+// INITIALIZATION - WAIT FOR SUPABASE
 // ===========================================
-function waitForSupabase() {
-    return new Promise((resolve) => {
-        // Check if supabase is already ready
-        if (window.supabase && window.supabase.auth) {
-            console.log('✅ Supabase already ready');
-            resolve(true);
-            return;
-        }
-        
-        // Listen for supabase-ready event
-        window.addEventListener('supabase-ready', () => {
-            console.log('✅ Supabase ready event received');
-            resolve(true);
-        });
-        
-        // Also check periodically
-        let checkCount = 0;
-        const interval = setInterval(() => {
-            checkCount++;
-            if (window.supabase && window.supabase.auth) {
-                clearInterval(interval);
-                console.log('✅ Supabase ready (interval check)');
-                resolve(true);
-            } else if (checkCount > 40) { // 20 seconds timeout
-                clearInterval(interval);
-                console.warn('⚠️ Supabase not ready after timeout');
-                resolve(false);
-            }
-        }, 500);
-    });
-}
-
-// ===========================================
-// INITIALIZATION
-// ===========================================
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', function() {
     console.log('📌 DOM Content Loaded');
     
-    // Wait for Supabase to be ready
-    const ready = await waitForSupabase();
+    // Listen for Supabase ready
+    window.addEventListener('supabase-ready', function() {
+        console.log('✅ Supabase ready event received');
+        supabaseReady = true;
+        initializeApp();
+    });
     
-    if (!ready || !window.supabase) {
-        console.error('❌ Supabase not available, using sample data');
-        initMap();
-        loadSampleData();
-        return;
-    }
-    
-    console.log('✅ Supabase ready, initializing map...');
-    initMap();
-    
-    // Load farms after map is ready
-    setTimeout(() => {
-        loadFarms();
+    // Also check if already ready
+    setTimeout(function() {
+        if (window.supabase && !supabaseReady) {
+            console.log('✅ Supabase already ready');
+            supabaseReady = true;
+            initializeApp();
+        }
     }, 500);
 });
+
+function initializeApp() {
+    console.log('🚀 Initializing Live Mapping app...');
+    initMap();
+    loadFarms();
+}
 
 // ===========================================
 // MAP INITIALIZATION
@@ -145,95 +112,6 @@ function initMap() {
 }
 
 // ===========================================
-// EVENT LISTENERS
-// ===========================================
-function initEventListeners() {
-    const applyBtn = document.getElementById('applyFiltersBtn');
-    if (applyBtn) {
-        applyBtn.addEventListener('click', applyFilters);
-    }
-    
-    const syncBtn = document.getElementById('syncBtn');
-    if (syncBtn) {
-        syncBtn.addEventListener('click', syncWithKobo);
-    }
-    
-    // Base layer switching
-    document.querySelectorAll('input[name="baseLayer"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            switchBaseLayer(this.value);
-        });
-    });
-}
-
-// ===========================================
-// SEARCH FUNCTIONALITY
-// ===========================================
-function initSearchListeners() {
-    const supplierSearch = document.getElementById('supplierSearch');
-    const coopSearch = document.getElementById('coopSearch');
-    const mainSearch = document.getElementById('searchInput');
-    
-    if (supplierSearch) {
-        supplierSearch.addEventListener('input', (e) => {
-            supplierSearchTerm = e.target.value.toLowerCase();
-            updateSupplierFilter();
-        });
-    }
-    
-    if (coopSearch) {
-        coopSearch.addEventListener('input', (e) => {
-            coopSearchTerm = e.target.value.toLowerCase();
-            updateCooperativeFilter();
-        });
-    }
-    
-    if (mainSearch) {
-        mainSearch.addEventListener('keyup', (e) => {
-            if (e.key === 'Enter') {
-                performSearch(e.target.value);
-            }
-        });
-    }
-    
-    // Initialize filters after map loads
-    setTimeout(() => {
-        updateSupplierFilter();
-        updateCooperativeFilter();
-    }, 1000);
-}
-
-function updateSupplierFilter() {
-    const select = document.getElementById('supplierFilter');
-    if (!select) return;
-    
-    const filtered = uniqueSuppliers.filter(s => 
-        s.toLowerCase().includes(supplierSearchTerm)
-    );
-    
-    let options = '<option value="all">All Suppliers</option>';
-    filtered.forEach(s => {
-        options += `<option value="${s}">${s}</option>`;
-    });
-    select.innerHTML = options;
-}
-
-function updateCooperativeFilter() {
-    const select = document.getElementById('cooperativeFilter');
-    if (!select) return;
-    
-    const filtered = uniqueCooperatives.filter(c => 
-        c.toLowerCase().includes(coopSearchTerm)
-    );
-    
-    let options = '<option value="all">All Cooperatives</option>';
-    filtered.forEach(c => {
-        options += `<option value="${c}">${c}</option>`;
-    });
-    select.innerHTML = options;
-}
-
-// ===========================================
 // LOAD FARMS FROM SUPABASE
 // ===========================================
 async function loadFarms() {
@@ -282,33 +160,19 @@ async function loadFarms() {
             console.log('📋 Sample farm:', farms[0]);
             
             // Transform farms data
-            allFarms = farms.map(farm => {
-                // Get cooperative name
-                let cooperative = 'Unassigned';
-                if (farm.cooperative_name) cooperative = farm.cooperative_name;
-                else if (farm.cooperative) cooperative = farm.cooperative;
-                else if (farm.coop) cooperative = farm.coop;
-                
-                // Get supplier
-                let supplier = farm.supplier || 'Unknown';
-                
-                // Get status
-                let status = farm.status || 'pending';
-                
-                return {
-                    id: farm.id,
-                    farmId: farm.farmer_id || farm.id,
-                    farmerName: farm.farmer_name || 'Unknown Farmer',
-                    farmerId: farm.farmer_id || 'N/A',
-                    cooperative: cooperative,
-                    supplier: supplier,
-                    area: farm.area || 0,
-                    status: status,
-                    submissionDate: farm.submission_date || farm.created_at || new Date().toISOString(),
-                    enumerator: farm.enumerator || 'N/A',
-                    geometry: farm.geometry
-                };
-            });
+            allFarms = farms.map(farm => ({
+                id: farm.id,
+                farmId: farm.farmer_id || farm.id,
+                farmerName: farm.farmer_name || 'Unknown Farmer',
+                farmerId: farm.farmer_id || 'N/A',
+                cooperative: farm.cooperative || farm.cooperative_name || 'Unassigned',
+                supplier: farm.supplier || 'Unknown',
+                area: farm.area || 0,
+                status: farm.status || 'pending',
+                submissionDate: farm.submission_date || farm.created_at || new Date().toISOString(),
+                enumerator: farm.enumerator || 'N/A',
+                geometry: farm.geometry
+            }));
             
             // Update filter options
             updateFilterOptions();
@@ -318,15 +182,12 @@ async function loadFarms() {
             updateStats(filteredFarms);
             updateTimeline(filteredFarms);
             
-            // Initialize event listeners
-            initEventListeners();
-            initSearchListeners();
-            
             showNotification(`Loaded ${allFarms.length} farms`, 'success');
         } else {
             console.log('⚠️ No farms found in Supabase, loading sample data');
             loadSampleData();
         }
+        
     } catch (error) {
         console.error('Error loading farms:', error);
         showNotification('Error loading farms: ' + error.message, 'error');
@@ -414,8 +275,6 @@ function loadSampleData() {
     displayFarms(filteredFarms);
     updateStats(filteredFarms);
     updateTimeline(filteredFarms);
-    initEventListeners();
-    initSearchListeners();
     
     showNotification('Using sample data (demo mode)', 'info');
 }
@@ -427,11 +286,27 @@ function updateFilterOptions() {
     uniqueSuppliers = [...new Set(allFarms.map(f => f.supplier))].sort();
     uniqueCooperatives = [...new Set(allFarms.map(f => f.cooperative))].sort();
     
+    const supplierSelect = document.getElementById('supplierFilter');
+    const coopSelect = document.getElementById('cooperativeFilter');
+    
+    if (supplierSelect) {
+        let options = '<option value="all">All Suppliers</option>';
+        uniqueSuppliers.forEach(s => {
+            options += `<option value="${s}">${s}</option>`;
+        });
+        supplierSelect.innerHTML = options;
+    }
+    
+    if (coopSelect) {
+        let options = '<option value="all">All Cooperatives</option>';
+        uniqueCooperatives.forEach(c => {
+            options += `<option value="${c}">${c}</option>`;
+        });
+        coopSelect.innerHTML = options;
+    }
+    
     console.log('📊 Suppliers:', uniqueSuppliers);
     console.log('📊 Cooperatives:', uniqueCooperatives);
-    
-    updateSupplierFilter();
-    updateCooperativeFilter();
 }
 
 // ===========================================
@@ -471,7 +346,15 @@ function displayFarms(farms) {
             polygon.farmData = farm;
             farmLayers.set(farm.id, polygon);
             
-            polygon.bindPopup(createPopupContent(farm));
+            polygon.bindPopup(`
+                <div style="padding: 8px;">
+                    <b>${farm.farmerName}</b><br>
+                    <small>ID: ${farm.farmId}</small><br>
+                    <small>Area: ${farm.area.toFixed(2)} ha</small><br>
+                    <small>Status: ${farm.status}</small>
+                </div>
+            `);
+            
             polygon.on('click', () => showFarmDetails(farm));
             
             addedCount++;
@@ -500,30 +383,6 @@ function displayFarms(farms) {
 }
 
 // ===========================================
-// CREATE POPUP CONTENT
-// ===========================================
-function createPopupContent(farm) {
-    const statusColor = getStatusColor(farm.status);
-    
-    return `
-        <div class="farm-popup" style="padding: 12px; min-width: 200px;">
-            <h4 style="margin: 0 0 8px 0; color: #2c6e49;">${farm.farmerName}</h4>
-            <div style="font-size: 12px;">
-                <div><strong>ID:</strong> ${farm.farmId}</div>
-                <div><strong>Coop:</strong> ${farm.cooperative}</div>
-                <div><strong>Supplier:</strong> ${farm.supplier}</div>
-                <div><strong>Area:</strong> ${farm.area.toFixed(2)} ha</div>
-                <div><strong>Status:</strong> 
-                    <span style="display: inline-block; padding: 2px 8px; border-radius: 12px; background: ${statusColor}20; color: ${statusColor}; font-weight: 600;">
-                        ${farm.status}
-                    </span>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// ===========================================
 // SHOW FARM DETAILS
 // ===========================================
 function showFarmDetails(farm) {
@@ -532,68 +391,70 @@ function showFarmDetails(farm) {
     const panel = document.getElementById('propertiesPanel');
     const content = document.getElementById('propertyContent');
     
-    if (panel) panel.classList.add('active');
+    if (panel) panel.classList.remove('hidden');
     
     const statusColor = getStatusColor(farm.status);
     
     if (content) {
         content.innerHTML = `
             <div class="farm-detail-card">
-                <div class="detail-header" style="background: ${statusColor}20; padding: 16px; border-radius: 12px; margin-bottom: 16px;">
-                    <i class="fas fa-tractor" style="color: ${statusColor}; font-size: 24px;"></i>
-                    <h3 style="margin: 10px 0 0 0;">${farm.farmerName}</h3>
+                <div class="detail-header" style="background: ${statusColor}20;">
+                    <i class="fas fa-tractor" style="color: ${statusColor};"></i>
+                    <h3>${farm.farmerName}</h3>
                 </div>
                 
-                <div class="detail-section" style="margin-bottom: 16px;">
-                    <h4 style="margin: 0 0 12px 0; color: #2c6e49;"><i class="fas fa-id-card"></i> Identification</h4>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #666;">Farm ID:</span>
-                        <span style="font-weight: 600;">${farm.farmId}</span>
+                <div class="detail-section">
+                    <h4><i class="fas fa-id-card"></i> Identification</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">Farm ID:</span>
+                        <span class="detail-value">${farm.farmId}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #666;">Farmer ID:</span>
-                        <span style="font-weight: 600;">${farm.farmerId}</span>
-                    </div>
-                </div>
-                
-                <div class="detail-section" style="margin-bottom: 16px;">
-                    <h4 style="margin: 0 0 12px 0; color: #2c6e49;"><i class="fas fa-building"></i> Organization</h4>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #666;">Cooperative:</span>
-                        <span style="font-weight: 600;">${farm.cooperative}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #666;">Supplier:</span>
-                        <span style="font-weight: 600;">${farm.supplier}</span>
+                    <div class="detail-row">
+                        <span class="detail-label">Farmer ID:</span>
+                        <span class="detail-value">${farm.farmerId}</span>
                     </div>
                 </div>
                 
-                <div class="detail-section" style="margin-bottom: 16px;">
-                    <h4 style="margin: 0 0 12px 0; color: #2c6e49;"><i class="fas fa-ruler-combined"></i> Measurements</h4>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #666;">Area:</span>
-                        <span style="font-weight: 600; color: #2c6e49;">${farm.area.toFixed(2)} ha</span>
+                <div class="detail-section">
+                    <h4><i class="fas fa-building"></i> Organization</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">Cooperative:</span>
+                        <span class="detail-value">${farm.cooperative}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #666;">Status:</span>
-                        <span class="status-badge ${farm.status}" style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 20px;">${farm.status}</span>
-                    </div>
-                </div>
-                
-                <div class="detail-section" style="margin-bottom: 16px;">
-                    <h4 style="margin: 0 0 12px 0; color: #2c6e49;"><i class="fas fa-calendar"></i> Submission</h4>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #666;">Date:</span>
-                        <span style="font-weight: 600;">${new Date(farm.submissionDate).toLocaleDateString()}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #666;">Enumerator:</span>
-                        <span style="font-weight: 600;">${farm.enumerator}</span>
+                    <div class="detail-row">
+                        <span class="detail-label">Supplier:</span>
+                        <span class="detail-value">${farm.supplier}</span>
                     </div>
                 </div>
                 
-                <div class="detail-actions" style="margin-top: 20px;">
-                    <button class="btn-primary" onclick="window.zoomToFarm('${farm.id}')" style="width: 100%; padding: 12px; background: #2c6e49; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                <div class="detail-section">
+                    <h4><i class="fas fa-ruler-combined"></i> Measurements</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">Area:</span>
+                        <span class="detail-value highlight">${farm.area.toFixed(2)} ha</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value">
+                            <span class="status-badge ${farm.status}">${farm.status}</span>
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4><i class="fas fa-calendar"></i> Submission</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">Date:</span>
+                        <span class="detail-value">${new Date(farm.submissionDate).toLocaleDateString()}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Enumerator:</span>
+                        <span class="detail-value">${farm.enumerator}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-actions">
+                    <button class="btn-primary" onclick="window.zoomToFarm('${farm.id}')">
                         <i class="fas fa-search"></i> Zoom to Farm
                     </button>
                 </div>
@@ -670,13 +531,13 @@ function updateTimeline(farms) {
     }
     
     timeline.innerHTML = recent.map(farm => `
-        <div class="timeline-item" onclick="window.zoomToFarm('${farm.id}')" style="cursor: pointer; padding: 12px; border-bottom: 1px solid #eee; display: flex; gap: 12px;">
-            <div class="timeline-icon" style="width: 40px; height: 40px; background: ${getStatusColor(farm.status)}; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                <i class="fas fa-tractor" style="color: white;"></i>
+        <div class="timeline-item" onclick="window.zoomToFarm('${farm.id}')">
+            <div class="timeline-icon" style="background: ${getStatusColor(farm.status)};">
+                <i class="fas fa-tractor"></i>
             </div>
             <div class="timeline-content">
-                <div class="timeline-title" style="font-weight: 600;">${farm.farmerName}</div>
-                <div class="timeline-subtitle" style="font-size: 12px; color: #666;">
+                <div class="timeline-title">${farm.farmerName}</div>
+                <div class="timeline-subtitle">
                     ${farm.area.toFixed(1)} ha • ${new Date(farm.submissionDate).toLocaleDateString()}
                 </div>
             </div>
@@ -685,7 +546,7 @@ function updateTimeline(farms) {
 }
 
 // ===========================================
-// GET STATUS COLOR
+// HELPER FUNCTIONS
 // ===========================================
 function getStatusColor(status) {
     const colors = {
@@ -696,153 +557,6 @@ function getStatusColor(status) {
     return colors[status] || '#2196F3';
 }
 
-// ===========================================
-// MAP CONTROL FUNCTIONS
-// ===========================================
-window.zoomIn = function() {
-    if (map) map.zoomIn();
-};
-
-window.zoomOut = function() {
-    if (map) map.zoomOut();
-};
-
-window.resetView = function() {
-    if (map) map.setView([7.539989, -5.547080], 8);
-};
-
-window.locateMe = function() {
-    if (!map) return;
-    
-    map.locate({ setView: true, maxZoom: 16 });
-    
-    map.once('locationfound', function(e) {
-        L.marker(e.latlng).addTo(map)
-            .bindPopup('You are here')
-            .openPopup();
-        showNotification('Location found', 'success');
-    });
-    
-    map.once('locationerror', function() {
-        showNotification('Location access denied', 'error');
-    });
-};
-
-window.toggleDrawMode = function() {
-    showNotification('Draw mode - coming soon', 'info');
-};
-
-window.toggleLegend = function() {
-    const legend = document.getElementById('mapLegend');
-    if (legend) {
-        legend.style.display = legend.style.display === 'none' ? 'block' : 'none';
-    }
-};
-
-window.zoomToAllFarms = function() {
-    if (farmLayers.size === 0) {
-        showNotification('No farms to zoom to', 'warning');
-        return;
-    }
-    
-    const bounds = L.latLngBounds();
-    farmLayers.forEach(layer => {
-        if (layer.getBounds && layer.getBounds().isValid()) {
-            bounds.extend(layer.getBounds());
-        }
-    });
-    
-    if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [50, 50] });
-        showNotification(`Showing all ${farmLayers.size} farms`, 'info');
-    }
-};
-
-window.zoomToFarm = function(farmId) {
-    const layer = farmLayers.get(farmId);
-    if (layer && map) {
-        map.fitBounds(layer.getBounds(), { padding: [50, 50] });
-        const farm = allFarms.find(f => f.id === farmId);
-        if (farm) showFarmDetails(farm);
-    }
-};
-
-window.closeProperties = function() {
-    const panel = document.getElementById('propertiesPanel');
-    if (panel) panel.classList.remove('active');
-};
-
-// ===========================================
-// SWITCH BASE LAYER
-// ===========================================
-function switchBaseLayer(type) {
-    if (!map) return;
-    
-    map.eachLayer(layer => {
-        if (layer instanceof L.TileLayer) {
-            map.removeLayer(layer);
-        }
-    });
-    
-    if (type === 'satellite') {
-        L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-        }).addTo(map);
-        showNotification('Switched to Satellite view', 'info');
-    } else {
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19
-        }).addTo(map);
-        showNotification('Switched to Streets view', 'info');
-    }
-}
-
-// ===========================================
-// PERFORM SEARCH
-// ===========================================
-function performSearch(term) {
-    if (!term || term.length < 2) {
-        showNotification('Enter at least 2 characters to search', 'warning');
-        return;
-    }
-    
-    const results = filteredFarms.filter(farm => 
-        farm.farmerName.toLowerCase().includes(term.toLowerCase()) ||
-        farm.farmId.toLowerCase().includes(term.toLowerCase()) ||
-        farm.cooperative.toLowerCase().includes(term.toLowerCase())
-    );
-    
-    if (results.length === 1) {
-        zoomToFarm(results[0].id);
-        showNotification('Farm found', 'success');
-    } else if (results.length > 1) {
-        showNotification(`Found ${results.length} farms`, 'info');
-    } else {
-        showNotification('No farms found', 'warning');
-    }
-}
-
-// ===========================================
-// SYNC WITH KOBO
-// ===========================================
-function syncWithKobo() {
-    const btn = document.getElementById('syncBtn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
-    btn.disabled = true;
-    
-    setTimeout(() => {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        showNotification('Sync completed successfully', 'success');
-        loadFarms(); // Reload farms after sync
-    }, 2000);
-}
-
-// ===========================================
-// NOTIFICATION
-// ===========================================
 function showNotification(message, type = 'info') {
     console.log(`[${type}] ${message}`);
     
@@ -879,30 +593,149 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-// Add animation styles if not already added
-if (!document.getElementById('live-mapping-styles')) {
-    const style = document.createElement('style');
-    style.id = 'live-mapping-styles';
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+// ===========================================
+// MAP CONTROL FUNCTIONS
+// ===========================================
+window.zoomIn = function() {
+    if (map) map.zoomIn();
+};
+
+window.zoomOut = function() {
+    if (map) map.zoomOut();
+};
+
+window.resetView = function() {
+    if (map) map.setView([7.539989, -5.547080], 8);
+};
+
+window.locateMe = function() {
+    if (!map) return;
+    
+    map.locate({ setView: true, maxZoom: 16 });
+    
+    map.once('locationfound', function(e) {
+        L.marker(e.latlng).addTo(map)
+            .bindPopup('You are here')
+            .openPopup();
+        showNotification('Location found', 'success');
+    });
+    
+    map.once('locationerror', function() {
+        showNotification('Location access denied', 'error');
+    });
+};
+
+window.zoomToAllFarms = function() {
+    if (farmLayers.size === 0) {
+        showNotification('No farms to zoom to', 'warning');
+        return;
+    }
+    
+    const bounds = L.latLngBounds();
+    farmLayers.forEach(layer => {
+        if (layer.getBounds && layer.getBounds().isValid()) {
+            bounds.extend(layer.getBounds());
         }
-        @keyframes slideOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
+    });
+    
+    if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+        showNotification(`Showing all ${farmLayers.size} farms`, 'info');
+    }
+};
+
+window.zoomToFarm = function(farmId) {
+    const layer = farmLayers.get(farmId);
+    if (layer && map) {
+        map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+        const farm = allFarms.find(f => f.id === farmId);
+        if (farm) showFarmDetails(farm);
+    }
+};
+
+window.closeProperties = function() {
+    const panel = document.getElementById('propertiesPanel');
+    if (panel) panel.classList.add('hidden');
+};
+
+// ===========================================
+// EVENT LISTENERS
+// ===========================================
+document.getElementById('applyFiltersBtn')?.addEventListener('click', applyFilters);
+
+document.getElementById('searchInput')?.addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') {
+        const term = this.value.trim();
+        if (term.length < 2) {
+            showNotification('Enter at least 2 characters to search', 'warning');
+            return;
         }
-        .farm-popup {
-            pointer-events: auto;
+        
+        const results = filteredFarms.filter(farm => 
+            farm.farmerName.toLowerCase().includes(term.toLowerCase()) ||
+            farm.farmId.toLowerCase().includes(term.toLowerCase()) ||
+            farm.cooperative.toLowerCase().includes(term.toLowerCase())
+        );
+        
+        if (results.length === 1) {
+            zoomToFarm(results[0].id);
+            showNotification('Farm found', 'success');
+        } else if (results.length > 1) {
+            showNotification(`Found ${results.length} farms`, 'info');
+        } else {
+            showNotification('No farms found', 'warning');
         }
-        .properties-panel {
-            display: none;
+    }
+});
+
+document.getElementById('syncBtn')?.addEventListener('click', function() {
+    const btn = this;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+    btn.disabled = true;
+    
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        showNotification('Sync completed successfully', 'success');
+        loadFarms();
+    }, 2000);
+});
+
+document.querySelectorAll('input[name="baseLayer"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        if (!map) return;
+        
+        map.eachLayer(layer => {
+            if (layer instanceof L.TileLayer) {
+                map.removeLayer(layer);
+            }
+        });
+        
+        if (this.value === 'satellite') {
+            L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+            }).addTo(map);
+            showNotification('Switched to Satellite view', 'info');
+        } else {
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19
+            }).addTo(map);
+            showNotification('Switched to Streets view', 'info');
         }
-        .properties-panel.active {
-            display: block;
-        }
-    `;
-    document.head.appendChild(style);
-}
+    });
+});
+
+// Logout handler
+document.getElementById('logoutBtn')?.addEventListener('click', async function(e) {
+    e.preventDefault();
+    if (window.supabase) {
+        await window.supabase.auth.signOut();
+    }
+    localStorage.removeItem('mappingtrace_user');
+    localStorage.removeItem('supabase.auth.token');
+    window.location.href = '../login.html';
+});
 
 console.log('✅ Live Mapping ready');
