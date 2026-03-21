@@ -17,26 +17,36 @@ let uniqueSuppliers = [];
 let uniqueCooperatives = [];
 let supplierSearchTerm = '';
 let coopSearchTerm = '';
+let supabaseReady = false;
 
 // ===========================================
-// SUPABASE CONFIGURATION
+// SUPABASE CONFIGURATION (Same as Dashboard)
 // ===========================================
 const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cnVmbWVsZnRicXBzZW1uamJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzYwNTMsImV4cCI6MjA4NjY1MjA1M30.1NPN666Lt9WZHupvp_XIFu-SnsaextHH_JvXgQPtyV0';
 
 // ===========================================
-// INITIALIZATION
+// INITIALIZATION - Wait for DOM and Supabase
 // ===========================================
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing...');
+    console.log('📌 DOM Content Loaded');
     
-    // Load user data from localStorage
+    // Load user data from localStorage (same as Dashboard)
     const userData = localStorage.getItem('mappingtrace_user');
     if (userData) {
         const user = JSON.parse(userData);
         document.getElementById('userName').textContent = user.fullName || 'User';
         document.getElementById('userRole').textContent = user.role || 'User';
         document.getElementById('userAvatar').textContent = user.avatar || 'U';
+    } else {
+        // Try to load from Dashboard's format
+        const dashboardUser = localStorage.getItem('dashboardUser');
+        if (dashboardUser) {
+            const user = JSON.parse(dashboardUser);
+            document.getElementById('userName').textContent = user.name || 'User';
+            document.getElementById('userRole').textContent = user.role || 'User';
+            document.getElementById('userAvatar').textContent = user.initials || 'U';
+        }
     }
     
     // Initialize Supabase
@@ -47,93 +57,131 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initSupabase(retryCount = 0) {
-    console.log('Initializing Supabase...');
+    console.log('🔧 Initializing Supabase...');
     
     if (typeof window.supabase === 'undefined') {
-        if (retryCount < 10) {
-            console.log(`Waiting for Supabase... (${retryCount + 1}/10)`);
+        if (retryCount < 15) {
+            console.log(`⏳ Waiting for Supabase library... (${retryCount + 1}/15)`);
             setTimeout(() => initSupabase(retryCount + 1), 500);
             return;
         }
-        console.error('Supabase library failed to load');
+        console.error('❌ Supabase library failed to load');
         loadSampleData();
         return;
     }
     
     try {
         window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('✅ Supabase initialized');
-        loadSubmissions();
+        supabaseReady = true;
+        console.log('✅ Supabase initialized successfully');
+        
+        // Check session and load data
+        checkSessionAndLoad();
+        
     } catch (error) {
-        console.error('Supabase init error:', error);
+        console.error('❌ Supabase init error:', error);
+        if (retryCount < 5) {
+            setTimeout(() => initSupabase(retryCount + 1), 1000);
+        } else {
+            loadSampleData();
+        }
+    }
+}
+
+async function checkSessionAndLoad() {
+    try {
+        const { data: { session } } = await window.supabase.auth.getSession();
+        
+        if (!session) {
+            console.log('⚠️ No active session, redirecting to login');
+            showNotification('Please login to view submissions', 'warning');
+            setTimeout(() => {
+                window.location.href = '../login.html';
+            }, 2000);
+            return;
+        }
+        
+        console.log('👤 User logged in:', session.user.email);
+        loadSubmissions();
+        
+    } catch (error) {
+        console.error('Session check error:', error);
         loadSampleData();
     }
 }
 
 // ===========================================
-// LOAD SUBMISSIONS
+// LOAD SUBMISSIONS - Same pattern as Dashboard
 // ===========================================
 async function loadSubmissions() {
-    console.log('Loading submissions from Supabase...');
+    console.log('📡 Loading submissions from farms table...');
+    showNotification('Loading submissions...', 'info');
     
     try {
-        // Check session
-        const { data: { session } } = await window.supabase.auth.getSession();
-        if (!session) {
-            console.log('No session, using sample data');
-            loadSampleData();
-            return;
-        }
-        
-        // Fetch farms
+        // Fetch farms data (same as Dashboard)
         const { data: farms, error } = await window.supabase
             .from('farms')
             .select('*')
             .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase error:', error);
+            throw error;
+        }
         
         if (farms && farms.length > 0) {
+            console.log(`✅ Loaded ${farms.length} farms from database`);
+            
+            // Transform farms data to submissions format
             allSubmissions = farms.map(farm => ({
                 id: farm.id,
                 farmerId: farm.farmer_id || farm.id,
-                farmerName: farm.farmer_name || 'Unknown',
+                farmerName: farm.farmer_name || 'Unknown Farmer',
                 cooperative: farm.cooperative || farm.cooperative_name || 'Unassigned',
                 supplier: farm.supplier || 'Unknown',
                 area: farm.area || 0,
                 status: farm.status || 'pending',
                 enumerator: farm.enumerator || 'N/A',
-                submissionDate: farm.created_at || new Date().toISOString()
+                updatedBy: farm.updated_by || farm.enumerator || 'System',
+                submissionDate: farm.submission_date || farm.created_at || new Date().toISOString(),
+                geometry: farm.geometry
             }));
-            console.log(`✅ Loaded ${allSubmissions.length} submissions`);
+            
+            // Update filter options
+            updateFilterOptions();
+            
+            // Apply filters and render
+            applyFilters();
+            
+            showNotification(`Loaded ${allSubmissions.length} submissions`, 'success');
+            
         } else {
+            console.log('⚠️ No farms found in database');
+            showNotification('No farms found. Add farms to see submissions.', 'info');
             loadSampleData();
-            return;
         }
-        
-        updateFilterOptions();
-        applyFilters();
         
     } catch (error) {
         console.error('Error loading submissions:', error);
+        showNotification('Error loading submissions: ' + error.message, 'error');
         loadSampleData();
     }
 }
 
 // ===========================================
-// SAMPLE DATA
+// SAMPLE DATA (Fallback when no data in Supabase)
 // ===========================================
 function loadSampleData() {
-    console.log('Loading sample data...');
+    console.log('📊 Loading sample submissions data');
     
     allSubmissions = [
-        { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 2.5, status: 'validated', enumerator: 'EN001', submissionDate: new Date().toISOString() },
-        { id: '2', farmerId: 'F12346', farmerName: 'Konan Marie', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.8, status: 'pending', enumerator: 'EN002', submissionDate: new Date().toISOString() },
-        { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', submissionDate: new Date().toISOString() },
-        { id: '4', farmerId: 'F12348', farmerName: 'Yao Michel', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 4.1, status: 'validated', enumerator: 'EN001', submissionDate: new Date().toISOString() },
-        { id: '5', farmerId: 'F12349', farmerName: 'Traore Amadou', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.2, status: 'pending', enumerator: 'EN002', submissionDate: new Date().toISOString() },
-        { id: '6', farmerId: 'F12350', farmerName: 'Kouassi Alphonse', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 5.3, status: 'validated', enumerator: 'EN003', submissionDate: new Date().toISOString() },
-        { id: '7', farmerId: 'F12351', farmerName: 'Diomande Issa', cooperative: 'COOP-CI', supplier: 'Other', area: 2.2, status: 'pending', enumerator: 'EN001', submissionDate: new Date().toISOString() }
+        { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 2.5, status: 'validated', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() },
+        { id: '2', farmerId: 'F12346', farmerName: 'Konan Marie', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.8, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() },
+        { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
+        { id: '4', farmerId: 'F12348', farmerName: 'Yao Michel', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 4.1, status: 'validated', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() },
+        { id: '5', farmerId: 'F12349', farmerName: 'Traore Amadou', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.2, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
+        { id: '6', farmerId: 'F12350', farmerName: 'Kouassi Alphonse', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 5.3, status: 'validated', enumerator: 'EN003', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString() },
+        { id: '7', farmerId: 'F12351', farmerName: 'Diomande Issa', cooperative: 'COOP-CI', supplier: 'Other', area: 2.2, status: 'pending', enumerator: 'EN001', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() }
     ];
     
     updateFilterOptions();
@@ -142,7 +190,7 @@ function loadSampleData() {
 }
 
 // ===========================================
-// FILTER OPTIONS
+// UPDATE FILTER OPTIONS
 // ===========================================
 function updateFilterOptions() {
     uniqueSuppliers = [...new Set(allSubmissions.map(s => s.supplier))].sort();
@@ -217,6 +265,9 @@ function applyFilters() {
     // Update stats
     updateStats();
     
+    // Reset to first page
+    currentPage = 1;
+    
     // Render current view
     if (currentView === 'table') {
         renderTableView();
@@ -234,6 +285,9 @@ function sortSubmissions() {
         if (currentSort.column === 'area') {
             aVal = parseFloat(aVal) || 0;
             bVal = parseFloat(bVal) || 0;
+        } else if (currentSort.column === 'submissionDate') {
+            aVal = new Date(aVal).getTime();
+            bVal = new Date(bVal).getTime();
         } else {
             aVal = String(aVal).toLowerCase();
             bVal = String(bVal).toLowerCase();
@@ -246,7 +300,7 @@ function sortSubmissions() {
 }
 
 // ===========================================
-// UPDATE STATS
+// UPDATE STATISTICS
 // ===========================================
 function updateStats() {
     const pending = filteredSubmissions.filter(s => s.status === 'pending').length;
@@ -272,16 +326,16 @@ function renderTableView() {
     const pageData = filteredSubmissions.slice(start, start + rowsPerPage);
     
     if (pageData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">No submissions found</td></tr>';
+        tbody.innerHTML = '运转<td colspan="7" style="text-align:center;padding:40px;">No submissions found</td></tr>';
         return;
     }
     
     tbody.innerHTML = pageData.map(sub => `
         <tr>
-            <td>${sub.farmerId}</td>
-            <td>${sub.farmerName}</td>
-            <td>${sub.cooperative}</td>
-            <td>${sub.supplier}</td>
+            <td>${escapeHtml(sub.farmerId)}</td>
+            <td>${escapeHtml(sub.farmerName)}</td>
+            <td>${escapeHtml(sub.cooperative)}</td>
+            <td>${escapeHtml(sub.supplier)}</td>
             <td>${sub.area.toFixed(2)}</td>
             <td><span class="status-badge ${sub.status}">${sub.status}</span></td>
             <td>
@@ -328,20 +382,21 @@ function renderGroupView() {
         <div class="group-card">
             <div class="group-header">
                 <div class="group-title">
-                    <i class="fas fa-building"></i> ${supplier}
+                    <i class="fas fa-building"></i> ${escapeHtml(supplier)}
                 </div>
                 <div class="group-stats">
                     ${submissions.length} farms • 
                     ${submissions.filter(s => s.status === 'validated').length} validated • 
-                    ${submissions.filter(s => s.status === 'pending').length} pending
+                    ${submissions.filter(s => s.status === 'pending').length} pending • 
+                    ${submissions.filter(s => s.status === 'rejected').length} rejected
                 </div>
             </div>
             <div class="group-items">
                 ${submissions.map(sub => `
                     <div class="group-item" onclick="viewSubmission('${sub.id}')">
-                        <div class="group-item-name">${sub.farmerName}</div>
+                        <div class="group-item-name">${escapeHtml(sub.farmerName)}</div>
                         <div class="group-item-details">
-                            ID: ${sub.farmerId}<br>
+                            ID: ${escapeHtml(sub.farmerId)}<br>
                             Area: ${sub.area.toFixed(2)} ha<br>
                             Status: <span class="status-badge ${sub.status}">${sub.status}</span>
                         </div>
@@ -429,30 +484,62 @@ function toggleView() {
 // ===========================================
 // ACTIONS
 // ===========================================
-function viewSubmission(id) {
+async function viewSubmission(id) {
     const submission = allSubmissions.find(s => s.id === id);
     if (!submission) return;
     
     showModal(submission);
 }
 
-function approveSubmission(id) {
+async function approveSubmission(id) {
     if (!confirm('Are you sure you want to approve this submission?')) return;
     
     const submission = allSubmissions.find(s => s.id === id);
     if (submission) {
+        // Update in Supabase if available
+        if (window.supabase && supabaseReady) {
+            try {
+                const { error } = await window.supabase
+                    .from('farms')
+                    .update({ status: 'validated', updated_by: 'Admin' })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                showNotification('Submission approved in database!', 'success');
+            } catch (error) {
+                console.error('Error updating Supabase:', error);
+                showNotification('Error updating database. Local update only.', 'warning');
+            }
+        }
+        
         submission.status = 'validated';
         applyFilters();
         showNotification('Submission approved!', 'success');
     }
 }
 
-function rejectSubmission(id) {
+async function rejectSubmission(id) {
     const reason = prompt('Please enter rejection reason:', 'Invalid data');
     if (!reason) return;
     
     const submission = allSubmissions.find(s => s.id === id);
     if (submission) {
+        // Update in Supabase if available
+        if (window.supabase && supabaseReady) {
+            try {
+                const { error } = await window.supabase
+                    .from('farms')
+                    .update({ status: 'rejected', updated_by: 'Admin', rejection_reason: reason })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                showNotification('Submission rejected in database!', 'info');
+            } catch (error) {
+                console.error('Error updating Supabase:', error);
+                showNotification('Error updating database. Local update only.', 'warning');
+            }
+        }
+        
         submission.status = 'rejected';
         applyFilters();
         showNotification('Submission rejected!', 'info');
@@ -477,19 +564,19 @@ function showModal(submission) {
             <div class="modal-body">
                 <div class="modal-row">
                     <div class="modal-label">Farmer ID:</div>
-                    <div class="modal-value">${submission.farmerId}</div>
+                    <div class="modal-value">${escapeHtml(submission.farmerId)}</div>
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Farmer Name:</div>
-                    <div class="modal-value">${submission.farmerName}</div>
+                    <div class="modal-value">${escapeHtml(submission.farmerName)}</div>
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Cooperative:</div>
-                    <div class="modal-value">${submission.cooperative}</div>
+                    <div class="modal-value">${escapeHtml(submission.cooperative)}</div>
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Supplier:</div>
-                    <div class="modal-value">${submission.supplier}</div>
+                    <div class="modal-value">${escapeHtml(submission.supplier)}</div>
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Area:</div>
@@ -503,7 +590,7 @@ function showModal(submission) {
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Enumerator:</div>
-                    <div class="modal-value">${submission.enumerator}</div>
+                    <div class="modal-value">${escapeHtml(submission.enumerator)}</div>
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Submitted:</div>
@@ -537,8 +624,18 @@ function showModal(submission) {
 }
 
 // ===========================================
-// NOTIFICATION
+// HELPER FUNCTIONS
 // ===========================================
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function showNotification(message, type = 'info') {
     console.log(`[${type}] ${message}`);
     
@@ -669,3 +766,14 @@ window.rejectSubmission = rejectSubmission;
 window.goToPage = goToPage;
 window.toggleView = toggleView;
 window.applyFilters = applyFilters;
+window.sortTable = (column) => {
+    if (currentSort.column === column) {
+        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.column = column;
+        currentSort.direction = 'asc';
+    }
+    applyFilters();
+};
+
+console.log('✅ Submissions page ready');
