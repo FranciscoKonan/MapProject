@@ -29,33 +29,33 @@
                 </h2>
             </div>
             <nav class="menu">
-                <a href="../Dashboard.html" data-title="Dashboard">
+                <a href="../Dashboard.html">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="../LiveMapping/live-mapping.html" data-title="Live Mapping">
+                <a href="../LiveMapping/live-mapping.html">
                     <i class="fas fa-map"></i>
                     <span>Live Mapping</span>
                 </a>
-                <a href="../Submissions/submissions.html" data-title="Submissions">
+                <a href="../Submissions/submissions.html">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Submissions</span>
                 </a>
-                <a href="../QualityAlerts/quality-alerts.html" data-title="Quality Alerts">
+                <a href="../QualityAlerts/quality-alerts.html">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Quality Alerts</span>
                 </a>
-                <a href="#" class="active" data-title="Exports">
+                <a href="#" class="active">
                     <i class="fas fa-file-export"></i>
                     <span>Exports</span>
                 </a>
+                <div class="menu-bottom">
+                    <a href="../login.html" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
             </nav>
-            <div class="menu-bottom">
-                <a href="../login.html" id="logoutBtn" data-title="Logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Logout</span>
-                </a>
-            </div>
         </aside>
 
         <!-- MAIN CONTENT -->
@@ -67,17 +67,17 @@
                     <div class="breadcrumb">Home / Exports</div>
                 </div>
                 <div class="user-info">
-                    <div class="user-avatar">FK</div>
+                    <div class="user-avatar" id="userAvatar">FK</div>
                     <div class="user-details">
-                        <div class="user-name">Francisco Konan</div>
-                        <div class="user-role">Admin</div>
+                        <div class="user-name" id="userName">Loading...</div>
+                        <div class="user-role" id="userRole">Loading...</div>
                     </div>
                     <button class="sync-btn" id="refreshBtn">
                         <i class="fas fa-sync-alt"></i> Refresh Data
                     </button>
                     <button class="notifications-btn" id="notificationsBtn">
                         <i class="fas fa-bell"></i>
-                        <span class="notification-badge">0</span>
+                        <span class="notification-badge" id="notificationBadge">0</span>
                     </button>
                 </div>
             </div>
@@ -150,7 +150,6 @@
                                     <span>All Suppliers</span>
                                 </label>
                                 <div class="checkbox-scroll" id="supplierList">
-                                    <!-- Suppliers will be loaded here -->
                                     <div class="loading-placeholder">Loading suppliers...</div>
                                 </div>
                             </div>
@@ -169,7 +168,6 @@
                                     <span>All Cooperatives</span>
                                 </label>
                                 <div class="checkbox-scroll" id="cooperativeList">
-                                    <!-- Cooperatives will be loaded here -->
                                     <div class="loading-placeholder">Loading cooperatives...</div>
                                 </div>
                             </div>
@@ -266,12 +264,12 @@
                             <thead id="previewHeader">
                                 <tr>
                                     <th>Farm ID</th>
-                                    <th>Farm Name</th>
                                     <th>Farmer Name</th>
                                     <th>Supplier</th>
                                     <th>Cooperative</th>
                                     <th>Area (ha)</th>
                                     <th>Status</th>
+                                    <th>Enumerator</th>
                                 </tr>
                             </thead>
                             <tbody id="previewBody">
@@ -298,30 +296,60 @@
         </main>
     </div>
 
-    <!-- Third Party Libraries -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
-    <!-- Supabase Initialization -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    
+    <!-- Direct Supabase Configuration -->
     <script>
-        (function() {
-            const supabaseUrl = window.CONFIG.SUPABASE_URL;
-            const supabaseAnonKey = window.CONFIG.SUPABASE_ANON_KEY;
-
-            try {
-                window.supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
-                console.log('✅ Exports: Supabase client initialized');
-            } catch (error) {
-                console.error('❌ Exports: Supabase init failed:', error);
+        // Supabase credentials - same as working pages
+        const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cnVmbWVsZnRicXBzZW1uamJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzYwNTMsImV4cCI6MjA4NjY1MjA1M30.1NPN666Lt9WZHupvp_XIFu-SnsaextHH_JvXgQPtyV0';
+        
+        console.log('✅ Exports: Supabase credentials loaded');
+        
+        let supabaseClient = null;
+        
+        function initSupabase(retryCount = 0) {
+            if (typeof window.supabase === 'undefined') {
+                if (retryCount < 10) {
+                    console.log(`⏳ Waiting for Supabase... (${retryCount + 1}/10)`);
+                    setTimeout(() => initSupabase(retryCount + 1), 500);
+                    return;
+                }
+                console.error('❌ Supabase library failed to load');
+                return;
             }
-        })();
+            
+            try {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                window.supabase = supabaseClient;
+                console.log('✅ Exports: Supabase initialized');
+                
+                // Load user data
+                const userData = localStorage.getItem('mappingtrace_user');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    document.getElementById('userName').textContent = user.fullName || 'User';
+                    document.getElementById('userRole').textContent = user.role || 'User';
+                    document.getElementById('userAvatar').textContent = user.avatar || 'U';
+                }
+                
+                // Dispatch event
+                window.dispatchEvent(new Event('supabase-ready'));
+                
+            } catch (err) {
+                console.error('❌ Supabase init error:', err);
+                if (retryCount < 5) {
+                    setTimeout(() => initSupabase(retryCount + 1), 1000);
+                }
+            }
+        }
+        
+        initSupabase();
     </script>
-
-    <!-- Core JS Files -->
-    <script src="../globalJS.js"></script>
-    <script src="../authJS.js"></script>
-    <script src="../notificationJS.js"></script>
     
     <!-- Exports JavaScript -->
     <script src="exports.js"></script>
