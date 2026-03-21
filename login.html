@@ -104,6 +104,47 @@
             background: white;
         }
         
+        .reset-message {
+            background: #d1fae5;
+            border-left: 4px solid #4CAF50;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .reset-message i {
+            color: #4CAF50;
+            font-size: 18px;
+        }
+        
+        .reset-message span {
+            flex: 1;
+            color: #065f46;
+            font-size: 13px;
+        }
+        
+        .demo-credentials {
+            background: #f0f9ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+        
+        .demo-credentials p {
+            margin: 5px 0;
+            color: #2c3e50;
+        }
+        
+        .demo-credentials strong {
+            color: #1976D2;
+        }
+        
         .form-group {
             margin-bottom: 24px;
         }
@@ -289,24 +330,6 @@
             color: #1e4d33;
         }
         
-        .demo-credentials {
-            background: #f0f9ff;
-            border-left: 4px solid #2196F3;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 13px;
-        }
-        
-        .demo-credentials p {
-            margin: 5px 0;
-            color: #2c3e50;
-        }
-        
-        .demo-credentials strong {
-            color: #1976D2;
-        }
-        
         .notification {
             position: fixed;
             top: 20px;
@@ -350,6 +373,17 @@
                 opacity: 1;
             }
         }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -361,6 +395,9 @@
         </div>
         
         <div class="auth-body">
+            <!-- Reset Password Success Message -->
+            <div id="resetMessage" style="display: none;"></div>
+            
             <div class="demo-credentials">
                 <p><strong><i class="fas fa-info-circle"></i> Demo Credentials:</strong></p>
                 <p>Email: <strong>admin@example.com</strong></p>
@@ -411,7 +448,7 @@
     <!-- Supabase library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- Direct Supabase Configuration (No config.js needed) -->
+    <!-- Direct Supabase Configuration -->
     <script>
         // Supabase credentials - direct embedding
         const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
@@ -528,7 +565,46 @@
             }
         };
         
-        // Function to wait for Supabase
+        // ===========================================
+        // SHOW RESET MESSAGE
+        // ===========================================
+        function showResetMessage(message, type = 'success') {
+            const msgDiv = document.getElementById('resetMessage');
+            if (!msgDiv) return;
+            
+            const bgColor = type === 'success' ? '#d1fae5' : '#fee2e2';
+            const borderColor = type === 'success' ? '#4CAF50' : '#F44336';
+            const iconColor = type === 'success' ? '#4CAF50' : '#F44336';
+            const textColor = type === 'success' ? '#065f46' : '#991b1b';
+            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+            
+            msgDiv.style.display = 'block';
+            msgDiv.style.background = bgColor;
+            msgDiv.style.borderLeft = `4px solid ${borderColor}`;
+            msgDiv.style.padding = '12px 15px';
+            msgDiv.style.borderRadius = '8px';
+            msgDiv.style.marginBottom = '20px';
+            msgDiv.style.display = 'flex';
+            msgDiv.style.alignItems = 'center';
+            msgDiv.style.gap = '10px';
+            msgDiv.style.animation = 'slideIn 0.3s ease';
+            
+            msgDiv.innerHTML = `
+                <i class="fas ${icon}" style="color: ${iconColor}; font-size: 18px;"></i>
+                <span style="flex: 1; color: ${textColor}; font-size: 13px;">${message}</span>
+            `;
+            
+            setTimeout(() => {
+                msgDiv.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    msgDiv.style.display = 'none';
+                }, 300);
+            }, 6000);
+        }
+        
+        // ===========================================
+        // WAIT FOR SUPABASE
+        // ===========================================
         function waitForSupabase() {
             return new Promise((resolve) => {
                 if (supabaseReady && window.supabase) {
@@ -556,6 +632,33 @@
         
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('📄 DOM loaded, waiting for Supabase...');
+            
+            // Check URL parameters for messages
+            const urlParams = new URLSearchParams(window.location.search);
+            const resetSent = urlParams.get('reset_sent');
+            const passwordReset = urlParams.get('password_reset');
+            const registered = urlParams.get('registered');
+            const verified = urlParams.get('verified');
+            
+            if (resetSent === 'true') {
+                showResetMessage('Password reset email sent! Check your inbox and spam folder.', 'success');
+            }
+            
+            if (passwordReset === 'true') {
+                showResetMessage('Password updated successfully! You can now log in with your new password.', 'success');
+            }
+            
+            if (registered === 'true') {
+                setTimeout(() => {
+                    notification.success('Account created! Please check your email for verification link.', 5000);
+                }, 500);
+            }
+            
+            if (verified === 'true') {
+                setTimeout(() => {
+                    notification.success('Email verified! You can now login.', 3000);
+                }, 500);
+            }
             
             const supabase = await waitForSupabase();
             
@@ -732,21 +835,6 @@
             };
             
             setTimeout(checkSession, 2000);
-        })();
-        
-        // Check URL parameters for messages
-        (function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('registered') === 'true') {
-                setTimeout(() => {
-                    notification.success('Account created! Please check your email for verification link.');
-                }, 1000);
-            }
-            if (urlParams.get('verified') === 'true') {
-                setTimeout(() => {
-                    notification.success('Email verified! You can now login.');
-                }, 1000);
-            }
         })();
     </script>
 </body>
