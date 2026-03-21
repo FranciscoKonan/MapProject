@@ -16,21 +16,66 @@ let uniqueCooperatives = [];
 let selectedFarm = null;
 let supplierSearchTerm = '';
 let coopSearchTerm = '';
+let supabaseReady = false;
+
+// ===========================================
+// WAIT FOR SUPABASE READY
+// ===========================================
+function waitForSupabase() {
+    return new Promise((resolve) => {
+        // Check if supabase is already ready
+        if (window.supabase && window.supabase.auth) {
+            console.log('✅ Supabase already ready');
+            resolve(true);
+            return;
+        }
+        
+        // Listen for supabase-ready event
+        window.addEventListener('supabase-ready', () => {
+            console.log('✅ Supabase ready event received');
+            resolve(true);
+        });
+        
+        // Also check periodically
+        let checkCount = 0;
+        const interval = setInterval(() => {
+            checkCount++;
+            if (window.supabase && window.supabase.auth) {
+                clearInterval(interval);
+                console.log('✅ Supabase ready (interval check)');
+                resolve(true);
+            } else if (checkCount > 40) { // 20 seconds timeout
+                clearInterval(interval);
+                console.warn('⚠️ Supabase not ready after timeout');
+                resolve(false);
+            }
+        }, 500);
+    });
+}
 
 // ===========================================
 // INITIALIZATION
 // ===========================================
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('📌 DOM Content Loaded');
     
+    // Wait for Supabase to be ready
+    const ready = await waitForSupabase();
+    
+    if (!ready || !window.supabase) {
+        console.error('❌ Supabase not available, using sample data');
+        initMap();
+        loadSampleData();
+        return;
+    }
+    
+    console.log('✅ Supabase ready, initializing map...');
     initMap();
-    initEventListeners();
-    initSearchListeners();
     
     // Load farms after map is ready
     setTimeout(() => {
         loadFarms();
-    }, 1000);
+    }, 500);
 });
 
 // ===========================================
@@ -150,6 +195,12 @@ function initSearchListeners() {
             }
         });
     }
+    
+    // Initialize filters after map loads
+    setTimeout(() => {
+        updateSupplierFilter();
+        updateCooperativeFilter();
+    }, 1000);
 }
 
 function updateSupplierFilter() {
@@ -183,7 +234,7 @@ function updateCooperativeFilter() {
 }
 
 // ===========================================
-// LOAD FARMS
+// LOAD FARMS FROM SUPABASE
 // ===========================================
 async function loadFarms() {
     console.log('📡 Loading farms from Supabase...');
@@ -192,6 +243,28 @@ async function loadFarms() {
     showNotification('Loading farms...', 'info');
     
     try {
+        // Check if supabase is available
+        if (!window.supabase || !window.supabase.auth) {
+            console.error('❌ Supabase not available');
+            loadSampleData();
+            return;
+        }
+        
+        // Get current user session
+        const { data: { session } } = await window.supabase.auth.getSession();
+        
+        if (!session) {
+            console.log('⚠️ No active session, redirecting to login');
+            showNotification('Please login to view farms', 'warning');
+            setTimeout(() => {
+                window.location.href = '../login.html';
+            }, 2000);
+            return;
+        }
+        
+        console.log('👤 User logged in:', session.user.email);
+        
+        // Fetch farms from Supabase
         const { data: farms, error } = await window.supabase
             .from('farms')
             .select('*')
@@ -219,16 +292,19 @@ async function loadFarms() {
                 // Get supplier
                 let supplier = farm.supplier || 'Unknown';
                 
+                // Get status
+                let status = farm.status || 'pending';
+                
                 return {
                     id: farm.id,
                     farmId: farm.farmer_id || farm.id,
-                    farmerName: farm.farmer_name || 'Unknown',
+                    farmerName: farm.farmer_name || 'Unknown Farmer',
                     farmerId: farm.farmer_id || 'N/A',
                     cooperative: cooperative,
                     supplier: supplier,
                     area: farm.area || 0,
-                    status: farm.status || 'pending',
-                    submissionDate: farm.submission_date || farm.created_at,
+                    status: status,
+                    submissionDate: farm.submission_date || farm.created_at || new Date().toISOString(),
                     enumerator: farm.enumerator || 'N/A',
                     geometry: farm.geometry
                 };
@@ -242,6 +318,10 @@ async function loadFarms() {
             updateStats(filteredFarms);
             updateTimeline(filteredFarms);
             
+            // Initialize event listeners
+            initEventListeners();
+            initSearchListeners();
+            
             showNotification(`Loaded ${allFarms.length} farms`, 'success');
         } else {
             console.log('⚠️ No farms found in Supabase, loading sample data');
@@ -249,7 +329,7 @@ async function loadFarms() {
         }
     } catch (error) {
         console.error('Error loading farms:', error);
-        showNotification('Error loading farms', 'error');
+        showNotification('Error loading farms: ' + error.message, 'error');
         loadSampleData();
     }
 }
@@ -334,8 +414,10 @@ function loadSampleData() {
     displayFarms(filteredFarms);
     updateStats(filteredFarms);
     updateTimeline(filteredFarms);
+    initEventListeners();
+    initSearchListeners();
     
-    showNotification('Using sample data', 'info');
+    showNotification('Using sample data (demo mode)', 'info');
 }
 
 // ===========================================
@@ -450,74 +532,74 @@ function showFarmDetails(farm) {
     const panel = document.getElementById('propertiesPanel');
     const content = document.getElementById('propertyContent');
     
-    panel.classList.remove('hidden');
+    if (panel) panel.classList.add('active');
     
     const statusColor = getStatusColor(farm.status);
     
-    content.innerHTML = `
-        <div class="farm-detail-card">
-            <div class="detail-header" style="background: ${statusColor}20;">
-                <i class="fas fa-tractor" style="color: ${statusColor};"></i>
-                <h3>${farm.farmerName}</h3>
+    if (content) {
+        content.innerHTML = `
+            <div class="farm-detail-card">
+                <div class="detail-header" style="background: ${statusColor}20; padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+                    <i class="fas fa-tractor" style="color: ${statusColor}; font-size: 24px;"></i>
+                    <h3 style="margin: 10px 0 0 0;">${farm.farmerName}</h3>
+                </div>
+                
+                <div class="detail-section" style="margin-bottom: 16px;">
+                    <h4 style="margin: 0 0 12px 0; color: #2c6e49;"><i class="fas fa-id-card"></i> Identification</h4>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #666;">Farm ID:</span>
+                        <span style="font-weight: 600;">${farm.farmId}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #666;">Farmer ID:</span>
+                        <span style="font-weight: 600;">${farm.farmerId}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-section" style="margin-bottom: 16px;">
+                    <h4 style="margin: 0 0 12px 0; color: #2c6e49;"><i class="fas fa-building"></i> Organization</h4>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #666;">Cooperative:</span>
+                        <span style="font-weight: 600;">${farm.cooperative}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #666;">Supplier:</span>
+                        <span style="font-weight: 600;">${farm.supplier}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-section" style="margin-bottom: 16px;">
+                    <h4 style="margin: 0 0 12px 0; color: #2c6e49;"><i class="fas fa-ruler-combined"></i> Measurements</h4>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #666;">Area:</span>
+                        <span style="font-weight: 600; color: #2c6e49;">${farm.area.toFixed(2)} ha</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #666;">Status:</span>
+                        <span class="status-badge ${farm.status}" style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 20px;">${farm.status}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-section" style="margin-bottom: 16px;">
+                    <h4 style="margin: 0 0 12px 0; color: #2c6e49;"><i class="fas fa-calendar"></i> Submission</h4>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #666;">Date:</span>
+                        <span style="font-weight: 600;">${new Date(farm.submissionDate).toLocaleDateString()}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #666;">Enumerator:</span>
+                        <span style="font-weight: 600;">${farm.enumerator}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-actions" style="margin-top: 20px;">
+                    <button class="btn-primary" onclick="window.zoomToFarm('${farm.id}')" style="width: 100%; padding: 12px; background: #2c6e49; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                        <i class="fas fa-search"></i> Zoom to Farm
+                    </button>
+                </div>
             </div>
-            
-            <div class="detail-section">
-                <h4><i class="fas fa-id-card"></i> Identification</h4>
-                <div class="detail-row">
-                    <span class="detail-label">Farm ID:</span>
-                    <span class="detail-value">${farm.farmId}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Farmer ID:</span>
-                    <span class="detail-value">${farm.farmerId}</span>
-                </div>
-            </div>
-            
-            <div class="detail-section">
-                <h4><i class="fas fa-building"></i> Organization</h4>
-                <div class="detail-row">
-                    <span class="detail-label">Cooperative:</span>
-                    <span class="detail-value">${farm.cooperative}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Supplier:</span>
-                    <span class="detail-value">${farm.supplier}</span>
-                </div>
-            </div>
-            
-            <div class="detail-section">
-                <h4><i class="fas fa-ruler-combined"></i> Measurements</h4>
-                <div class="detail-row">
-                    <span class="detail-label">Area:</span>
-                    <span class="detail-value highlight">${farm.area.toFixed(2)} ha</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Status:</span>
-                    <span class="detail-value">
-                        <span class="status-badge ${farm.status}">${farm.status}</span>
-                    </span>
-                </div>
-            </div>
-            
-            <div class="detail-section">
-                <h4><i class="fas fa-calendar"></i> Submission</h4>
-                <div class="detail-row">
-                    <span class="detail-label">Date:</span>
-                    <span class="detail-value">${new Date(farm.submissionDate).toLocaleDateString()}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Enumerator:</span>
-                    <span class="detail-value">${farm.enumerator}</span>
-                </div>
-            </div>
-            
-            <div class="detail-actions">
-                <button class="btn-primary" onclick="window.zoomToFarm('${farm.id}')">
-                    <i class="fas fa-search"></i> Zoom to Farm
-                </button>
-            </div>
-        </div>
-    `;
+        `;
+    }
 }
 
 // ===========================================
@@ -565,16 +647,10 @@ function updateStats(farms) {
     const totalEl = document.getElementById('statTotal');
     const areaEl = document.getElementById('statArea');
     const avgEl = document.getElementById('statAvg');
-    const validatedEl = document.getElementById('validatedCount');
-    const pendingEl = document.getElementById('pendingCount');
-    const issuesEl = document.getElementById('issuesCount');
     
     if (totalEl) totalEl.textContent = farms.length;
     if (areaEl) areaEl.textContent = totalArea.toFixed(1) + ' ha';
     if (avgEl) avgEl.textContent = farms.length ? (totalArea / farms.length).toFixed(1) + ' ha' : '0 ha';
-    if (validatedEl) validatedEl.textContent = validated;
-    if (pendingEl) pendingEl.textContent = pending;
-    if (issuesEl) issuesEl.textContent = rejected;
 }
 
 // ===========================================
@@ -594,13 +670,13 @@ function updateTimeline(farms) {
     }
     
     timeline.innerHTML = recent.map(farm => `
-        <div class="timeline-item" onclick="window.zoomToFarm('${farm.id}')">
-            <div class="timeline-icon" style="background: ${getStatusColor(farm.status)};">
-                <i class="fas fa-tractor"></i>
+        <div class="timeline-item" onclick="window.zoomToFarm('${farm.id}')" style="cursor: pointer; padding: 12px; border-bottom: 1px solid #eee; display: flex; gap: 12px;">
+            <div class="timeline-icon" style="width: 40px; height: 40px; background: ${getStatusColor(farm.status)}; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-tractor" style="color: white;"></i>
             </div>
             <div class="timeline-content">
-                <div class="timeline-title">${farm.farmerName}</div>
-                <div class="timeline-subtitle">
+                <div class="timeline-title" style="font-weight: 600;">${farm.farmerName}</div>
+                <div class="timeline-subtitle" style="font-size: 12px; color: #666;">
                     ${farm.area.toFixed(1)} ha • ${new Date(farm.submissionDate).toLocaleDateString()}
                 </div>
             </div>
@@ -692,7 +768,8 @@ window.zoomToFarm = function(farmId) {
 };
 
 window.closeProperties = function() {
-    document.getElementById('propertiesPanel').classList.add('hidden');
+    const panel = document.getElementById('propertiesPanel');
+    if (panel) panel.classList.remove('active');
 };
 
 // ===========================================
@@ -802,21 +879,30 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-// Add animation styles
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-    }
-    .farm-popup {
-        pointer-events: auto;
-    }
-`;
-document.head.appendChild(style);
+// Add animation styles if not already added
+if (!document.getElementById('live-mapping-styles')) {
+    const style = document.createElement('style');
+    style.id = 'live-mapping-styles';
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        .farm-popup {
+            pointer-events: auto;
+        }
+        .properties-panel {
+            display: none;
+        }
+        .properties-panel.active {
+            display: block;
+        }
+    `;
+    document.head.appendChild(style);
+}
 
 console.log('✅ Live Mapping ready');
