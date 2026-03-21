@@ -144,19 +144,18 @@
                 <!-- Filters Section -->
                 <div class="alerts-filters">
                     <div class="filter-group">
-                        <label for="alertTypeFilter">Alert Type</label>
+                        <label>Alert Type</label>
                         <select id="alertTypeFilter" class="filter-select">
                             <option value="all">All Types</option>
-                            <option value="overlap">Overlap Detection</option>
-                            <option value="boundary">Boundary Issue</option>
-                            <option value="area">Area Mismatch</option>
+                            <option value="overlap">Overlap</option>
+                            <option value="self-intersection">Self-Intersection</option>
                             <option value="data">Missing Data</option>
-                            <option value="self_intersection">Self Intersection</option>
+                            <option value="area">Area Issue</option>
                         </select>
                     </div>
                     
                     <div class="filter-group">
-                        <label for="alertSeverityFilter">Severity</label>
+                        <label>Severity</label>
                         <select id="alertSeverityFilter" class="filter-select">
                             <option value="all">All Severities</option>
                             <option value="critical">Critical</option>
@@ -167,7 +166,7 @@
                     </div>
                     
                     <div class="filter-group">
-                        <label for="alertSupplierFilter">Supplier</label>
+                        <label>Supplier</label>
                         <div class="filter-search-container">
                             <i class="fas fa-search search-icon"></i>
                             <input type="text" id="supplierSearch" class="filter-search" placeholder="Search suppliers...">
@@ -178,7 +177,7 @@
                     </div>
                     
                     <div class="filter-group">
-                        <label for="alertCoopFilter">Cooperative</label>
+                        <label>Cooperative</label>
                         <div class="filter-search-container">
                             <i class="fas fa-search search-icon"></i>
                             <input type="text" id="coopSearch" class="filter-search" placeholder="Search cooperatives...">
@@ -189,7 +188,7 @@
                     </div>
                     
                     <div class="filter-group">
-                        <label for="alertStatusFilter">Status</label>
+                        <label>Status</label>
                         <select id="alertStatusFilter" class="filter-select">
                             <option value="all">All Status</option>
                             <option value="new">New</option>
@@ -220,7 +219,7 @@
                 <!-- Alerts List -->
                 <div class="alerts-list-container">
                     <div class="alerts-list-header">
-                        <h3><i class="fas fa-list"></i> Active Alerts</h3>
+                        <h3><i class="fas fa-list"></i> Quality Alerts</h3>
                         <div class="alerts-bulk-actions">
                             <button class="btn-icon" id="markAllReadBtn" title="Mark all as acknowledged">
                                 <i class="fas fa-check-double"></i>
@@ -229,7 +228,7 @@
                     </div>
                     
                     <div class="alerts-list" id="alertsList">
-                        <div style="text-align:center;padding:40px;">Loading alerts...</div>
+                        <div style="text-align:center;padding:40px;">Loading alerts from dashboard...</div>
                     </div>
                     
                     <div class="alerts-pagination">
@@ -251,55 +250,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    
-    <!-- Direct Supabase Configuration -->
-    <script>
-        // Supabase credentials - same as working pages
-        const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cnVmbWVsZnRicXBzZW1uamJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzYwNTMsImV4cCI6MjA4NjY1MjA1M30.1NPN666Lt9WZHupvp_XIFu-SnsaextHH_JvXgQPtyV0';
-        
-        console.log('✅ Quality Alerts: Supabase credentials loaded');
-        
-        let supabaseClient = null;
-        
-        function initSupabase(retryCount = 0) {
-            if (typeof window.supabase === 'undefined') {
-                if (retryCount < 10) {
-                    console.log(`⏳ Waiting for Supabase... (${retryCount + 1}/10)`);
-                    setTimeout(() => initSupabase(retryCount + 1), 500);
-                    return;
-                }
-                console.error('❌ Supabase library failed to load');
-                return;
-            }
-            
-            try {
-                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                window.supabase = supabaseClient;
-                console.log('✅ Quality Alerts: Supabase initialized');
-                
-                // Load user data
-                const userData = localStorage.getItem('mappingtrace_user');
-                if (userData) {
-                    const user = JSON.parse(userData);
-                    document.getElementById('userName').textContent = user.fullName || 'User';
-                    document.getElementById('userRole').textContent = user.role || 'User';
-                    document.getElementById('userAvatar').textContent = user.avatar || 'U';
-                }
-                
-                // Dispatch ready event
-                window.dispatchEvent(new Event('supabase-ready'));
-                
-            } catch (err) {
-                console.error('❌ Supabase init error:', err);
-                if (retryCount < 5) {
-                    setTimeout(() => initSupabase(retryCount + 1), 1000);
-                }
-            }
-        }
-        
-        initSupabase();
-    </script>
     
     <!-- Quality Alerts JavaScript -->
     <script src="quality-alerts.js"></script>
