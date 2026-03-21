@@ -1,535 +1,610 @@
 // ===========================================
-// GLOBAL JS - Dashboard Data Management
+// GLOBAL UTILITIES & DATA MANAGER
 // ===========================================
 
 console.log('🌍 Global JS loading...');
 
-// Global variables
-let globalFarms = [];
-let globalAlerts = [];
-let currentSortColumn = 'submissionDate';
-let currentSortDirection = 'desc';
-let currentPage = 1;
-let rowsPerPage = 10;
+// ===========================================
+// NOTIFICATION SYSTEM
+// ===========================================
+
+class NotificationSystem {
+    constructor() {
+        this.container = null;
+        this.init();
+    }
+
+    init() {
+        this.container = document.createElement('div');
+        this.container.className = 'notification-container';
+        this.container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
+        document.body.appendChild(this.container);
+    }
+
+    show(message, type = 'info', duration = 5000) {
+        const notification = document.createElement('div');
+        notification.className = `alert-notification ${type}`;
+        
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+
+        notification.innerHTML = `
+            <div class="alert-notification-icon"><i class="${icons[type]}"></i></div>
+            <div class="alert-notification-content">
+                <div class="alert-notification-title">${this.getTitle(type)}</div>
+                <div class="alert-notification-message">${message}</div>
+            </div>
+            <button class="alert-notification-close"><i class="fas fa-times"></i></button>
+        `;
+
+        this.container.appendChild(notification);
+        setTimeout(() => notification.classList.add('show'), 10);
+        if (duration > 0) setTimeout(() => this.remove(notification), duration);
+        
+        const closeBtn = notification.querySelector('.alert-notification-close');
+        closeBtn.addEventListener('click', () => this.remove(notification));
+        return notification;
+    }
+
+    getTitle(type) {
+        const titles = { 
+            success: 'Success', 
+            error: 'Error', 
+            warning: 'Warning', 
+            info: 'Information' 
+        };
+        return titles[type] || 'Notification';
+    }
+
+    remove(notification) {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }
+
+    success(message, d) { return this.show(message, 'success', d); }
+    error(message, d) { return this.show(message, 'error', d); }
+    warning(message, d) { return this.show(message, 'warning', d); }
+    info(message, d) { return this.show(message, 'info', d); }
+}
+
+// Create global notification instance
+window.notification = new NotificationSystem();
 
 // ===========================================
-// WAIT FOR SUPABASE
+// DATA MANAGER - SUPABASE VERSION
 // ===========================================
-function waitForSupabase() {
-    return new Promise((resolve) => {
+
+class DataManager {
+    constructor() {
+        this.farms = [];
+        this.alerts = [];
+        this.stats = { 
+            totalFarms: 0, 
+            totalArea: 0, 
+            activePlots: 0, 
+            qualityAlerts: 0 
+        };
+        this.refreshInterval = null;
+        this.supabaseReady = false;
+    }
+
+    async init() {
+        console.log('🚀 Initializing DataManager...');
+        
+        // Wait for Supabase to be ready
         if (window.supabase && window.supabase.auth) {
-            console.log('✅ Global JS: Supabase already ready');
-            resolve(window.supabase);
-            return;
+            this.supabaseReady = true;
+            await this.loadFarms();
+            await this.loadAlerts();
+            this.calculateStats();
+            this.setupAutoRefresh();
+        } else {
+            window.addEventListener('supabase-ready', async () => {
+                console.log('✅ DataManager: Supabase ready');
+                this.supabaseReady = true;
+                await this.loadFarms();
+                await this.loadAlerts();
+                this.calculateStats();
+                this.setupAutoRefresh();
+            });
+        }
+    }
+
+    async loadFarms() {
+        if (!this.supabaseReady || !window.supabase) {
+            console.log('⚠️ Supabase not ready, using mock data');
+            this.loadMockData();
+            return this.farms;
         }
         
-        window.addEventListener('supabase-ready', () => {
-            console.log('✅ Global JS: Supabase ready event received');
-            resolve(window.supabase);
+        try {
+            console.log('🔍 Fetching farms from Supabase...');
+            
+            // Check session
+            const { data: { session } } = await window.supabase.auth.getSession();
+            if (!session) {
+                console.log('⚠️ No session, redirecting to login');
+                window.location.href = 'login.html';
+                return [];
+            }
+            
+            const { data: farms, error } = await window.supabase
+                .from('farms')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            
+            if (farms && farms.length > 0) {
+                console.log(`✅ Loaded ${farms.length} farms from Supabase`);
+                
+                // Transform farms data
+                this.farms = farms.map(farm => {
+                    // Get cooperative name
+                    let cooperative = 'Unassigned';
+                    if (farm.cooperative_name) cooperative = farm.cooperative_name;
+                    else if (farm.cooperative) cooperative = farm.cooperative;
+                    else if (farm.coop) cooperative = farm.coop;
+                    
+                    // Get supplier
+                    let supplier = farm.supplier || 'Unknown';
+                    
+                    // Get status
+                    let status = farm.status || 'pending';
+                    
+                    // Get area
+                    let area = farm.area || 0;
+                    
+                    return {
+                        id: farm.id,
+                        farm_id: farm.farmer_id || farm.id,
+                        farmerName: farm.farmer_name || 'Unknown Farmer',
+                        farmerId: farm.farmer_id || 'N/A',
+                        cooperative: cooperative,
+                        supplier: supplier,
+                        declaredArea: area,
+                        realArea: area,
+                        area: area,
+                        areaDifference: 0,
+                        status: status,
+                        submissionDate: farm.submission_date || farm.created_at || new Date().toISOString(),
+                        enumerator: farm.enumerator || 'N/A',
+                        geometry: farm.geometry,
+                        created_at: farm.created_at
+                    };
+                });
+                
+                // Dispatch farms-updated event for alerts system
+                window.dispatchEvent(new CustomEvent('farms-updated', { detail: { farms: this.farms } }));
+                
+                // Trigger map update
+                if (window.refreshMapLayers && typeof window.refreshMapLayers === 'function') {
+                    window.refreshMapLayers();
+                }
+                
+                return this.farms;
+                
+            } else {
+                console.log('⚠️ No farms found in Supabase');
+                this.loadMockData();
+                return this.farms;
+            }
+            
+        } catch (error) {
+            console.error('❌ Error loading farms:', error);
+            window.notification?.error('Error loading farms: ' + error.message);
+            this.loadMockData();
+            return this.farms;
+        }
+    }
+
+    async loadAlerts() {
+        // Generate alerts from farms
+        if (!this.farms || this.farms.length === 0) {
+            this.alerts = [];
+            return this.alerts;
+        }
+        
+        this.alerts = this.generateAlerts(this.farms);
+        
+        // Dispatch alerts-updated event
+        window.dispatchEvent(new CustomEvent('alerts-updated', { 
+            detail: { alerts: this.alerts } 
+        }));
+        
+        return this.alerts;
+    }
+
+    generateAlerts(farms) {
+        const alerts = [];
+        
+        farms.forEach(farm => {
+            // Check for missing geometry
+            if (!farm.geometry) {
+                alerts.push({
+                    id: `missing_geom_${farm.id}`,
+                    type: 'data',
+                    severity: 'high',
+                    title: 'Missing Geometry Data',
+                    description: `Farm "${farm.farmerName}" has no geometry data. Cannot display on map.`,
+                    farmId: farm.id,
+                    farm_id: farm.farm_id,
+                    farmerName: farm.farmerName,
+                    supplier: farm.supplier,
+                    cooperative: farm.cooperative,
+                    date: new Date().toISOString(),
+                    status: 'new'
+                });
+            }
+            
+            // Check for missing required fields
+            if (!farm.farmerName || farm.farmerName === 'Unknown Farmer') {
+                alerts.push({
+                    id: `missing_name_${farm.id}`,
+                    type: 'data',
+                    severity: 'medium',
+                    title: 'Missing Farmer Name',
+                    description: `Farm is missing farmer name information.`,
+                    farmId: farm.id,
+                    farm_id: farm.farm_id,
+                    farmerName: farm.farmerName,
+                    supplier: farm.supplier,
+                    cooperative: farm.cooperative,
+                    date: new Date().toISOString(),
+                    status: 'new'
+                });
+            }
+            
+            // Check for area issues
+            if (farm.area === 0) {
+                alerts.push({
+                    id: `zero_area_${farm.id}`,
+                    type: 'area',
+                    severity: 'medium',
+                    title: 'Zero Area',
+                    description: `Farm area is 0. Please verify the farm boundaries.`,
+                    farmId: farm.id,
+                    farm_id: farm.farm_id,
+                    farmerName: farm.farmerName,
+                    supplier: farm.supplier,
+                    cooperative: farm.cooperative,
+                    area: farm.area,
+                    date: new Date().toISOString(),
+                    status: 'new'
+                });
+            } else if (farm.area > 100) {
+                alerts.push({
+                    id: `large_area_${farm.id}`,
+                    type: 'area',
+                    severity: 'low',
+                    title: 'Unusually Large Area',
+                    description: `Farm area is ${farm.area.toFixed(2)} ha, which is unusually large. Please verify.`,
+                    farmId: farm.id,
+                    farm_id: farm.farm_id,
+                    farmerName: farm.farmerName,
+                    supplier: farm.supplier,
+                    cooperative: farm.cooperative,
+                    area: farm.area,
+                    date: new Date().toISOString(),
+                    status: 'new'
+                });
+            }
         });
         
-        // Fallback timeout
-        setTimeout(() => {
-            if (window.supabase && window.supabase.auth) {
-                console.log('✅ Global JS: Supabase ready (timeout)');
-                resolve(window.supabase);
-            } else {
-                console.error('❌ Global JS: Supabase timeout');
-                resolve(null);
+        console.log(`📊 Generated ${alerts.length} alerts from farms`);
+        return alerts;
+    }
+
+    calculateStats() {
+        this.stats = {
+            totalFarms: this.farms.length,
+            totalArea: this.farms.reduce((sum, f) => sum + (parseFloat(f.area) || 0), 0),
+            activePlots: this.farms.filter(f => f.status === 'validated').length,
+            qualityAlerts: this.alerts.length
+        };
+        this.updateDashboardKPIs();
+        return this.stats;
+    }
+
+    updateDashboardKPIs() {
+        this.updateText('farmsCount', this.stats.totalFarms);
+        this.updateText('totalArea', this.stats.totalArea.toFixed(1));
+        this.updateText('activePlots', this.stats.activePlots);
+        this.updateText('alertsCount', this.stats.qualityAlerts);
+        this.updateText('mapFarmsCount', this.stats.totalFarms);
+        this.updateText('mapTotalArea', this.stats.totalArea.toFixed(1) + ' ha');
+        this.updateText('alertsBadge', this.stats.qualityAlerts);
+        
+        // Update notification badge
+        if (window.updateNotificationBadge) {
+            window.updateNotificationBadge(this.stats.qualityAlerts);
+        }
+    }
+
+    updateText(id, text) { 
+        const el = document.getElementById(id); 
+        if (el) el.textContent = text; 
+    }
+
+    setupAutoRefresh() {
+        if (this.refreshInterval) clearInterval(this.refreshInterval);
+        this.refreshInterval = setInterval(async () => {
+            if (this.supabaseReady) {
+                await this.refreshData();
             }
-        }, 10000);
-    });
-}
+        }, 300000); // 5 minutes
+    }
 
-// ===========================================
-// LOAD USER DATA
-// ===========================================
-function loadUserData() {
-    const userData = localStorage.getItem('mappingtrace_user');
-    if (userData) {
+    async refreshData() {
+        console.log('🔄 Refreshing data...');
         try {
-            const user = JSON.parse(userData);
-            const userNameEl = document.getElementById('userName');
-            const userRoleEl = document.getElementById('userRole');
-            const userAvatarEl = document.getElementById('userAvatar');
+            await this.loadFarms();
+            await this.loadAlerts();
+            this.calculateStats();
             
-            if (userNameEl) userNameEl.textContent = user.fullName || 'User';
-            if (userRoleEl) userRoleEl.textContent = user.role || 'User';
-            if (userAvatarEl) userAvatarEl.textContent = user.avatar || 'U';
+            // Trigger table refresh
+            if (window.tableData && typeof window.tableData.renderTable === 'function') {
+                window.tableData.renderTable();
+            }
             
-            console.log('👤 User loaded:', user.fullName);
-        } catch (e) {
-            console.warn('Error parsing user data:', e);
+            // Trigger map refresh
+            if (window.refreshMapLayers && typeof window.refreshMapLayers === 'function') {
+                window.refreshMapLayers();
+            }
+            
+            window.notification?.success('Data refreshed');
+            console.log('✅ Data refreshed successfully');
+        } catch (error) {
+            console.error('❌ Error refreshing data:', error);
+            window.notification?.error('Error refreshing data');
         }
     }
-}
 
-// ===========================================
-// LOAD FARMS DATA
-// ===========================================
-async function loadFarmsData() {
-    console.log('📡 Loading farms data...');
-    showLoading(true);
-    
-    try {
-        if (!window.supabase) {
-            console.error('❌ Supabase not available');
-            showLoading(false);
-            return;
-        }
+    async syncWithKobo() {
+        window.notification?.info('Syncing with KoboCollect...');
         
-        // Check session
-        const { data: { session } } = await window.supabase.auth.getSession();
-        if (!session) {
-            console.log('⚠️ No session, redirecting to login');
-            window.location.href = 'login.html';
-            showLoading(false);
-            return;
-        }
-        
-        console.log('👤 User logged in:', session.user.email);
-        
-        // Fetch farms
-        const { data: farms, error } = await window.supabase
-            .from('farms')
-            .select('*')
-            .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        
-        if (farms && farms.length > 0) {
-            console.log(`✅ Loaded ${farms.length} farms`);
-            globalFarms = farms;
-            
-            // Update KPI
-            updateKPIs(farms);
-            
-            // Update table
-            updateTable(farms);
-            
-            // Update alerts
-            updateAlertsCount(farms);
-            
-            // Dispatch event for other components
-            window.dispatchEvent(new CustomEvent('farms-loaded', { detail: { farms: farms } }));
-            
-        } else {
-            console.log('⚠️ No farms found');
-            updateKPIs([]);
-            updateTable([]);
-        }
-        
-    } catch (error) {
-        console.error('Error loading farms:', error);
-        showNotification('Error loading data: ' + error.message, 'error');
+        // Simulate sync
+        setTimeout(async () => {
+            await this.refreshData();
+            window.notification?.success('Sync completed');
+        }, 2000);
     }
-    
-    showLoading(false);
-}
 
-// ===========================================
-// UPDATE KPIs
-// ===========================================
-function updateKPIs(farms) {
-    // Total farms
-    const farmsCount = document.getElementById('farmsCount');
-    if (farmsCount) farmsCount.textContent = farms.length;
-    
-    // Total area
-    const totalArea = farms.reduce((sum, farm) => sum + (parseFloat(farm.area) || 0), 0);
-    const totalAreaEl = document.getElementById('totalArea');
-    if (totalAreaEl) totalAreaEl.textContent = totalArea.toFixed(1);
-    
-    // Active plots (validated)
-    const activePlots = farms.filter(f => f.status === 'validated').length;
-    const activePlotsEl = document.getElementById('activePlots');
-    if (activePlotsEl) activePlotsEl.textContent = activePlots;
-}
+    loadMockData() {
+        console.log('📊 Loading mock data (offline mode)');
+        
+        this.farms = [
+            { 
+                id: 'FARM001', 
+                farm_id: 'FARM001',
+                farmerName: 'John Doe', 
+                farmerId: 'P001',
+                cooperative: 'Green Valley Coop', 
+                supplier: 'SITAPA',
+                declaredArea: 12.5, 
+                realArea: 12.8,
+                area: 12.5,
+                status: 'validated', 
+                submissionDate: '2024-01-15', 
+                enumerator: 'ENUM001', 
+                geometry: { 
+                    type: 'Polygon', 
+                    coordinates: [[[-0.09,51.505],[-0.09,51.51],[-0.08,51.51],[-0.08,51.505],[-0.09,51.505]]] 
+                } 
+            },
+            { 
+                id: 'FARM002', 
+                farm_id: 'FARM002',
+                farmerName: 'Jane Smith', 
+                farmerId: 'P002',
+                cooperative: 'Sunrise Farmers', 
+                supplier: 'SITAPA',
+                declaredArea: 8.3, 
+                realArea: 8.1,
+                area: 8.3,
+                status: 'pending', 
+                submissionDate: '2024-01-18', 
+                enumerator: 'ENUM002', 
+                geometry: { 
+                    type: 'Polygon', 
+                    coordinates: [[[-0.095,51.51],[-0.095,51.515],[-0.085,51.515],[-0.085,51.51],[-0.095,51.51]]] 
+                } 
+            },
+            { 
+                id: 'FARM003', 
+                farm_id: 'FARM003',
+                farmerName: 'Robert Johnson', 
+                farmerId: 'P003',
+                cooperative: 'Organic Harvest', 
+                supplier: 'GCC',
+                declaredArea: 15.2, 
+                realArea: 15.5,
+                area: 15.2,
+                status: 'validated', 
+                submissionDate: '2024-01-10', 
+                enumerator: 'ENUM003', 
+                geometry: { 
+                    type: 'Polygon', 
+                    coordinates: [[[-0.085,51.5],[-0.085,51.505],[-0.075,51.505],[-0.075,51.5],[-0.085,51.5]]] 
+                } 
+            },
+            { 
+                id: 'FARM004', 
+                farm_id: 'FARM004',
+                farmerName: 'Sarah Williams', 
+                farmerId: 'P004',
+                cooperative: 'Green Valley Coop', 
+                supplier: 'GCC',
+                declaredArea: 5.2, 
+                realArea: 5.0,
+                area: 5.2,
+                status: 'pending', 
+                submissionDate: '2024-01-20', 
+                enumerator: 'ENUM001', 
+                geometry: null 
+            }
+        ];
+        
+        this.alerts = this.generateAlerts(this.farms);
+        this.calculateStats();
+        window.notification?.info('Using mock data (offline mode)');
+    }
 
-// ===========================================
-// UPDATE ALERTS COUNT
-// ===========================================
-function updateAlertsCount(farms) {
-    // Simple alert detection
-    let alertCount = 0;
-    farms.forEach(farm => {
-        // Check for missing geometry
-        if (!farm.geometry) alertCount++;
-        // Check for missing data
-        if (!farm.farmer_name) alertCount++;
-        // Check for area issues
-        if (farm.area === 0) alertCount++;
-    });
-    
-    const alertsCount = document.getElementById('alertsCount');
-    const alertsBadge = document.getElementById('alertsBadge');
-    const notificationBadge = document.getElementById('notificationBadge');
-    
-    if (alertsCount) alertsCount.textContent = alertCount;
-    if (alertsBadge) alertsBadge.textContent = alertCount;
-    if (notificationBadge) {
-        notificationBadge.textContent = alertCount;
-        notificationBadge.style.display = alertCount > 0 ? 'flex' : 'none';
+    destroy() { 
+        if (this.refreshInterval) clearInterval(this.refreshInterval); 
     }
 }
 
 // ===========================================
-// UPDATE TABLE
+// GLOBAL INITIALIZATION
 // ===========================================
-function updateTable(farms) {
-    const tbody = document.getElementById('tableBody');
-    if (!tbody) return;
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM loaded, initializing DataManager...');
     
-    // Sort farms
-    const sortedFarms = [...farms].sort((a, b) => {
-        let aVal = a[currentSortColumn];
-        let bVal = b[currentSortColumn];
-        
-        if (currentSortColumn === 'area') {
-            aVal = parseFloat(aVal) || 0;
-            bVal = parseFloat(bVal) || 0;
-        } else if (currentSortColumn === 'submissionDate') {
-            aVal = new Date(aVal || a.created_at).getTime();
-            bVal = new Date(bVal || b.created_at).getTime();
-        } else {
-            aVal = String(aVal || '').toLowerCase();
-            bVal = String(bVal || '').toLowerCase();
-        }
-        
-        if (aVal < bVal) return currentSortDirection === 'asc' ? -1 : 1;
-        if (aVal > bVal) return currentSortDirection === 'asc' ? 1 : -1;
-        return 0;
-    });
+    window.dataManager = new DataManager();
+    window.dataManager.init().catch(console.error);
     
-    // Paginate
-    const start = (currentPage - 1) * rowsPerPage;
-    const pageFarms = sortedFarms.slice(start, start + rowsPerPage);
-    const totalCount = sortedFarms.length;
-    
-    // Update showing count
-    const showingCount = document.getElementById('showingCount');
-    const totalCountEl = document.getElementById('totalCount');
-    if (showingCount) showingCount.textContent = `${start + 1}-${Math.min(start + rowsPerPage, totalCount)}`;
-    if (totalCountEl) totalCountEl.textContent = totalCount;
-    
-    if (pageFarms.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">No farms found</td></tr>';
-        updatePagination(1, Math.ceil(totalCount / rowsPerPage));
-        return;
+    // Sidebar toggle
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', () => sidebar.classList.toggle('active'));
     }
     
-    tbody.innerHTML = pageFarms.map(farm => `
-        <tr>
-            <td>${farm.farmer_id || farm.id}</td>
-            <td>${farm.farmer_name || 'Unknown'}</td>
-            <td>${farm.cooperative || farm.cooperative_name || 'Unassigned'}</td>
-            <td>${(farm.area || 0).toFixed(2)}</td>
-            <td>${new Date(farm.created_at || farm.submission_date).toLocaleDateString()}</td>
-            <td><span class="status-badge ${farm.status || 'pending'}">${farm.status || 'pending'}</span></td>
-            <td>
-                <button class="action-btn view" onclick="viewFarm('${farm.id}')">
-                    <i class="fas fa-eye"></i>
-                </button>
-                ${(farm.status === 'pending') ? `
-                    <button class="action-btn approve" onclick="approveFarm('${farm.id}')">
-                        <i class="fas fa-check"></i>
-                    </button>
-                    <button class="action-btn reject" onclick="rejectFarm('${farm.id}')">
-                        <i class="fas fa-times"></i>
-                    </button>
-                ` : ''}
-            </td>
-        </tr>
-    `).join('');
-    
-    updatePagination(currentPage, Math.ceil(totalCount / rowsPerPage));
-}
-
-function updatePagination(current, total) {
-    const pageNumbers = document.getElementById('pageNumbers');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    
-    if (!pageNumbers) return;
-    
-    if (prevBtn) prevBtn.disabled = current === 1;
-    if (nextBtn) nextBtn.disabled = current === total || total === 0;
-    
-    let html = '';
-    for (let i = 1; i <= Math.min(total, 5); i++) {
-        html += `<span class="page-number ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</span>`;
-    }
-    pageNumbers.innerHTML = html;
-}
-
-// ===========================================
-// TABLE FUNCTIONS
-// ===========================================
-window.sortTable = function(column) {
-    if (currentSortColumn === column) {
-        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-        currentSortColumn = column;
-        currentSortDirection = 'asc';
-    }
-    updateTable(globalFarms);
-};
-
-window.filterTable = function() {
-    const searchTerm = document.getElementById('tableSearch')?.value.toLowerCase() || '';
-    const statusFilter = document.getElementById('statusFilter')?.value || 'all';
-    
-    let filteredFarms = globalFarms;
-    
-    if (searchTerm) {
-        filteredFarms = filteredFarms.filter(farm => 
-            (farm.farmer_id || '').toLowerCase().includes(searchTerm) ||
-            (farm.farmer_name || '').toLowerCase().includes(searchTerm)
-        );
+    // Sync button
+    const syncButton = document.getElementById('syncKoboBtn');
+    if (syncButton) {
+        syncButton.addEventListener('click', async () => window.dataManager?.syncWithKobo());
     }
     
-    if (statusFilter !== 'all') {
-        filteredFarms = filteredFarms.filter(farm => farm.status === statusFilter);
+    // Notifications button
+    const notificationsBtn = document.getElementById('notificationsBtn');
+    if (notificationsBtn) {
+        notificationsBtn.addEventListener('click', () => {
+            window.notification?.info(`You have ${window.dataManager?.stats?.qualityAlerts || 0} alerts`);
+        });
     }
-    
-    updateTable(filteredFarms);
-};
-
-window.refreshTable = function() {
-    loadFarmsData();
-};
-
-window.goToPage = function(page) {
-    currentPage = page;
-    updateTable(globalFarms);
-};
-
-window.prevPage = function() {
-    if (currentPage > 1) {
-        currentPage--;
-        updateTable(globalFarms);
-    }
-};
-
-window.nextPage = function() {
-    const total = Math.ceil(globalFarms.length / rowsPerPage);
-    if (currentPage < total) {
-        currentPage++;
-        updateTable(globalFarms);
-    }
-};
-
-// ===========================================
-// FARM ACTIONS
-// ===========================================
-window.viewFarm = function(farmId) {
-    const farm = globalFarms.find(f => f.id === farmId);
-    if (farm) {
-        alert(`Farm: ${farm.farmer_name || 'Unknown'}\nID: ${farm.farmer_id || farm.id}\nArea: ${farm.area || 0} ha\nStatus: ${farm.status || 'pending'}`);
-    }
-};
-
-window.approveFarm = async function(farmId) {
-    if (!confirm('Approve this farm?')) return;
-    
-    try {
-        const { error } = await window.supabase
-            .from('farms')
-            .update({ status: 'validated' })
-            .eq('id', farmId);
-        
-        if (error) throw error;
-        
-        showNotification('Farm approved!', 'success');
-        loadFarmsData();
-        
-    } catch (error) {
-        console.error('Error approving farm:', error);
-        showNotification('Error approving farm', 'error');
-    }
-};
-
-window.rejectFarm = async function(farmId) {
-    const reason = prompt('Rejection reason:');
-    if (!reason) return;
-    
-    try {
-        const { error } = await window.supabase
-            .from('farms')
-            .update({ status: 'rejected', rejection_reason: reason })
-            .eq('id', farmId);
-        
-        if (error) throw error;
-        
-        showNotification('Farm rejected!', 'info');
-        loadFarmsData();
-        
-    } catch (error) {
-        console.error('Error rejecting farm:', error);
-        showNotification('Error rejecting farm', 'error');
-    }
-};
-
-// ===========================================
-// ALERT FUNCTIONS
-// ===========================================
-window.refreshAlerts = function() {
-    loadFarmsData();
-    showNotification('Alerts refreshed', 'info');
-};
-
-window.viewAllAlerts = function() {
-    const alertCount = document.getElementById('alertsCount')?.textContent || 0;
-    if (alertCount === '0') {
-        showNotification('No alerts to display', 'info');
-    } else {
-        alert(`Total Alerts: ${alertCount}\n\nCheck farms with missing data or geometry issues.`);
-    }
-};
-
-// ===========================================
-// MAP FUNCTIONS
-// ===========================================
-window.refreshMapData = function() {
-    showNotification('Map data refreshed', 'info');
-    if (typeof window.loadFarmsToMap === 'function') {
-        window.loadFarmsToMap(globalFarms);
-    }
-};
-
-window.zoomIn = function() {
-    if (window.map) window.map.zoomIn();
-};
-
-window.zoomOut = function() {
-    if (window.map) window.map.zoomOut();
-};
-
-window.resetView = function() {
-    if (window.map) window.map.setView([7.539989, -5.547080], 8);
-};
-
-window.locateMe = function() {
-    if (!window.map) return;
-    window.map.locate({ setView: true, maxZoom: 16 });
-    window.map.once('locationfound', function(e) {
-        L.marker(e.latlng).addTo(window.map).bindPopup('You are here').openPopup();
-    });
-};
-
-window.setBaseLayer = function(type) {
-    showNotification(`Switched to ${type} view`, 'info');
-};
-
-// ===========================================
-// NOTIFICATION
-// ===========================================
-function showNotification(message, type = 'info') {
-    console.log(`[${type}] ${message}`);
-    
-    const colors = {
-        success: '#4CAF50',
-        error: '#F44336',
-        warning: '#FFC107',
-        info: '#2196F3'
-    };
-    
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 12px 24px;
-        background: ${colors[type]};
-        color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10001;
-        animation: slideIn 0.3s ease;
-        font-family: 'Inter', sans-serif;
-        font-size: 14px;
-        font-weight: 500;
-    `;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-function showLoading(show) {
-    const overlay = document.getElementById('loadingOverlay');
-    if (overlay) {
-        overlay.style.display = show ? 'flex' : 'none';
-    }
-}
-
-// ===========================================
-// INITIALIZATION
-// ===========================================
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('📄 Global JS: DOM ready');
-    
-    loadUserData();
-    
-    const supabase = await waitForSupabase();
-    
-    if (!supabase) {
-        console.error('❌ Global JS: Supabase not available');
-        showNotification('Failed to initialize. Please refresh.', 'error');
-        showLoading(false);
-        return;
-    }
-    
-    console.log('✅ Global JS: Supabase ready, loading dashboard data...');
-    loadFarmsData();
 });
 
-// Add animations
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-    }
-    .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    .status-badge.validated { background: #d1fae5; color: #065f46; }
-    .status-badge.pending { background: #fff3cd; color: #856404; }
-    .status-badge.rejected { background: #fee2e2; color: #991b1b; }
-    .action-btn {
-        padding: 4px 8px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        margin: 0 2px;
-    }
-    .action-btn.view { background: #2196F3; color: white; }
-    .action-btn.approve { background: #4CAF50; color: white; }
-    .action-btn.reject { background: #f44336; color: white; }
-    .page-number {
-        cursor: pointer;
-        padding: 5px 10px;
-        margin: 0 2px;
-        border-radius: 4px;
-        border: 1px solid #e2e8f0;
-        background: white;
-    }
-    .page-number:hover { background: #e2e8f0; }
-    .page-number.active { background: #2c6e49; color: white; border-color: #2c6e49; }
-`;
-document.head.appendChild(style);
+// ===========================================
+// UTILITY FUNCTIONS
+// ===========================================
 
-console.log('✅ Global JS ready');
+window.utils = {
+    formatDate: (date, format = 'DD/MM/YYYY') => {
+        if (!date) return 'N/A';
+        const d = new Date(date);
+        const pad = n => n.toString().padStart(2, '0');
+        return format
+            .replace('DD', pad(d.getDate()))
+            .replace('MM', pad(d.getMonth() + 1))
+            .replace('YYYY', d.getFullYear());
+    },
+    
+    debounce: (func, wait) => { 
+        let t; 
+        return (...args) => { 
+            clearTimeout(t); 
+            t = setTimeout(() => func(...args), wait); 
+        }; 
+    },
+    
+    formatFileSize: (bytes) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+    
+    exportToFile: (data, filename, type = 'application/json') => {
+        const blob = new Blob([data], { type });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    },
+    
+    copyToClipboard: async (text) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            window.notification?.success('Copied to clipboard');
+            return true;
+        } catch (err) {
+            window.notification?.error('Failed to copy');
+            return false;
+        }
+    },
+    
+    getUrlParams: () => {
+        const params = new URLSearchParams(window.location.search);
+        const result = {};
+        for (const [key, value] of params) {
+            result[key] = value;
+        }
+        return result;
+    },
+    
+    safeJSONParse: (str, fallback = null) => {
+        try {
+            return JSON.parse(str);
+        } catch {
+            return fallback;
+        }
+    },
+    
+    getStatusColor: (status) => {
+        const colors = {
+            validated: '#4CAF50',
+            pending: '#FFC107',
+            rejected: '#F44336'
+        };
+        return colors[status] || '#2196F3';
+    }
+};
+
+// ===========================================
+// GLOBAL FUNCTIONS
+// ===========================================
+
+window.manualSync = async () => window.dataManager?.syncWithKobo();
+window.refreshData = async () => window.dataManager?.refreshData();
+window.refreshAlerts = async () => {
+    await window.dataManager?.loadAlerts();
+    window.dataManager?.calculateStats();
+    window.notification?.success('Alerts refreshed');
+};
+window.viewAllAlerts = () => {
+    const count = window.dataManager?.stats?.qualityAlerts || 0;
+    if (count === 0) {
+        window.notification?.info('No alerts to display');
+    } else {
+        window.notification?.info(`Total Alerts: ${count}\n\nCheck farms with missing data or geometry issues.`);
+    }
+};
+
+// Expose notification for other scripts
+window.showNotification = (message, type) => {
+    if (window.notification) {
+        window.notification[type](message);
+    }
+};
+
+console.log('🚀 Global utilities and DataManager loaded');
