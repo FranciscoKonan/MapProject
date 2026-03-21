@@ -910,4 +910,173 @@ function formatDate(dateString) {
 }
 
 function escapeHtml(str) {
-    if (!str)
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function showNotification(message, type = 'info') {
+    console.log(`[${type}] ${message}`);
+    
+    const colors = {
+        success: '#4CAF50',
+        error: '#F44336',
+        warning: '#FFC107',
+        info: '#2196F3'
+    };
+    
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 24px;
+        background: ${colors[type]};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10001;
+        animation: slideIn 0.3s ease;
+        font-size: 14px;
+        font-weight: 500;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// ===========================================
+// EVENT LISTENERS
+// ===========================================
+function setupEventListeners() {
+    // Refresh button
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => loadFarmsAndGenerateAlerts());
+    }
+    
+    // Apply filters
+    const applyBtn = document.getElementById('applyFiltersBtn');
+    if (applyBtn) {
+        applyBtn.addEventListener('click', () => applyFilters());
+    }
+    
+    // Clear filters
+    const clearBtn = document.getElementById('clearFiltersBtn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            const typeFilter = document.getElementById('alertTypeFilter');
+            const severityFilter = document.getElementById('alertSeverityFilter');
+            const supplierFilter = document.getElementById('alertSupplierFilter');
+            const coopFilter = document.getElementById('alertCoopFilter');
+            const statusFilter = document.getElementById('alertStatusFilter');
+            const supplierSearch = document.getElementById('supplierSearch');
+            const coopSearch = document.getElementById('coopSearch');
+            
+            if (typeFilter) typeFilter.value = 'all';
+            if (severityFilter) severityFilter.value = 'all';
+            if (supplierFilter) supplierFilter.value = 'all';
+            if (coopFilter) coopFilter.value = 'all';
+            if (statusFilter) statusFilter.value = 'all';
+            if (supplierSearch) supplierSearch.value = '';
+            if (coopSearch) coopSearch.value = '';
+            
+            supplierSearchTerm = '';
+            coopSearchTerm = '';
+            updateSupplierFilter();
+            updateCooperativeFilter();
+            applyFilters();
+        });
+    }
+    
+    // Filter change listeners
+    const typeFilter = document.getElementById('alertTypeFilter');
+    const severityFilter = document.getElementById('alertSeverityFilter');
+    const supplierFilter = document.getElementById('alertSupplierFilter');
+    const coopFilter = document.getElementById('alertCoopFilter');
+    const statusFilter = document.getElementById('alertStatusFilter');
+    
+    if (typeFilter) typeFilter.addEventListener('change', () => applyFilters());
+    if (severityFilter) severityFilter.addEventListener('change', () => applyFilters());
+    if (supplierFilter) supplierFilter.addEventListener('change', () => applyFilters());
+    if (coopFilter) coopFilter.addEventListener('change', () => applyFilters());
+    if (statusFilter) statusFilter.addEventListener('change', () => applyFilters());
+    
+    // Search listeners
+    const supplierSearch = document.getElementById('supplierSearch');
+    if (supplierSearch) {
+        supplierSearch.addEventListener('input', (e) => {
+            supplierSearchTerm = e.target.value.toLowerCase();
+            updateSupplierFilter();
+            applyFilters();
+        });
+    }
+    
+    const coopSearch = document.getElementById('coopSearch');
+    if (coopSearch) {
+        coopSearch.addEventListener('input', (e) => {
+            coopSearchTerm = e.target.value.toLowerCase();
+            updateCooperativeFilter();
+            applyFilters();
+        });
+    }
+    
+    // Pagination
+    const prevBtn = document.getElementById('prevPageBtn');
+    if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderAlerts(); updatePagination(); } });
+    
+    const nextBtn = document.getElementById('nextPageBtn');
+    if (nextBtn) nextBtn.addEventListener('click', () => { const total = Math.ceil(filteredAlerts.length / rowsPerPage); if (currentPage < total) { currentPage++; renderAlerts(); updatePagination(); } });
+    
+    // Export buttons
+    const exportCSV = document.getElementById('exportCSV');
+    const exportJSON = document.getElementById('exportJSON');
+    if (exportCSV) exportCSV.addEventListener('click', () => exportToCSV());
+    if (exportJSON) exportJSON.addEventListener('click', () => exportToJSON());
+    
+    // Mark all as acknowledged
+    const markAllBtn = document.getElementById('markAllReadBtn');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', () => {
+            if (confirm('Mark all new alerts as acknowledged?')) {
+                allAlerts.forEach(alert => {
+                    if (alert.status === 'new') alert.status = 'acknowledged';
+                });
+                applyFilters();
+                showNotification('All alerts marked as acknowledged', 'success');
+            }
+        });
+    }
+    
+    // Logout
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (window.supabase) await window.supabase.auth.signOut();
+            localStorage.clear();
+            window.location.href = '../login.html';
+        });
+    }
+}
+
+// ===========================================
+// EXPOSE GLOBAL FUNCTIONS
+// ===========================================
+window.viewAlertDetails = viewAlertDetails;
+window.updateAlertStatus = updateAlertStatus;
+window.goToPage = goToPage;
+window.applyFilters = applyFilters;
+window.exportToCSV = exportToCSV;
+window.exportToJSON = exportToJSON;
+
+console.log('✅ Quality Alerts page ready');
