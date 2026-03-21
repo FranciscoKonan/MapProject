@@ -1,5 +1,5 @@
 // ===========================================
-// QUALITY ALERTS - USING DASHBOARD ALERT SYSTEM
+// QUALITY ALERTS - RECEIVES ALERTS FROM DASHBOARD
 // ===========================================
 
 console.log('🚀 Quality Alerts page loading...');
@@ -36,65 +36,86 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('alerts-updated', function(event) {
         console.log('📢 Received alerts-updated event');
         const newAlerts = event.detail?.alerts || window.globalAlertsData || [];
-        updateAlertsFromDashboard(newAlerts);
+        updateAlerts(newAlerts);
     });
     
     // Also listen for alternative event name
     window.addEventListener('dashboard-alerts-updated', function(event) {
         console.log('📢 Received dashboard-alerts-updated event');
         const newAlerts = event.detail?.alerts || window.dashboardAlerts || [];
-        updateAlertsFromDashboard(newAlerts);
+        updateAlerts(newAlerts);
     });
     
     // Check if alerts already exist
-    if (window.globalAlertsData && window.globalAlertsData.length > 0) {
-        console.log('✅ Found existing alerts from dashboard');
-        updateAlertsFromDashboard(window.globalAlertsData);
-    } else if (window.dashboardAlerts && window.dashboardAlerts.length > 0) {
-        console.log('✅ Found existing alerts from dashboardAlerts');
-        updateAlertsFromDashboard(window.dashboardAlerts);
-    } else {
-        console.log('⏳ Waiting for alerts from dashboard...');
-        showNotification('Waiting for dashboard to load alerts...', 'info');
-        
-        // Poll for alerts every 2 seconds
-        let pollCount = 0;
-        const pollInterval = setInterval(() => {
-            pollCount++;
-            if (window.globalAlertsData && window.globalAlertsData.length > 0) {
-                console.log('✅ Alerts found after polling');
-                updateAlertsFromDashboard(window.globalAlertsData);
-                clearInterval(pollInterval);
-            } else if (window.dashboardAlerts && window.dashboardAlerts.length > 0) {
-                console.log('✅ Alerts found after polling');
-                updateAlertsFromDashboard(window.dashboardAlerts);
-                clearInterval(pollInterval);
-            } else if (pollCount > 15) {
-                console.log('⚠️ No alerts found after 30 seconds, using sample data');
-                loadSampleAlerts();
-                clearInterval(pollInterval);
-            }
-        }, 2000);
-    }
+    checkForExistingAlerts();
     
     // Setup event listeners
     setupEventListeners();
 });
 
+function checkForExistingAlerts() {
+    // Check multiple possible sources
+    let alerts = null;
+    
+    if (window.globalAlertsData && window.globalAlertsData.length > 0) {
+        alerts = window.globalAlertsData;
+        console.log('✅ Found alerts in window.globalAlertsData');
+    } else if (window.dashboardAlerts && window.dashboardAlerts.length > 0) {
+        alerts = window.dashboardAlerts;
+        console.log('✅ Found alerts in window.dashboardAlerts');
+    } else if (window.alertsData && window.alertsData.length > 0) {
+        alerts = window.alertsData;
+        console.log('✅ Found alerts in window.alertsData');
+    }
+    
+    if (alerts) {
+        updateAlerts(alerts);
+    } else {
+        console.log('⏳ No alerts found yet, polling...');
+        startPolling();
+    }
+}
+
+function startPolling() {
+    let pollCount = 0;
+    const pollInterval = setInterval(() => {
+        pollCount++;
+        
+        let alerts = null;
+        if (window.globalAlertsData && window.globalAlertsData.length > 0) {
+            alerts = window.globalAlertsData;
+        } else if (window.dashboardAlerts && window.dashboardAlerts.length > 0) {
+            alerts = window.dashboardAlerts;
+        } else if (window.alertsData && window.alertsData.length > 0) {
+            alerts = window.alertsData;
+        }
+        
+        if (alerts) {
+            console.log('✅ Alerts found after polling');
+            updateAlerts(alerts);
+            clearInterval(pollInterval);
+        } else if (pollCount > 15) {
+            console.log('⚠️ No alerts found after 30 seconds, loading sample data');
+            loadSampleAlerts();
+            clearInterval(pollInterval);
+        }
+    }, 2000);
+}
+
 // ===========================================
 // UPDATE ALERTS FROM DASHBOARD
 // ===========================================
 
-function updateAlertsFromDashboard(dashboardAlerts) {
+function updateAlerts(dashboardAlerts) {
     if (!dashboardAlerts || dashboardAlerts.length === 0) {
-        console.log('No alerts from dashboard');
+        console.log('No alerts from dashboard, using sample data');
         loadSampleAlerts();
         return;
     }
     
     console.log(`✅ Received ${dashboardAlerts.length} alerts from dashboard`);
     
-    // Transform dashboard alerts to match our format
+    // Transform dashboard alerts to our format
     allAlerts = dashboardAlerts.map(alert => ({
         id: alert.id,
         farmId: alert.farm_id || alert.farmId,
@@ -121,13 +142,6 @@ function updateAlertsFromDashboard(dashboardAlerts) {
     // Apply filters and render
     applyFilters();
     
-    // Show notification with alert count
-    if (allAlerts.length > 0) {
-        showNotification(`${allAlerts.length} quality alerts found`, 'warning');
-    } else {
-        showNotification('No quality alerts', 'success');
-    }
-    
     // Update notification badge
     const newAlerts = allAlerts.filter(a => a.status === 'new').length;
     const badge = document.getElementById('notificationBadge');
@@ -135,10 +149,17 @@ function updateAlertsFromDashboard(dashboardAlerts) {
         badge.textContent = newAlerts;
         badge.style.display = newAlerts > 0 ? 'flex' : 'none';
     }
+    
+    // Show notification
+    if (allAlerts.length > 0) {
+        showNotification(`${allAlerts.length} quality alerts found`, 'warning');
+    } else {
+        showNotification('No quality alerts', 'success');
+    }
 }
 
 // ===========================================
-// SAMPLE ALERTS (Fallback when no dashboard alerts)
+// SAMPLE ALERTS (Fallback)
 // ===========================================
 function loadSampleAlerts() {
     console.log('📊 Loading sample alerts');
@@ -289,7 +310,7 @@ function applyFilters() {
         return true;
     });
     
-    // Sort by date (newest first) and severity
+    // Sort by severity and date
     filteredAlerts.sort((a, b) => {
         const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
         if (severityOrder[a.severity] !== severityOrder[b.severity]) {
@@ -298,17 +319,12 @@ function applyFilters() {
         return new Date(b.date) - new Date(a.date);
     });
     
-    // Update stats
     updateStats();
     
-    // Update export count
     const exportCount = document.getElementById('exportCount');
     if (exportCount) exportCount.textContent = `${filteredAlerts.length} alerts`;
     
-    // Reset to first page
     currentPage = 1;
-    
-    // Render alerts
     renderAlerts();
     updatePagination();
 }
@@ -364,13 +380,10 @@ function renderAlerts() {
                 <div class="alert-date">${formatDate(alert.date)}</div>
             </div>
             <div class="alert-details">
-                <p><strong>${alert.type === 'overlap' ? 'Affected Farms' : 'Farm'}:</strong> ${escapeHtml(alert.farmerName)}${alert.affectedFarmName ? ` & ${escapeHtml(alert.affectedFarmName)}` : ''}</p>
+                <p><strong>Farm:</strong> ${escapeHtml(alert.farmerName)}${alert.affectedFarmName ? ` & ${escapeHtml(alert.affectedFarmName)}` : ''}</p>
                 <p><strong>Supplier:</strong> ${escapeHtml(alert.supplier)} • <strong>Cooperative:</strong> ${escapeHtml(alert.cooperative)}</p>
-                ${alert.type === 'overlap' ? `
-                    <p><strong>Overlap Area:</strong> ${alert.overlapArea} ha (${alert.overlapPercent}% of smaller farm)</p>
-                ` : alert.type === 'self-intersection' ? `
-                    <p><strong>Self-Intersection Points:</strong> ${alert.selfIntersectionCount || 1} point(s)</p>
-                ` : ''}
+                ${alert.overlapArea ? `<p><strong>Overlap Area:</strong> ${alert.overlapArea} ha (${alert.overlapPercent}%)</p>` : ''}
+                ${alert.selfIntersectionCount ? `<p><strong>Self-Intersection Points:</strong> ${alert.selfIntersectionCount}</p>` : ''}
                 <p>${escapeHtml(alert.description)}</p>
             </div>
             <div class="alert-actions">
@@ -454,7 +467,6 @@ function viewAlertDetails(alertId) {
 }
 
 function showAlertModal(alert) {
-    // Remove existing modal
     const existing = document.querySelector('.modal-overlay');
     if (existing) existing.remove();
     
@@ -469,7 +481,7 @@ function showAlertModal(alert) {
     modal.className = 'modal-overlay';
     modal.innerHTML = `
         <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, ${severityColors[alert.severity]}, ${severityColors[alert.severity]}cc);">
+            <div class="modal-header" style="background: ${severityColors[alert.severity]};">
                 <h3>
                     <i class="fas ${getSeverityIcon(alert.severity)}"></i>
                     ${escapeHtml(alert.title)}
@@ -498,34 +510,31 @@ function showAlertModal(alert) {
                     <div class="modal-value">${escapeHtml(alert.cooperative)}</div>
                 </div>
                 <div class="modal-row">
-                    <div class="modal-label">Alert Type:</div>
+                    <div class="modal-label">Type:</div>
                     <div class="modal-value">${alert.type.replace('_', ' ').toUpperCase()}</div>
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Severity:</div>
-                    <div class="modal-value">
-                        <span class="alert-badge ${alert.severity}" style="background: ${severityColors[alert.severity]}; color: white;">${alert.severity.toUpperCase()}</span>
-                    </div>
+                    <div class="modal-value">${alert.severity.toUpperCase()}</div>
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Status:</div>
-                    <div class="modal-value">
-                        <span class="alert-badge ${alert.status}">${alert.status}</span>
-                    </div>
+                    <div class="modal-value">${alert.status.toUpperCase()}</div>
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Date:</div>
                     <div class="modal-value">${new Date(alert.date).toLocaleString()}</div>
                 </div>
-                ${alert.type === 'overlap' ? `
+                ${alert.overlapArea ? `
                 <div class="modal-row">
                     <div class="modal-label">Overlap Area:</div>
-                    <div class="modal-value">${alert.overlapArea} ha (${alert.overlapPercent}% of smaller farm)</div>
+                    <div class="modal-value">${alert.overlapArea} ha (${alert.overlapPercent}%)</div>
                 </div>
-                ` : alert.type === 'self-intersection' ? `
+                ` : ''}
+                ${alert.selfIntersectionCount ? `
                 <div class="modal-row">
                     <div class="modal-label">Intersection Points:</div>
-                    <div class="modal-value">${alert.selfIntersectionCount || 1} point(s)</div>
+                    <div class="modal-value">${alert.selfIntersectionCount}</div>
                 </div>
                 ` : ''}
                 <div class="modal-row">
@@ -569,7 +578,6 @@ function showAlertModal(alert) {
     
     document.body.appendChild(modal);
     
-    // Close on overlay click
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             modal.remove();
@@ -698,119 +706,79 @@ function showNotification(message, type = 'info') {
 // EVENT LISTENERS
 // ===========================================
 function setupEventListeners() {
-    // Refresh button
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => {
-            showNotification('Refreshing alerts from dashboard...', 'info');
-            if (window.globalAlertsData) {
-                updateAlertsFromDashboard(window.globalAlertsData);
-            } else if (window.dashboardAlerts) {
-                updateAlertsFromDashboard(window.dashboardAlerts);
-            } else {
-                loadSampleAlerts();
-            }
-        });
-    }
+    document.getElementById('refreshBtn')?.addEventListener('click', () => {
+        showNotification('Refreshing alerts...', 'info');
+        checkForExistingAlerts();
+    });
     
-    // Apply filters
-    const applyBtn = document.getElementById('applyFiltersBtn');
-    if (applyBtn) {
-        applyBtn.addEventListener('click', () => applyFilters());
-    }
+    document.getElementById('applyFiltersBtn')?.addEventListener('click', () => applyFilters());
     
-    // Clear filters
-    const clearBtn = document.getElementById('clearFiltersBtn');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            document.getElementById('alertTypeFilter').value = 'all';
-            document.getElementById('alertSeverityFilter').value = 'all';
-            document.getElementById('alertSupplierFilter').value = 'all';
-            document.getElementById('alertCoopFilter').value = 'all';
-            document.getElementById('alertStatusFilter').value = 'all';
-            document.getElementById('supplierSearch').value = '';
-            document.getElementById('coopSearch').value = '';
-            supplierSearchTerm = '';
-            coopSearchTerm = '';
-            updateSupplierFilter();
-            updateCooperativeFilter();
-            applyFilters();
-        });
-    }
+    document.getElementById('clearFiltersBtn')?.addEventListener('click', () => {
+        document.getElementById('alertTypeFilter').value = 'all';
+        document.getElementById('alertSeverityFilter').value = 'all';
+        document.getElementById('alertSupplierFilter').value = 'all';
+        document.getElementById('alertCoopFilter').value = 'all';
+        document.getElementById('alertStatusFilter').value = 'all';
+        document.getElementById('supplierSearch').value = '';
+        document.getElementById('coopSearch').value = '';
+        supplierSearchTerm = '';
+        coopSearchTerm = '';
+        updateSupplierFilter();
+        updateCooperativeFilter();
+        applyFilters();
+    });
     
-    // Filter change listeners
     document.getElementById('alertTypeFilter')?.addEventListener('change', () => applyFilters());
     document.getElementById('alertSeverityFilter')?.addEventListener('change', () => applyFilters());
     document.getElementById('alertSupplierFilter')?.addEventListener('change', () => applyFilters());
     document.getElementById('alertCoopFilter')?.addEventListener('change', () => applyFilters());
     document.getElementById('alertStatusFilter')?.addEventListener('change', () => applyFilters());
     
-    // Search listeners
-    const supplierSearch = document.getElementById('supplierSearch');
-    if (supplierSearch) {
-        supplierSearch.addEventListener('input', (e) => {
-            supplierSearchTerm = e.target.value.toLowerCase();
-            updateSupplierFilter();
-            applyFilters();
-        });
-    }
+    document.getElementById('supplierSearch')?.addEventListener('input', (e) => {
+        supplierSearchTerm = e.target.value.toLowerCase();
+        updateSupplierFilter();
+        applyFilters();
+    });
     
-    const coopSearch = document.getElementById('coopSearch');
-    if (coopSearch) {
-        coopSearch.addEventListener('input', (e) => {
-            coopSearchTerm = e.target.value.toLowerCase();
-            updateCooperativeFilter();
-            applyFilters();
-        });
-    }
+    document.getElementById('coopSearch')?.addEventListener('input', (e) => {
+        coopSearchTerm = e.target.value.toLowerCase();
+        updateCooperativeFilter();
+        applyFilters();
+    });
     
-    // Pagination
-    const prevBtn = document.getElementById('prevPageBtn');
-    if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderAlerts(); updatePagination(); } });
+    document.getElementById('prevPageBtn')?.addEventListener('click', () => {
+        if (currentPage > 1) { currentPage--; renderAlerts(); updatePagination(); }
+    });
     
-    const nextBtn = document.getElementById('nextPageBtn');
-    if (nextBtn) nextBtn.addEventListener('click', () => { const total = Math.ceil(filteredAlerts.length / rowsPerPage); if (currentPage < total) { currentPage++; renderAlerts(); updatePagination(); } });
+    document.getElementById('nextPageBtn')?.addEventListener('click', () => {
+        const total = Math.ceil(filteredAlerts.length / rowsPerPage);
+        if (currentPage < total) { currentPage++; renderAlerts(); updatePagination(); }
+    });
     
-    // Export buttons
-    const exportCSV = document.getElementById('exportCSV');
-    const exportJSON = document.getElementById('exportJSON');
-    if (exportCSV) exportCSV.addEventListener('click', () => exportToCSV());
-    if (exportJSON) exportJSON.addEventListener('click', () => exportToJSON());
+    document.getElementById('exportCSV')?.addEventListener('click', () => exportToCSV());
+    document.getElementById('exportJSON')?.addEventListener('click', () => exportToJSON());
     
-    // Mark all as acknowledged
-    const markAllBtn = document.getElementById('markAllReadBtn');
-    if (markAllBtn) {
-        markAllBtn.addEventListener('click', () => {
-            if (confirm('Mark all new alerts as acknowledged?')) {
-                allAlerts.forEach(alert => {
+    document.getElementById('markAllReadBtn')?.addEventListener('click', () => {
+        if (confirm('Mark all new alerts as acknowledged?')) {
+            allAlerts.forEach(alert => {
+                if (alert.status === 'new') alert.status = 'acknowledged';
+            });
+            if (window.globalAlertsData) {
+                window.globalAlertsData.forEach(alert => {
                     if (alert.status === 'new') alert.status = 'acknowledged';
                 });
-                if (window.globalAlertsData) {
-                    window.globalAlertsData.forEach(alert => {
-                        if (alert.status === 'new') alert.status = 'acknowledged';
-                    });
-                }
-                if (window.dashboardAlerts) {
-                    window.dashboardAlerts.forEach(alert => {
-                        if (alert.status === 'new') alert.status = 'acknowledged';
-                    });
-                }
-                applyFilters();
-                showNotification('All alerts marked as acknowledged', 'success');
             }
-        });
-    }
+            applyFilters();
+            showNotification('All alerts marked as acknowledged', 'success');
+        }
+    });
     
-    // Logout
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            if (window.supabase) await window.supabase.auth.signOut();
-            localStorage.clear();
-            window.location.href = '../login.html';
-        });
-    }
+    document.getElementById('logoutBtn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (window.supabase) await window.supabase.auth.signOut();
+        localStorage.clear();
+        window.location.href = '../login.html';
+    });
 }
 
 // ===========================================
@@ -823,4 +791,4 @@ window.applyFilters = applyFilters;
 window.exportToCSV = exportToCSV;
 window.exportToJSON = exportToJSON;
 
-console.log('✅ Quality Alerts page ready - waiting for dashboard alerts');
+console.log('✅ Quality Alerts page ready - listening for dashboard alerts');
