@@ -17,213 +17,54 @@
     <link rel="stylesheet" href="../layoutCSS.css">
     <link rel="stylesheet" href="../tableCSS.css">
     
-    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+    <!-- Submissions CSS -->
+    <link rel="stylesheet" href="submissions.css">
     
-    <style>
-        /* Submissions specific styles */
-        .filter-group {
-            position: relative;
-            display: inline-block;
-            margin-right: 10px;
-            vertical-align: middle;
-        }
-        
-        .filter-search-container {
-            position: relative;
-            margin-bottom: 4px;
-            width: 180px;
-        }
-        
-        .filter-search {
-            width: 100%;
-            padding: 8px 12px 8px 32px;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 12px;
-        }
-        
-        .search-icon {
-            position: absolute;
-            left: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #94a3b8;
-            font-size: 12px;
-        }
-        
-        .filter-select-with-search {
-            width: 180px;
-            padding: 8px 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 12px;
-        }
-        
-        .submissions-stats {
-            display: flex;
-            gap: 15px;
-            padding: 15px 20px;
-            flex-wrap: wrap;
-        }
-        
-        .stat-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        
-        .stat-chip.pending { background: #fff3cd; color: #856404; }
-        .stat-chip.validated { background: #d4edda; color: #155724; }
-        .stat-chip.rejected { background: #f8d7da; color: #721c24; }
-        .stat-chip.total { background: #cce5ff; color: #004085; }
-        
-        .action-buttons {
-            display: flex;
-            gap: 5px;
-        }
-        
-        .action-btn {
-            padding: 5px 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: all 0.2s;
-        }
-        
-        .action-btn.validate { background: #4CAF50; color: white; }
-        .action-btn.validate:hover { background: #45a049; }
-        .action-btn.reject { background: #f44336; color: white; }
-        .action-btn.reject:hover { background: #da190b; }
-        .action-btn.view { background: #2196F3; color: white; }
-        .action-btn.view:hover { background: #0b7dda; }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .status-badge.validated { background: #d1fae5; color: #065f46; }
-        .status-badge.pending { background: #fff3cd; color: #856404; }
-        .status-badge.rejected { background: #fee2e2; color: #991b1b; }
-        
-        .group-view { display: none; }
-        .group-view.active { display: block; }
-        .table-view { display: block; }
-        .table-view.hidden { display: none; }
-        
-        .group-card {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .group-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-        
-        .group-title {
-            font-weight: 600;
-            color: #2c6e49;
-            font-size: 16px;
-        }
-        
-        .group-stats {
-            font-size: 12px;
-            color: #64748b;
-        }
-        
-        .group-items {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 15px;
-        }
-        
-        .group-item {
-            background: #f8fafc;
-            border-radius: 8px;
-            padding: 12px;
-            cursor: pointer;
-            border: 1px solid #e2e8f0;
-            transition: all 0.2s;
-        }
-        
-        .group-item:hover {
-            background: #f1f5f9;
-            transform: translateY(-2px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .group-item-name {
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-        
-        .group-item-details {
-            font-size: 12px;
-            color: #64748b;
-        }
-        
-        .page-numbers {
-            display: inline-flex;
-            gap: 5px;
-            align-items: center;
-        }
-        
-        .page-number {
-            cursor: pointer;
-            padding: 5px 10px;
-            border-radius: 4px;
-            border: 1px solid #e2e8f0;
-            background: white;
-        }
-        
-        .page-number:hover { background: #e2e8f0; }
-        .page-number.active { background: #2c6e49; color: white; border-color: #2c6e49; }
-        
-        @media (max-width: 768px) {
-            .filter-search-container, .filter-select-with-search { width: 100%; }
-            .filter-group { width: 100%; margin-right: 0; margin-bottom: 10px; }
-            .table-actions { flex-wrap: wrap; }
-            .group-items { grid-template-columns: 1fr; }
-        }
-    </style>
+    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
 </head>
 <body>
     <div class="layout">
         <!-- SIDEBAR -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <h2><i class="fas fa-map-marked-alt"></i><span>MappingTrace</span></h2>
+                <h2>
+                    <i class="fas fa-map-marked-alt"></i>
+                    <span>MappingTrace</span>
+                </h2>
             </div>
             <nav class="menu">
-                <a href="../Dashboard.html"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
-                <a href="../LiveMapping/live-mapping.html"><i class="fas fa-map"></i><span>Live Mapping</span></a>
-                <a href="#" class="active"><i class="fas fa-clipboard-list"></i><span>Submissions</span></a>
-                <a href="../QualityAlerts/quality-alerts.html"><i class="fas fa-exclamation-triangle"></i><span>Quality Alerts</span></a>
-                <a href="../Exports/exports.html"><i class="fas fa-file-export"></i><span>Exports</span></a>
+                <a href="../Dashboard.html">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="../LiveMapping/live-mapping.html">
+                    <i class="fas fa-map"></i>
+                    <span>Live Mapping</span>
+                </a>
+                <a href="#" class="active">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Submissions</span>
+                </a>
+                <a href="../QualityAlerts/quality-alerts.html">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Quality Alerts</span>
+                </a>
+                <a href="../Exports/exports.html">
+                    <i class="fas fa-file-export"></i>
+                    <span>Exports</span>
+                </a>
                 <div class="menu-bottom">
-                    <a href="../login.html" id="logoutBtn"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
+                    <a href="../login.html" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
                 </div>
             </nav>
         </aside>
 
         <!-- MAIN CONTENT -->
         <main class="main">
+            <!-- HEADER -->
             <div class="main-header">
                 <div class="header-title">
                     <h1><i class="fas fa-clipboard-list"></i> Submissions</h1>
@@ -235,437 +76,128 @@
                         <div class="user-name" id="userName">Loading...</div>
                         <div class="user-role" id="userRole">Loading...</div>
                     </div>
-                    <button class="sync-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> Refresh</button>
+                    <button class="sync-btn" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
                 </div>
             </div>
 
-            <section class="table-section" style="padding: 20px; height: calc(100vh - 70px); overflow-y: auto;">
-                <div class="table-header">
-                    <h3><i class="fas fa-history"></i> Farm Submissions</h3>
-                    <div class="table-actions" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
-                        <div class="search-box">
-                            <input type="text" id="tableSearch" placeholder="Search...">
-                            <button id="searchBtn"><i class="fas fa-search"></i></button>
+            <!-- SUBMISSIONS CONTENT -->
+            <div class="submissions-container">
+                <!-- FILTERS SECTION -->
+                <div class="filters-section">
+                    <div class="filter-group">
+                        <div class="filter-search-container">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="supplierSearchInput" class="filter-search" placeholder="Search suppliers...">
                         </div>
-                        
-                        <div class="filter-group">
-                            <div class="filter-search-container">
-                                <i class="fas fa-search search-icon"></i>
-                                <input type="text" id="supplierSearch" class="filter-search" placeholder="Search suppliers...">
-                            </div>
-                            <select id="supplierFilter" class="filter-select-with-search">
-                                <option value="all">All Suppliers</option>
-                            </select>
+                        <select id="supplierFilter" class="filter-select">
+                            <option value="all">All Suppliers</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <div class="filter-search-container">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="coopSearchInput" class="filter-search" placeholder="Search cooperatives...">
                         </div>
-                        
-                        <div class="filter-group">
-                            <div class="filter-search-container">
-                                <i class="fas fa-search search-icon"></i>
-                                <input type="text" id="coopSearch" class="filter-search" placeholder="Search cooperatives...">
-                            </div>
-                            <select id="cooperativeFilter" class="filter-select-with-search">
-                                <option value="all">All Cooperatives</option>
-                            </select>
-                        </div>
-                        
+                        <select id="cooperativeFilter" class="filter-select">
+                            <option value="all">All Cooperatives</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <input type="text" id="searchInput" class="search-box" placeholder="Search by name or ID...">
+                    </div>
+                    
+                    <div class="filter-group">
                         <select id="statusFilter" class="filter-select">
                             <option value="all">All Status</option>
                             <option value="validated">Validated</option>
                             <option value="pending">Pending</option>
                             <option value="rejected">Rejected</option>
                         </select>
-        
-                        <button id="toggleViewBtn" class="btn-icon" title="Toggle Group View">
-                            <i class="fas fa-layer-group"></i>
-                        </button>
+                    </div>
+                    
+                    <button id="toggleViewBtn" class="toggle-view-btn">
+                        <i class="fas fa-layer-group"></i> Group View
+                    </button>
+                </div>
+
+                <!-- STATS SECTION -->
+                <div class="stats-section">
+                    <div class="stat-card pending">
+                        <i class="fas fa-clock"></i>
+                        <span class="stat-number" id="pendingCount">0</span>
+                        <span class="stat-label">Pending</span>
+                    </div>
+                    <div class="stat-card validated">
+                        <i class="fas fa-check-circle"></i>
+                        <span class="stat-number" id="validatedCount">0</span>
+                        <span class="stat-label">Validated</span>
+                    </div>
+                    <div class="stat-card rejected">
+                        <i class="fas fa-times-circle"></i>
+                        <span class="stat-number" id="rejectedCount">0</span>
+                        <span class="stat-label">Rejected</span>
+                    </div>
+                    <div class="stat-card total">
+                        <i class="fas fa-tractor"></i>
+                        <span class="stat-number" id="totalCount">0</span>
+                        <span class="stat-label">Total</span>
                     </div>
                 </div>
-                
-                <div class="submissions-stats">
-                    <div class="stat-chip pending"><i class="fas fa-clock"></i><span id="pendingCount">0</span> Pending</div>
-                    <div class="stat-chip validated"><i class="fas fa-check-circle"></i><span id="validatedCount">0</span> Validated</div>
-                    <div class="stat-chip rejected"><i class="fas fa-times-circle"></i><span id="rejectedCount">0</span> Rejected</div>
-                    <div class="stat-chip total"><i class="fas fa-tractor"></i><span id="totalCount">0</span> Total</div>
-                </div>
-                
-                <!-- Table View -->
+
+                <!-- TABLE VIEW -->
                 <div id="tableView" class="table-view">
                     <div class="table-container">
-                        <table style="width: 100%; border-collapse: collapse;">
+                        <table>
                             <thead>
-                                <tr style="background: #f8fafc;">
-                                    <th style="padding: 12px; cursor: pointer;" onclick="sortTable('farmerId')">Farmer ID <i class="fas fa-sort"></i></th>
-                                    <th style="padding: 12px; cursor: pointer;" onclick="sortTable('farmerName')">Farmer Name <i class="fas fa-sort"></i></th>
-                                    <th style="padding: 12px; cursor: pointer;" onclick="sortTable('cooperative')">Cooperative <i class="fas fa-sort"></i></th>
-                                    <th style="padding: 12px; cursor: pointer;" onclick="sortTable('supplier')">Supplier <i class="fas fa-sort"></i></th>
-                                    <th style="padding: 12px; cursor: pointer;" onclick="sortTable('area')">Area (ha) <i class="fas fa-sort"></i></th>
-                                    <th style="padding: 12px; cursor: pointer;" onclick="sortTable('status')">Status <i class="fas fa-sort"></i></th>
-                                    <th style="padding: 12px;">Actions</th>
+                                <tr>
+                                    <th data-sort="farmerId">Farmer ID <i class="fas fa-sort"></i></th>
+                                    <th data-sort="farmerName">Farmer Name <i class="fas fa-sort"></i></th>
+                                    <th data-sort="cooperative">Cooperative <i class="fas fa-sort"></i></th>
+                                    <th data-sort="supplier">Supplier <i class="fas fa-sort"></i></th>
+                                    <th data-sort="area">Area (ha) <i class="fas fa-sort"></i></th>
+                                    <th data-sort="status">Status <i class="fas fa-sort"></i></th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="tableBody"></tbody>
+                            <tbody id="tableBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 40px;">Loading submissions...</td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
                     
-                    <div class="table-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0;">
-                        <div>Showing <span id="showingCount">0-0</span> of <span id="totalCountFooter">0</span> records</div>
-                        <div class="pagination">
-                            <button id="prevBtn" class="pagination-btn" disabled><i class="fas fa-chevron-left"></i></button>
-                            <div class="page-numbers" id="pageNumbers"></div>
-                            <button id="nextBtn" class="pagination-btn"><i class="fas fa-chevron-right"></i></button>
+                    <div class="pagination-container">
+                        <div class="pagination-info">
+                            Showing <span id="showingStart">0</span> - <span id="showingEnd">0</span> of <span id="totalRecords">0</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button id="prevPageBtn" class="page-btn" disabled>
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <div id="pageNumbers" class="page-numbers"></div>
+                            <button id="nextPageBtn" class="page-btn">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Group View -->
-                <div id="groupView" class="group-view">
+
+                <!-- GROUP VIEW -->
+                <div id="groupView" class="group-view" style="display: none;">
                     <div id="groupViewContent"></div>
                 </div>
-            </section>
+            </div>
         </main>
     </div>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <script>
-        // ===========================================
-        // SUPABASE CONFIGURATION
-        // ===========================================
-        const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cnVmbWVsZnRicXBzZW1uamJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzYwNTMsImV4cCI6MjA4NjY1MjA1M30.1NPN666Lt9WZHupvp_XIFu-SnsaextHH_JvXgQPtyV0';
-        
-        let allSubmissions = [];
-        let filteredSubmissions = [];
-        let currentPage = 1;
-        let rowsPerPage = 10;
-        let currentSort = { column: 'submissionDate', direction: 'desc' };
-        let currentView = 'table';
-        let uniqueSuppliers = [];
-        let uniqueCooperatives = [];
-        let supplierSearchTerm = '';
-        let coopSearchTerm = '';
-        
-        // Initialize Supabase
-        function initSupabase(retry = 0) {
-            if (typeof window.supabase === 'undefined') {
-                if (retry < 10) {
-                    setTimeout(() => initSupabase(retry + 1), 500);
-                    return;
-                }
-                console.error('Supabase failed to load');
-                loadSampleData();
-                return;
-            }
-            
-            window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            console.log('✅ Supabase initialized');
-            
-            // Load user data
-            const userData = localStorage.getItem('mappingtrace_user');
-            if (userData) {
-                const user = JSON.parse(userData);
-                document.getElementById('userName').textContent = user.fullName || 'User';
-                document.getElementById('userRole').textContent = user.role || 'User';
-                document.getElementById('userAvatar').textContent = user.avatar || 'U';
-            }
-            
-            loadSubmissions();
-        }
-        
-        // Load submissions
-        async function loadSubmissions() {
-            try {
-                const { data, error } = await window.supabase
-                    .from('farms')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                if (error) throw error;
-                
-                if (data && data.length > 0) {
-                    allSubmissions = data.map(farm => ({
-                        id: farm.id,
-                        farmerId: farm.farmer_id || farm.id,
-                        farmerName: farm.farmer_name || 'Unknown',
-                        cooperative: farm.cooperative || 'Unassigned',
-                        supplier: farm.supplier || 'Unknown',
-                        area: farm.area || 0,
-                        status: farm.status || 'pending',
-                        enumerator: farm.enumerator || 'N/A',
-                        submissionDate: farm.created_at || new Date().toISOString()
-                    }));
-                    console.log(`Loaded ${allSubmissions.length} submissions`);
-                } else {
-                    loadSampleData();
-                }
-                
-                updateFilterOptions();
-                filterAndRender();
-                
-            } catch (error) {
-                console.error('Error:', error);
-                loadSampleData();
-            }
-        }
-        
-        // Sample data
-        function loadSampleData() {
-            allSubmissions = [
-                { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC', supplier: 'GCC', area: 2.5, status: 'validated', enumerator: 'EN001', submissionDate: new Date().toISOString() },
-                { id: '2', farmerId: 'F12346', farmerName: 'Konan Marie', cooperative: 'SITAPA', supplier: 'SITAPA', area: 1.8, status: 'pending', enumerator: 'EN002', submissionDate: new Date().toISOString() },
-                { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', submissionDate: new Date().toISOString() },
-                { id: '4', farmerId: 'F12348', farmerName: 'Yao Michel', cooperative: 'GCC', supplier: 'GCC', area: 4.1, status: 'validated', enumerator: 'EN001', submissionDate: new Date().toISOString() },
-                { id: '5', farmerId: 'F12349', farmerName: 'Traore Amadou', cooperative: 'SITAPA', supplier: 'SITAPA', area: 1.2, status: 'pending', enumerator: 'EN002', submissionDate: new Date().toISOString() }
-            ];
-            updateFilterOptions();
-            filterAndRender();
-        }
-        
-        function updateFilterOptions() {
-            uniqueSuppliers = [...new Set(allSubmissions.map(s => s.supplier))].sort();
-            uniqueCooperatives = [...new Set(allSubmissions.map(s => s.cooperative))].sort();
-            updateSupplierFilter();
-            updateCooperativeFilter();
-        }
-        
-        function updateSupplierFilter() {
-            const select = document.getElementById('supplierFilter');
-            if (!select) return;
-            const filtered = uniqueSuppliers.filter(s => s.toLowerCase().includes(supplierSearchTerm));
-            let options = '<option value="all">All Suppliers</option>';
-            filtered.forEach(s => options += `<option value="${s}">${s}</option>`);
-            select.innerHTML = options;
-        }
-        
-        function updateCooperativeFilter() {
-            const select = document.getElementById('cooperativeFilter');
-            if (!select) return;
-            const filtered = uniqueCooperatives.filter(c => c.toLowerCase().includes(coopSearchTerm));
-            let options = '<option value="all">All Cooperatives</option>';
-            filtered.forEach(c => options += `<option value="${c}">${c}</option>`);
-            select.innerHTML = options;
-        }
-        
-        function filterAndRender() {
-            const searchTerm = document.getElementById('tableSearch')?.value.toLowerCase() || '';
-            const supplier = document.getElementById('supplierFilter')?.value || 'all';
-            const cooperative = document.getElementById('cooperativeFilter')?.value || 'all';
-            const status = document.getElementById('statusFilter')?.value || 'all';
-            
-            filteredSubmissions = allSubmissions.filter(sub => {
-                if (searchTerm && !sub.farmerId.toLowerCase().includes(searchTerm) && !sub.farmerName.toLowerCase().includes(searchTerm)) return false;
-                if (supplier !== 'all' && sub.supplier !== supplier) return false;
-                if (cooperative !== 'all' && sub.cooperative !== cooperative) return false;
-                if (status !== 'all' && sub.status !== status) return false;
-                return true;
-            });
-            
-            // Sort
-            filteredSubmissions.sort((a, b) => {
-                let aVal = a[currentSort.column];
-                let bVal = b[currentSort.column];
-                if (currentSort.column === 'area') { aVal = parseFloat(aVal) || 0; bVal = parseFloat(bVal) || 0; }
-                else { aVal = String(aVal).toLowerCase(); bVal = String(bVal).toLowerCase(); }
-                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
-                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
-                return 0;
-            });
-            
-            updateStats();
-            
-            if (currentView === 'table') {
-                renderTable();
-                updatePagination();
-            } else {
-                renderGroupView();
-            }
-        }
-        
-        function updateStats() {
-            const pending = filteredSubmissions.filter(s => s.status === 'pending').length;
-            const validated = filteredSubmissions.filter(s => s.status === 'validated').length;
-            const rejected = filteredSubmissions.filter(s => s.status === 'rejected').length;
-            const total = filteredSubmissions.length;
-            
-            document.getElementById('pendingCount').textContent = pending;
-            document.getElementById('validatedCount').textContent = validated;
-            document.getElementById('rejectedCount').textContent = rejected;
-            document.getElementById('totalCount').textContent = total;
-            document.getElementById('totalCountFooter').textContent = total;
-        }
-        
-        function renderTable() {
-            const tbody = document.getElementById('tableBody');
-            if (!tbody) return;
-            
-            const start = (currentPage - 1) * rowsPerPage;
-            const pageData = filteredSubmissions.slice(start, start + rowsPerPage);
-            
-            if (pageData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">No submissions found</td></tr>';
-                return;
-            }
-            
-            tbody.innerHTML = pageData.map(sub => `
-                <tr>
-                    <td style="padding: 10px;">${sub.farmerId}</td>
-                    <td style="padding: 10px;">${sub.farmerName}</td>
-                    <td style="padding: 10px;">${sub.cooperative}</td>
-                    <td style="padding: 10px;">${sub.supplier}</td>
-                    <td style="padding: 10px;">${sub.area.toFixed(2)}</td>
-                    <td style="padding: 10px;"><span class="status-badge ${sub.status}">${sub.status}</span></td>
-                    <td style="padding: 10px;">
-                        <div class="action-buttons">
-                            <button class="action-btn view" onclick="viewSubmission('${sub.id}')"><i class="fas fa-eye"></i></button>
-                            ${sub.status === 'pending' ? `
-                                <button class="action-btn validate" onclick="approveSubmission('${sub.id}')"><i class="fas fa-check"></i></button>
-                                <button class="action-btn reject" onclick="rejectSubmission('${sub.id}')"><i class="fas fa-times"></i></button>
-                            ` : ''}
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
-        }
-        
-        function renderGroupView() {
-            const container = document.getElementById('groupViewContent');
-            if (!container) return;
-            
-            const groups = {};
-            filteredSubmissions.forEach(sub => {
-                if (!groups[sub.supplier]) groups[sub.supplier] = [];
-                groups[sub.supplier].push(sub);
-            });
-            
-            if (Object.keys(groups).length === 0) {
-                container.innerHTML = '<div style="text-align:center;padding:40px;">No submissions found</div>';
-                return;
-            }
-            
-            container.innerHTML = Object.entries(groups).map(([supplier, submissions]) => `
-                <div class="group-card">
-                    <div class="group-header">
-                        <div class="group-title"><i class="fas fa-building"></i> ${supplier}</div>
-                        <div class="group-stats">${submissions.length} farms • ${submissions.filter(s => s.status === 'validated').length} validated • ${submissions.filter(s => s.status === 'pending').length} pending</div>
-                    </div>
-                    <div class="group-items">
-                        ${submissions.map(sub => `
-                            <div class="group-item" onclick="viewSubmission('${sub.id}')">
-                                <div class="group-item-name">${sub.farmerName}</div>
-                                <div class="group-item-details">ID: ${sub.farmerId}<br>Area: ${sub.area.toFixed(2)} ha<br>Status: ${sub.status}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join('');
-        }
-        
-        function updatePagination() {
-            const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
-            const pageNumbers = document.getElementById('pageNumbers');
-            const prevBtn = document.getElementById('prevBtn');
-            const nextBtn = document.getElementById('nextBtn');
-            const showingCount = document.getElementById('showingCount');
-            
-            const start = (currentPage - 1) * rowsPerPage + 1;
-            const end = Math.min(currentPage * rowsPerPage, filteredSubmissions.length);
-            if (showingCount) showingCount.textContent = `${start}-${end}`;
-            
-            if (prevBtn) prevBtn.disabled = currentPage === 1;
-            if (nextBtn) nextBtn.disabled = currentPage === totalPages || totalPages === 0;
-            
-            if (!pageNumbers) return;
-            
-            let html = '';
-            for (let i = 1; i <= Math.min(totalPages, 5); i++) {
-                html += `<span class="page-number ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</span>`;
-            }
-            pageNumbers.innerHTML = html;
-        }
-        
-        // ===========================================
-        // GLOBAL FUNCTIONS
-        // ===========================================
-        window.sortTable = function(column) {
-            if (currentSort.column === column) {
-                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-            } else {
-                currentSort.column = column;
-                currentSort.direction = 'asc';
-            }
-            filterAndRender();
-        };
-        
-        window.goToPage = function(page) {
-            currentPage = page;
-            renderTable();
-            updatePagination();
-        };
-        
-        window.prevPage = function() { if (currentPage > 1) { currentPage--; renderTable(); updatePagination(); } };
-        window.nextPage = function() { const total = Math.ceil(filteredSubmissions.length / rowsPerPage); if (currentPage < total) { currentPage++; renderTable(); updatePagination(); } };
-        
-        window.filterTable = function() { currentPage = 1; filterAndRender(); };
-        
-        window.toggleView = function() {
-            const tableView = document.getElementById('tableView');
-            const groupView = document.getElementById('groupView');
-            const toggleBtn = document.getElementById('toggleViewBtn');
-            
-            if (currentView === 'table') {
-                tableView.style.display = 'none';
-                groupView.style.display = 'block';
-                currentView = 'group';
-                toggleBtn.innerHTML = '<i class="fas fa-table"></i>';
-                renderGroupView();
-            } else {
-                tableView.style.display = 'block';
-                groupView.style.display = 'none';
-                currentView = 'table';
-                toggleBtn.innerHTML = '<i class="fas fa-layer-group"></i>';
-                renderTable();
-                updatePagination();
-            }
-        };
-        
-        window.viewSubmission = function(id) {
-            const sub = allSubmissions.find(s => s.id === id);
-            if (sub) alert(`Farm: ${sub.farmerName}\nID: ${sub.farmerId}\nArea: ${sub.area} ha\nStatus: ${sub.status}`);
-        };
-        
-        window.approveSubmission = function(id) {
-            if (confirm('Approve this submission?')) {
-                const sub = allSubmissions.find(s => s.id === id);
-                if (sub) { sub.status = 'validated'; filterAndRender(); alert('Submission approved!'); }
-            }
-        };
-        
-        window.rejectSubmission = function(id) {
-            if (confirm('Reject this submission?')) {
-                const sub = allSubmissions.find(s => s.id === id);
-                if (sub) { sub.status = 'rejected'; filterAndRender(); alert('Submission rejected!'); }
-            }
-        };
-        
-        // ===========================================
-        // EVENT LISTENERS
-        // ===========================================
-        document.getElementById('refreshBtn')?.addEventListener('click', () => loadSubmissions());
-        document.getElementById('searchBtn')?.addEventListener('click', () => filterAndRender());
-        document.getElementById('tableSearch')?.addEventListener('keyup', (e) => { if (e.key === 'Enter') filterAndRender(); });
-        document.getElementById('supplierSearch')?.addEventListener('input', (e) => { supplierSearchTerm = e.target.value.toLowerCase(); updateSupplierFilter(); filterAndRender(); });
-        document.getElementById('coopSearch')?.addEventListener('input', (e) => { coopSearchTerm = e.target.value.toLowerCase(); updateCooperativeFilter(); filterAndRender(); });
-        document.getElementById('supplierFilter')?.addEventListener('change', () => filterAndRender());
-        document.getElementById('cooperativeFilter')?.addEventListener('change', () => filterAndRender());
-        document.getElementById('statusFilter')?.addEventListener('change', () => filterAndRender());
-        document.getElementById('toggleViewBtn')?.addEventListener('click', () => window.toggleView());
-        document.getElementById('prevBtn')?.addEventListener('click', () => window.prevPage());
-        document.getElementById('nextBtn')?.addEventListener('click', () => window.nextPage());
-        document.getElementById('logoutBtn')?.addEventListener('click', (e) => { e.preventDefault(); localStorage.clear(); window.location.href = '../login.html'; });
-        
-        // Start
-        initSupabase();
-    </script>
+    <script src="submissions.js"></script>
 </body>
 </html>
