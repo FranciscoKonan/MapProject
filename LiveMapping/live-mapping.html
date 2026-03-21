@@ -244,22 +244,78 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
-    <!-- Supabase Initialization -->
+    <!-- Direct Supabase Configuration -->
     <script>
-        (function() {
-            const supabaseUrl = window.CONFIG.SUPABASE_URL;
-            const supabaseAnonKey = window.CONFIG.SUPABASE_ANON_KEY;
-
-            try {
-                window.supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
-                console.log('✅ Supabase client initialized');
-            } catch (error) {
-                console.error('❌ Supabase init failed:', error);
+        // Supabase credentials - direct embedding
+         const supabaseUrl = window.CONFIG.SUPABASE_URL;
+         const supabaseAnonKey = window.CONFIG.SUPABASE_ANON_KEY;
+        
+        console.log('✅ Supabase credentials loaded for Live Mapping');
+        
+        let supabaseReady = false;
+        
+        // Initialize Supabase with retry
+        function initSupabase(retryCount = 0) {
+            if (typeof window.supabase === 'undefined') {
+                if (retryCount < 10) {
+                    console.log(`⏳ Waiting for Supabase library... (attempt ${retryCount + 1}/10)`);
+                    setTimeout(() => initSupabase(retryCount + 1), 500);
+                } else {
+                    console.error('❌ Supabase library failed to load');
+                }
+                return;
             }
-        })();
+            
+            try {
+                window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                supabaseReady = true;
+                console.log('✅ Supabase initialized successfully for Live Mapping');
+                
+                // Dispatch event to notify that Supabase is ready
+                window.dispatchEvent(new Event('supabase-ready'));
+                
+            } catch (err) {
+                console.error('❌ Supabase init error:', err);
+                if (retryCount < 5) {
+                    setTimeout(() => initSupabase(retryCount + 1), 1000);
+                }
+            }
+        }
+        
+        // Start initialization
+        initSupabase();
     </script>
 
     <!-- Live Mapping JavaScript -->
     <script src="live-mapping.js"></script>
+    
+    <!-- Additional script to wait for Supabase before loading map data -->
+    <script>
+        // Wait for Supabase to be ready before loading map data
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, waiting for Supabase...');
+            
+            function waitForSupabase() {
+                if (supabaseReady && window.supabase) {
+                    console.log('✅ Supabase ready, initializing map...');
+                    // Call the map initialization function if it exists in live-mapping.js
+                    if (typeof window.initLiveMapping === 'function') {
+                        window.initLiveMapping();
+                    } else if (typeof window.loadFarms === 'function') {
+                        window.loadFarms();
+                    } else {
+                        console.log('Map initialization function not found, but Supabase is ready');
+                        // Dispatch event for live-mapping.js to listen to
+                        window.dispatchEvent(new Event('map-ready'));
+                    }
+                } else {
+                    console.log('⏳ Waiting for Supabase...');
+                    setTimeout(waitForSupabase, 500);
+                }
+            }
+            
+            waitForSupabase();
+        });
+    </script>
 </body>
 </html>
