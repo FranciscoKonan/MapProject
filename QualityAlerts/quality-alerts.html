@@ -12,7 +12,7 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    <!-- Root CSS files (going up one level) -->
+    <!-- Root CSS files -->
     <link rel="stylesheet" href="../globalCSS.css">
     <link rel="stylesheet" href="../layoutCSS.css">
     <link rel="stylesheet" href="../alertCSS.css">
@@ -33,28 +33,28 @@
                 </h2>
             </div>
             <nav class="menu">
-                <a href="../Dashboard.html" data-title="Dashboard">
+                <a href="../Dashboard.html">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="../LiveMapping/live-mapping.html" data-title="Live Mapping">
+                <a href="../LiveMapping/live-mapping.html">
                     <i class="fas fa-map"></i>
                     <span>Live Mapping</span>
                 </a>
-                <a href="../Submissions/submissions.html" data-title="Submissions">
+                <a href="../Submissions/submissions.html">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Submissions</span>
                 </a>
-                <a href="#" class="active" data-title="Quality Alerts">
+                <a href="#" class="active">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Quality Alerts</span>
                 </a>
-                <a href="../Exports/exports.html" data-title="Exports">
+                <a href="../Exports/exports.html">
                     <i class="fas fa-file-export"></i>
                     <span>Exports</span>
                 </a>
                 <div class="menu-bottom">
-                    <a href="../login.html" id="logoutBtn" data-title="Logout">
+                    <a href="../login.html" id="logoutBtn">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>Logout</span>
                     </a>
@@ -71,17 +71,17 @@
                     <div class="breadcrumb">Home / Quality Alerts</div>
                 </div>
                 <div class="user-info">
-                    <div class="user-avatar">FK</div>
+                    <div class="user-avatar" id="userAvatar">FK</div>
                     <div class="user-details">
-                        <div class="user-name">Francisco Konan</div>
-                        <div class="user-role">Admin</div>
+                        <div class="user-name" id="userName">Loading...</div>
+                        <div class="user-role" id="userRole">Loading...</div>
                     </div>
                     <button class="sync-btn" id="refreshBtn">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
                     <button class="notifications-btn" id="notificationsBtn">
                         <i class="fas fa-bell"></i>
-                        <span class="notification-badge">0</span>
+                        <span class="notification-badge" id="notificationBadge">0</span>
                     </button>
                 </div>
             </div>
@@ -142,78 +142,77 @@
                 </div>
 
                 <!-- Filters Section -->
-<!-- Filters Section - Updated with Search Bars -->
-<div class="alerts-filters">
-    <div class="filter-group">
-        <label for="alertTypeFilter">Alert Type</label>
-        <select id="alertTypeFilter" class="filter-select">
-            <option value="all">All Types</option>
-            <option value="overlap">Overlap Detection</option>
-            <option value="boundary">Boundary Issue</option>
-            <option value="area">Area Mismatch</option>
-            <option value="data">Missing Data</option>
-        </select>
-    </div>
-    
-    <div class="filter-group">
-        <label for="alertSeverityFilter">Severity</label>
-        <select id="alertSeverityFilter" class="filter-select">
-            <option value="all">All Severities</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-        </select>
-    </div>
-    
-    <div class="filter-group">
-        <label for="alertSupplierFilter">Supplier</label>
-        <div class="filter-search-container">
-            <i class="fas fa-search search-icon"></i>
-            <input type="text" id="supplierSearch" class="filter-search" placeholder="Search suppliers..." autocomplete="off">
-        </div>
-        <select id="alertSupplierFilter" class="filter-select filter-select-with-search">
-            <option value="all">All Suppliers</option>
-        </select>
-    </div>
-    
-    <div class="filter-group">
-        <label for="alertCoopFilter">Cooperative</label>
-        <div class="filter-search-container">
-            <i class="fas fa-search search-icon"></i>
-            <input type="text" id="coopSearch" class="filter-search" placeholder="Search cooperatives..." autocomplete="off">
-        </div>
-        <select id="alertCoopFilter" class="filter-select filter-select-with-search">
-            <option value="all">All Cooperatives</option>
-        </select>
-    </div>
-    
-    <div class="filter-group">
-        <label for="alertStatusFilter">Status</label>
-        <select id="alertStatusFilter" class="filter-select">
-            <option value="all">All Status</option>
-            <option value="new">New</option>
-            <option value="acknowledged">Acknowledged</option>
-            <option value="resolved">Resolved</option>
-            <option value="ignored">Ignored</option>
-        </select>
-    </div>
-    
-    <div class="filter-actions">
-        <button class="btn-primary" id="applyFiltersBtn">
-            <i class="fas fa-search"></i> Apply
-        </button>
-        <button class="btn-secondary" id="clearFiltersBtn">
-            <i class="fas fa-times"></i> Clear
-        </button>
-    </div>
-</div>
+                <div class="alerts-filters">
+                    <div class="filter-group">
+                        <label for="alertTypeFilter">Alert Type</label>
+                        <select id="alertTypeFilter" class="filter-select">
+                            <option value="all">All Types</option>
+                            <option value="overlap">Overlap Detection</option>
+                            <option value="boundary">Boundary Issue</option>
+                            <option value="area">Area Mismatch</option>
+                            <option value="data">Missing Data</option>
+                            <option value="self_intersection">Self Intersection</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="alertSeverityFilter">Severity</label>
+                        <select id="alertSeverityFilter" class="filter-select">
+                            <option value="all">All Severities</option>
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="alertSupplierFilter">Supplier</label>
+                        <div class="filter-search-container">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="supplierSearch" class="filter-search" placeholder="Search suppliers...">
+                        </div>
+                        <select id="alertSupplierFilter" class="filter-select">
+                            <option value="all">All Suppliers</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="alertCoopFilter">Cooperative</label>
+                        <div class="filter-search-container">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="coopSearch" class="filter-search" placeholder="Search cooperatives...">
+                        </div>
+                        <select id="alertCoopFilter" class="filter-select">
+                            <option value="all">All Cooperatives</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="alertStatusFilter">Status</label>
+                        <select id="alertStatusFilter" class="filter-select">
+                            <option value="all">All Status</option>
+                            <option value="new">New</option>
+                            <option value="acknowledged">Acknowledged</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="ignored">Ignored</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button class="btn-primary" id="applyFiltersBtn">
+                            <i class="fas fa-search"></i> Apply
+                        </button>
+                        <button class="btn-secondary" id="clearFiltersBtn">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </div>
+                
                 <!-- Export Options -->
                 <div class="export-options-bar">
                     <span class="export-label"><i class="fas fa-download"></i> Export:</span>
                     <button class="export-btn" id="exportCSV">CSV</button>
-                    <button class="export-btn" id="exportExcel">Excel</button>
-                    <button class="export-btn" id="exportGeoJSON">GeoJSON</button>
                     <button class="export-btn" id="exportJSON">JSON</button>
                     <span class="export-count" id="exportCount">0 alerts</span>
                 </div>
@@ -223,13 +222,15 @@
                     <div class="alerts-list-header">
                         <h3><i class="fas fa-list"></i> Active Alerts</h3>
                         <div class="alerts-bulk-actions">
-                            <button class="btn-icon" id="markAllReadBtn" title="Mark all as read">
+                            <button class="btn-icon" id="markAllReadBtn" title="Mark all as acknowledged">
                                 <i class="fas fa-check-double"></i>
                             </button>
                         </div>
                     </div>
                     
-                    <div class="alerts-list" id="alertsList"></div>
+                    <div class="alerts-list" id="alertsList">
+                        <div style="text-align:center;padding:40px;">Loading alerts...</div>
+                    </div>
                     
                     <div class="alerts-pagination">
                         <button class="pagination-btn" id="prevPageBtn" disabled>
@@ -245,31 +246,62 @@
         </main>
     </div>
 
-    <!-- Third Party Libraries -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-
-    <!-- Supabase Initialization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <!-- Direct Supabase Configuration -->
     <script>
-        (function() {
-            const supabaseUrl = window.CONFIG.SUPABASE_URL;
-            const supabaseAnonKey = window.CONFIG.SUPABASE_ANON_KEY;
-            window.supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
-        })();
+        // Supabase credentials - same as working pages
+        const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cnVmbWVsZnRicXBzZW1uamJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzYwNTMsImV4cCI6MjA4NjY1MjA1M30.1NPN666Lt9WZHupvp_XIFu-SnsaextHH_JvXgQPtyV0';
+        
+        console.log('✅ Quality Alerts: Supabase credentials loaded');
+        
+        let supabaseClient = null;
+        
+        function initSupabase(retryCount = 0) {
+            if (typeof window.supabase === 'undefined') {
+                if (retryCount < 10) {
+                    console.log(`⏳ Waiting for Supabase... (${retryCount + 1}/10)`);
+                    setTimeout(() => initSupabase(retryCount + 1), 500);
+                    return;
+                }
+                console.error('❌ Supabase library failed to load');
+                return;
+            }
+            
+            try {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                window.supabase = supabaseClient;
+                console.log('✅ Quality Alerts: Supabase initialized');
+                
+                // Load user data
+                const userData = localStorage.getItem('mappingtrace_user');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    document.getElementById('userName').textContent = user.fullName || 'User';
+                    document.getElementById('userRole').textContent = user.role || 'User';
+                    document.getElementById('userAvatar').textContent = user.avatar || 'U';
+                }
+                
+                // Dispatch ready event
+                window.dispatchEvent(new Event('supabase-ready'));
+                
+            } catch (err) {
+                console.error('❌ Supabase init error:', err);
+                if (retryCount < 5) {
+                    setTimeout(() => initSupabase(retryCount + 1), 1000);
+                }
+            }
+        }
+        
+        initSupabase();
     </script>
-
-    <!-- CRITICAL: Load Dashboard Alert System FIRST -->
-    <script src="../alerts-new.js"></script>
     
-    <!-- Core JS Files -->
-    <script src="../globalJS.js"></script>
-    <script src="../authJS.js"></script>
-    <script src="../notificationJS.js"></script>
-    
-    <!-- Quality Alerts JavaScript (loads after alerts-new.js) -->
+    <!-- Quality Alerts JavaScript -->
     <script src="quality-alerts.js"></script>
 </body>
 </html>
