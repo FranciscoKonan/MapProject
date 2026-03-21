@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Config</title>
+</head>
+<body>
+    <h1>Config Test</h1>
+    <div id="output"></div>
+    
+    <script src="config.js"></script>
+    <script>
+        const output = document.getElementById('output');
+        
+        output.innerHTML += '<p>Checking config.js...</p>';
+        
+        if (typeof window.CONFIG !== 'undefined') {
+            output.innerHTML += '<p style="color: green;">✅ CONFIG loaded!</p>';
+            output.innerHTML += '<p>URL: ' + window.CONFIG.SUPABASE_URL + '</p>';
+            output.innerHTML += '<p>Key: ' + window.CONFIG.SUPABASE_ANON_KEY.substring(0, 50) + '...</p>';
+        } else {
+            output.innerHTML += '<p style="color: red;">❌ CONFIG not loaded!</p>';
+        }
+        
+        console.log('window.CONFIG:', window.CONFIG);
+    </script>
+</body>
+</html>
