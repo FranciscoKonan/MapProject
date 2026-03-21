@@ -19,54 +19,6 @@
     <link rel="stylesheet" href="live-mapping.css">
     
     <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
-    
-    <style>
-        /* Additional styles to ensure map displays */
-        #liveMap {
-            height: 100%;
-            width: 100%;
-            min-height: 500px;
-        }
-        .map-container {
-            position: relative;
-            height: 100%;
-            min-height: 600px;
-        }
-        .properties-panel {
-            position: absolute;
-            right: 0;
-            top: 0;
-            width: 350px;
-            background: white;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
-            z-index: 1000;
-            display: none;
-            height: 100%;
-            overflow-y: auto;
-        }
-        .properties-panel.active {
-            display: block;
-        }
-        .control-panel {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
-        .mapping-workspace {
-            display: flex;
-            gap: 15px;
-            height: calc(100vh - 120px);
-        }
-        .map-container {
-            flex: 1;
-            position: relative;
-        }
-        .control-panel {
-            width: 300px;
-            overflow-y: auto;
-        }
-    </style>
 </head>
 <body>
     <div class="layout">
@@ -210,7 +162,7 @@
                     <div id="liveMap"></div>
                     
                     <!-- Map Controls Overlay -->
-                    <div class="map-controls" style="position: absolute; top: 10px; right: 10px; z-index: 1000;">
+                    <div class="map-controls">
                         <div class="map-zoom-controls">
                             <button class="map-btn" onclick="window.zoomIn()" title="Zoom In">
                                 <i class="fas fa-plus"></i>
@@ -233,21 +185,21 @@
                     </div>
 
                     <!-- Search Box -->
-                    <div class="map-search" style="position: absolute; top: 10px; left: 10px; z-index: 1000; background: white; padding: 5px; border-radius: 4px;">
+                    <div class="map-search">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="searchInput" placeholder="Search farms..." style="padding: 5px; border: none;">
+                        <input type="text" id="searchInput" placeholder="Search farms by name, ID...">
                     </div>
 
                     <!-- Coordinates Overlay -->
-                    <div class="coordinates-overlay" style="position: absolute; bottom: 10px; left: 10px; z-index: 1000; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px;">
+                    <div class="coordinates-overlay">
                         <span><i class="fas fa-map-pin"></i> Lat: <span id="mouseLat">0.0000</span></span>
-                        <span style="margin-left: 10px;"><i class="fas fa-map-pin"></i> Lng: <span id="mouseLng">0.0000</span></span>
-                        <span style="margin-left: 10px;"><i class="fas fa-search"></i> Zoom: <span id="currentZoom">8</span></span>
+                        <span><i class="fas fa-map-pin"></i> Lng: <span id="mouseLng">0.0000</span></span>
+                        <span><i class="fas fa-search"></i> Zoom: <span id="currentZoom">8</span></span>
                     </div>
                 </div>
 
                 <!-- Right Properties Panel -->
-                <div class="properties-panel" id="propertiesPanel">
+                <div class="properties-panel hidden" id="propertiesPanel">
                     <div class="properties-header">
                         <h3><i class="fas fa-info-circle"></i> Farm Details</h3>
                         <button class="close-btn" onclick="window.closeProperties()">
@@ -261,6 +213,14 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Timeline Bar -->
+            <div class="timeline-bar">
+                <div class="timeline-header">
+                    <h4><i class="fas fa-history"></i> Recent Submissions</h4>
+                </div>
+                <div class="timeline-items" id="timelineItems"></div>
             </div>
         </main>
     </div>
@@ -300,25 +260,20 @@
                 // Notify that Supabase is ready
                 window.dispatchEvent(new Event('supabase-ready'));
                 
-                // Load user data
-                loadUserData();
+                // Load user data from localStorage
+                const userData = localStorage.getItem('mappingtrace_user');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    document.getElementById('userName').textContent = user.fullName || 'User';
+                    document.getElementById('userRole').textContent = user.role || 'User';
+                    document.getElementById('userAvatar').textContent = user.avatar || 'U';
+                }
                 
             } catch (err) {
                 console.error('❌ Supabase init error:', err);
                 if (retryCount < 5) {
                     setTimeout(() => initSupabase(retryCount + 1), 1000);
                 }
-            }
-        }
-        
-        // Load user data from localStorage or Supabase
-        function loadUserData() {
-            const userData = localStorage.getItem('mappingtrace_user');
-            if (userData) {
-                const user = JSON.parse(userData);
-                document.getElementById('userName').textContent = user.fullName || 'User';
-                document.getElementById('userRole').textContent = user.role || 'User';
-                document.getElementById('userAvatar').textContent = user.avatar || 'U';
             }
         }
         
