@@ -302,18 +302,63 @@
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
     <!-- Supabase Initialization -->
+    <!-- Third Party Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+    <!-- Direct Supabase Configuration (No config.js needed) -->
     <script>
-        (function() {
-            const supabaseUrl = window.CONFIG.SUPABASE_URL;
-            const supabaseAnonKey = window.CONFIG.SUPABASE_ANON_KEY;
-            try {
-                window.supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
-                console.log('✅ Supabase client initialized with ANON key');
-            } catch (error) {
-                console.error('❌ Supabase init failed:', error);
+        // Supabase credentials - direct embedding for GitHub Pages
+        const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cnVmbWVsZnRicXBzZW1uamJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzYwNTMsImV4cCI6MjA4NjY1MjA1M30.1NPN666Lt9WZHupvp_XIFu-SnsaextHH_JvXgQPtyV0';
+        
+        console.log('✅ Dashboard: Supabase credentials loaded');
+        
+        let supabaseClient = null;
+        let supabaseReady = false;
+        
+        function initSupabase(retryCount = 0) {
+            if (typeof window.supabase === 'undefined') {
+                if (retryCount < 10) {
+                    console.log(`⏳ Waiting for Supabase... (${retryCount + 1}/10)`);
+                    setTimeout(() => initSupabase(retryCount + 1), 500);
+                    return;
+                }
+                console.error('❌ Supabase library failed to load');
+                return;
             }
-        })();
+            
+            try {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                window.supabase = supabaseClient;
+                supabaseReady = true;
+                console.log('✅ Dashboard: Supabase initialized');
+                
+                // Dispatch event for other scripts
+                window.dispatchEvent(new Event('supabase-ready'));
+                
+                // Load farms data
+                if (typeof window.loadDashboardData === 'function') {
+                    window.loadDashboardData();
+                }
+                
+            } catch (err) {
+                console.error('❌ Supabase init error:', err);
+                if (retryCount < 5) {
+                    setTimeout(() => initSupabase(retryCount + 1), 1000);
+                }
+            }
+        }
+        
+        initSupabase();
     </script>
+
+    <!-- Your other scripts -->
+    <script src="globalJS.js"></script>
+    <script src="authJS.js"></script>
+    <!-- ... rest of your scripts -->
 
     <!-- Core JS Files -->
     <script src="globalJS.js"></script>
