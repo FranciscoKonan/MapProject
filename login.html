@@ -3,20 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register | MappingTrace</title>
+    <title>Login | MappingTrace</title>
     
     <!-- Fonts & Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- ✅ CRITICAL: Load config.js FIRST -->
-    <script src="config.js"></script>
-    
     <!-- CSS Files -->
     <link rel="stylesheet" href="globalCSS.css">
     
     <style>
-        /* Your registration page styles here */
         * {
             margin: 0;
             padding: 0;
@@ -30,13 +26,15 @@
             align-items: center;
             justify-content: center;
             font-family: 'Inter', sans-serif;
+            margin: 0;
             padding: 20px;
         }
         
         .auth-container {
-            max-width: 480px;
+            max-width: 440px;
             width: 100%;
             background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
             border-radius: 24px;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
             overflow: hidden;
@@ -59,22 +57,46 @@
             color: white;
             padding: 40px 30px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .auth-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
         
         .auth-header i {
             font-size: 56px;
             margin-bottom: 15px;
+            color: rgba(255,255,255,0.95);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
         }
         
         .auth-header h1 {
+            margin: 0;
             font-size: 32px;
             font-weight: 700;
-            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+            position: relative;
         }
         
         .auth-header p {
+            margin: 10px 0 0;
             opacity: 0.9;
-            font-size: 14px;
+            font-size: 15px;
+            position: relative;
         }
         
         .auth-body {
@@ -83,7 +105,7 @@
         }
         
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
         
         .form-group label {
@@ -92,27 +114,37 @@
             font-weight: 600;
             color: #2d3748;
             font-size: 14px;
+            letter-spacing: 0.3px;
         }
         
         .form-group label i {
-            margin-right: 8px;
+            margin-right: 5px;
             color: #2c6e49;
         }
         
-        .form-group input, .form-group select {
+        .form-group input {
             width: 100%;
-            padding: 12px 16px;
+            padding: 14px 16px;
             border: 2px solid #e2e8f0;
             border-radius: 12px;
-            font-size: 14px;
+            font-size: 15px;
             transition: all 0.3s;
+            box-sizing: border-box;
             font-family: 'Inter', sans-serif;
         }
         
-        .form-group input:focus, .form-group select:focus {
+        .form-group input:hover {
+            border-color: #cbd5e0;
+        }
+        
+        .form-group input:focus {
             border-color: #2c6e49;
             outline: none;
             box-shadow: 0 0 0 4px rgba(44, 110, 73, 0.1);
+        }
+        
+        .form-group input.error {
+            border-color: #f44336;
         }
         
         .password-field {
@@ -130,11 +162,39 @@
             transform: translateY(-50%);
             cursor: pointer;
             color: #718096;
+            transition: color 0.2s;
+            font-size: 18px;
+        }
+        
+        .password-toggle:hover {
+            color: #2c6e49;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #2c6e49;
+        }
+        
+        .checkbox-group label {
+            margin: 0;
+            font-weight: 500;
+            color: #4a5568;
+            font-size: 14px;
+            cursor: pointer;
         }
         
         .auth-btn {
             width: 100%;
-            padding: 14px;
+            padding: 16px;
             background: linear-gradient(135deg, #2c6e49 0%, #4CAF50 100%);
             color: white;
             border: none;
@@ -147,6 +207,26 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .auth-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .auth-btn:hover::before {
+            width: 300px;
+            height: 300px;
         }
         
         .auth-btn:hover {
@@ -157,6 +237,17 @@
         .auth-btn:disabled {
             opacity: 0.7;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .auth-btn i {
+            font-size: 16px;
+            transition: transform 0.3s;
+        }
+        
+        .auth-btn:hover i {
+            transform: translateX(3px);
         }
         
         .auth-footer {
@@ -166,10 +257,54 @@
             border-top: 2px solid #edf2f7;
         }
         
+        .auth-footer p {
+            color: #718096;
+            font-size: 14px;
+        }
+        
         .auth-footer a {
             color: #2c6e49;
             text-decoration: none;
             font-weight: 600;
+            transition: all 0.2s;
+            position: relative;
+        }
+        
+        .auth-footer a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #2c6e49;
+            transition: width 0.3s;
+        }
+        
+        .auth-footer a:hover::after {
+            width: 100%;
+        }
+        
+        .auth-footer a:hover {
+            color: #1e4d33;
+        }
+        
+        .demo-credentials {
+            background: #f0f9ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+        
+        .demo-credentials p {
+            margin: 5px 0;
+            color: #2c3e50;
+        }
+        
+        .demo-credentials strong {
+            color: #1976D2;
         }
         
         .notification {
@@ -180,14 +315,30 @@
             border-radius: 8px;
             color: white;
             z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             display: flex;
             align-items: center;
             gap: 12px;
             animation: slideIn 0.3s ease;
+            max-width: 400px;
         }
         
-        .notification-success { background: linear-gradient(135deg, #4CAF50, #45a049); }
-        .notification-error { background: linear-gradient(135deg, #F44336, #d32f2f); }
+        .notification-success {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+        
+        .notification-error {
+            background: linear-gradient(135deg, #F44336, #d32f2f);
+        }
+        
+        .notification-warning {
+            background: linear-gradient(135deg, #FFC107, #ffb300);
+            color: #333;
+        }
+        
+        .notification-info {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+        }
         
         @keyframes slideIn {
             from {
@@ -204,21 +355,19 @@
 <body>
     <div class="auth-container">
         <div class="auth-header">
-            <i class="fas fa-user-plus"></i>
-            <h1>Create Account</h1>
-            <p>Join MappingTrace today</p>
+            <i class="fas fa-map-marked-alt"></i>
+            <h1>Welcome Back</h1>
+            <p>Sign in to continue to MappingTrace</p>
         </div>
         
         <div class="auth-body">
-            <form id="registerForm">
-                <div class="form-group">
-                    <label for="fullName">
-                        <i class="fas fa-user"></i>
-                        Full Name
-                    </label>
-                    <input type="text" id="fullName" placeholder="Enter your full name" required>
-                </div>
-                
+            <div class="demo-credentials">
+                <p><strong><i class="fas fa-info-circle"></i> Demo Credentials:</strong></p>
+                <p>Email: <strong>admin@example.com</strong></p>
+                <p>Password: <strong>password123</strong></p>
+            </div>
+            
+            <form id="loginForm">
                 <div class="form-group">
                     <label for="email">
                         <i class="fas fa-envelope"></i>
@@ -233,183 +382,372 @@
                         Password
                     </label>
                     <div class="password-field">
-                        <input type="password" id="password" placeholder="Create a password" required>
+                        <input type="password" id="password" placeholder="Enter your password" required>
                         <i class="fas fa-eye password-toggle" onclick="togglePassword('password', this)"></i>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="confirmPassword">
-                        <i class="fas fa-check-circle"></i>
-                        Confirm Password
-                    </label>
-                    <div class="password-field">
-                        <input type="password" id="confirmPassword" placeholder="Confirm your password" required>
-                        <i class="fas fa-eye password-toggle" onclick="togglePassword('confirmPassword', this)"></i>
-                    </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="rememberMe">
+                    <label for="rememberMe">Remember me for 30 days</label>
                 </div>
                 
-                <div class="form-group">
-                    <label for="role">
-                        <i class="fas fa-briefcase"></i>
-                        Role
-                    </label>
-                    <select id="role">
-                        <option value="field_officer">Field Officer</option>
-                        <option value="validator">Validator</option>
-                        <option value="viewer">Viewer</option>
-                    </select>
-                </div>
-                
-                <button type="submit" class="auth-btn" id="registerBtn">
-                    <i class="fas fa-user-plus"></i>
-                    <span>Create Account</span>
+                <button type="submit" class="auth-btn" id="loginBtn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Sign In</span>
                 </button>
             </form>
             
             <div class="auth-footer">
-                <p>Already have an account? <a href="login.html">Sign In</a></p>
+                <p>Don't have an account? <a href="register.html">Create account</a></p>
+                <p style="margin-top: 10px;"><a href="forgot-password.html">Forgot password?</a></p>
             </div>
         </div>
     </div>
-    
+
+    <!-- Notification container -->
     <div id="notificationContainer"></div>
-    
-    <!-- Supabase Library -->
+
+    <!-- Supabase library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- Supabase Initialization -->
+    <!-- Direct Supabase Configuration (No config.js needed) -->
     <script>
-        (function() {
-            'use strict';
-            
-            console.log('🔧 Initializing Supabase...');
-            
-            if (!window.CONFIG) {
-                console.error('❌ CONFIG is not loaded!');
+        // Supabase credentials - direct embedding
+        const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cnVmbWVsZnRicXBzZW1uamJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzYwNTMsImV4cCI6MjA4NjY1MjA1M30.1NPN666Lt9WZHupvp_XIFu-SnsaextHH_JvXgQPtyV0';
+        
+        console.log('✅ Supabase credentials loaded');
+        console.log('URL:', SUPABASE_URL);
+        
+        let supabaseClient = null;
+        let supabaseReady = false;
+        
+        // Initialize Supabase with retry
+        function initSupabase(retryCount = 0) {
+            if (typeof window.supabase === 'undefined') {
+                if (retryCount < 10) {
+                    console.log(`⏳ Waiting for Supabase library... (attempt ${retryCount + 1}/10)`);
+                    setTimeout(() => initSupabase(retryCount + 1), 500);
+                } else {
+                    console.error('❌ Supabase library failed to load');
+                }
                 return;
             }
             
-            function initSupabase() {
-                if (typeof window.supabase === 'undefined') {
-                    setTimeout(initSupabase, 100);
+            try {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                window.supabase = supabaseClient;
+                supabaseReady = true;
+                console.log('✅ Supabase initialized successfully!');
+                console.log('🔑 Auth available:', !!window.supabase.auth);
+                
+                // Dispatch event
+                window.dispatchEvent(new Event('supabase-ready'));
+                
+            } catch (err) {
+                console.error('❌ Supabase init error:', err);
+                if (retryCount < 5) {
+                    setTimeout(() => initSupabase(retryCount + 1), 1000);
+                }
+            }
+        }
+        
+        // Start initialization
+        initSupabase();
+    </script>
+
+    <!-- Login Script -->
+    <script>
+        'use strict';
+        
+        // ===========================================
+        // NOTIFICATION SYSTEM
+        // ===========================================
+        const notification = {
+            show: function(message, type = 'info', duration = 3000) {
+                const container = document.getElementById('notificationContainer');
+                if (!container) return;
+                
+                const notification = document.createElement('div');
+                notification.className = `notification notification-${type}`;
+                notification.innerHTML = `
+                    <i class="fas ${this.getIcon(type)}"></i>
+                    <span>${message}</span>
+                `;
+                
+                container.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }, duration);
+            },
+            
+            getIcon: function(type) {
+                const icons = {
+                    success: 'fa-check-circle',
+                    error: 'fa-exclamation-circle',
+                    warning: 'fa-exclamation-triangle',
+                    info: 'fa-info-circle'
+                };
+                return icons[type] || icons.info;
+            },
+            
+            success: function(message, duration) {
+                this.show(message, 'success', duration);
+            },
+            
+            error: function(message, duration) {
+                this.show(message, 'error', duration);
+            },
+            
+            warning: function(message, duration) {
+                this.show(message, 'warning', duration);
+            },
+            
+            info: function(message, duration) {
+                this.show(message, 'info', duration);
+            }
+        };
+        
+        // ===========================================
+        // PASSWORD TOGGLE
+        // ===========================================
+        
+        window.togglePassword = function(fieldId, iconElement) {
+            const field = document.getElementById(fieldId);
+            if (field.type === 'password') {
+                field.type = 'text';
+                iconElement.classList.remove('fa-eye');
+                iconElement.classList.add('fa-eye-slash');
+            } else {
+                field.type = 'password';
+                iconElement.classList.remove('fa-eye-slash');
+                iconElement.classList.add('fa-eye');
+            }
+        };
+        
+        // Function to wait for Supabase
+        function waitForSupabase() {
+            return new Promise((resolve) => {
+                if (supabaseReady && window.supabase) {
+                    resolve(window.supabase);
+                } else {
+                    const checkInterval = setInterval(() => {
+                        if (supabaseReady && window.supabase) {
+                            clearInterval(checkInterval);
+                            resolve(window.supabase);
+                        }
+                    }, 200);
+                    
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        console.error('Timeout waiting for Supabase');
+                        resolve(null);
+                    }, 10000);
+                }
+            });
+        }
+        
+        // ===========================================
+        // LOGIN HANDLER
+        // ===========================================
+        
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('📄 DOM loaded, waiting for Supabase...');
+            
+            const supabase = await waitForSupabase();
+            
+            if (!supabase) {
+                notification.error('Failed to initialize. Please refresh the page.');
+                return;
+            }
+            
+            console.log('✅ Supabase ready, setting up login handler');
+            
+            const loginForm = document.getElementById('loginForm');
+            if (!loginForm) return;
+            
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Check if Supabase is ready
+                if (!window.supabase || !window.supabase.auth) {
+                    notification.error('Supabase not initialized. Please refresh the page.');
+                    console.error('❌ Supabase not available');
+                    return;
+                }
+                
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                const rememberMe = document.getElementById('rememberMe').checked;
+                const loginBtn = document.getElementById('loginBtn');
+                
+                // Validate
+                if (!email || !password) {
+                    notification.error('Please fill in all fields');
+                    return;
+                }
+                
+                // Email validation
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    notification.error('Please enter a valid email address');
+                    return;
+                }
+                
+                // Show loading
+                loginBtn.disabled = true;
+                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...';
+                
+                try {
+                    console.log('📝 Attempting login for:', email);
+                    
+                    const { data, error } = await window.supabase.auth.signInWithPassword({
+                        email: email,
+                        password: password
+                    });
+                    
+                    if (error) throw error;
+                    
+                    // Success!
+                    notification.success('Login successful! Redirecting...');
+                    
+                    // Store session in localStorage if remember me is checked
+                    if (rememberMe && data.session) {
+                        localStorage.setItem('supabase.auth.token', JSON.stringify({
+                            currentSession: data.session,
+                            expiresAt: data.session.expires_at
+                        }));
+                    }
+                    
+                    // Store user info for quick access
+                    const user = data.user;
+                    const userMetadata = user.user_metadata || {};
+                    
+                    // Get full name
+                    let fullName = userMetadata.full_name || 
+                                  userMetadata.name || 
+                                  `${userMetadata.first_name || ''} ${userMetadata.last_name || ''}`.trim() ||
+                                  user.email.split('@')[0] || 
+                                  'User';
+                    
+                    // Capitalize each word
+                    fullName = fullName.split(' ')
+                        .map(word => {
+                            if (word.length > 0) {
+                                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                            }
+                            return word;
+                        })
+                        .join(' ')
+                        .trim();
+                    
+                    if (!fullName || fullName === '') {
+                        fullName = user.email.split('@')[0];
+                    }
+                    
+                    // Get role
+                    let role = userMetadata.role || 'user';
+                    
+                    // Format role for display
+                    const roleDisplay = {
+                        'field_officer': 'Field Officer',
+                        'validator': 'Validator',
+                        'admin': 'Administrator',
+                        'viewer': 'Viewer',
+                        'user': 'User'
+                    };
+                    
+                    const displayRole = roleDisplay[role] || 
+                                       role.replace(/_/g, ' ')
+                                           .replace(/\b\w/g, l => l.toUpperCase());
+                    
+                    // Get initials for avatar
+                    const initials = fullName
+                        .split(' ')
+                        .map(n => n.charAt(0))
+                        .join('')
+                        .toUpperCase()
+                        .substring(0, 2) || 'U';
+                    
+                    // Store user data
+                    const userData = {
+                        fullName: fullName,
+                        role: displayRole,
+                        avatar: initials,
+                        email: user.email
+                    };
+                    
+                    localStorage.setItem('mappingtrace_user', JSON.stringify(userData));
+                    
+                    console.log('✅ User data stored:', userData);
+                    
+                    // Redirect to dashboard
+                    setTimeout(() => {
+                        window.location.href = 'Dashboard.html';
+                    }, 1500);
+                    
+                } catch (error) {
+                    console.error('🔥 Login error:', error);
+                    
+                    let errorMessage = 'Login failed';
+                    if (error.message.includes('Invalid login credentials')) {
+                        errorMessage = 'Invalid email or password';
+                    } else if (error.message.includes('Email not confirmed')) {
+                        errorMessage = 'Please verify your email first';
+                    } else if (error.message.includes('rate limit')) {
+                        errorMessage = 'Too many attempts. Please try again later.';
+                    } else {
+                        errorMessage = error.message;
+                    }
+                    
+                    notification.error(errorMessage);
+                    
+                    // Reset button
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+                }
+            });
+        });
+        
+        // Check if already logged in
+        (async function() {
+            const checkSession = async () => {
+                if (!window.supabase || !window.supabase.auth) {
+                    setTimeout(checkSession, 1000);
                     return;
                 }
                 
                 try {
-                    const SUPABASE_URL = window.CONFIG.SUPABASE_URL;
-                    const SUPABASE_ANON_KEY = window.CONFIG.SUPABASE_ANON_KEY;
-                    
-                    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-                        console.error('❌ Missing credentials');
-                        return;
+                    const { data: { session } } = await window.supabase.auth.getSession();
+                    if (session) {
+                        console.log('👤 Already logged in, redirecting to dashboard');
+                        window.location.href = 'Dashboard.html';
                     }
-                    
-                    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                    console.log('✅ Supabase initialized');
                 } catch (err) {
-                    console.error('❌ Init failed:', err);
-                    setTimeout(initSupabase, 1000);
+                    console.error('Session check error:', err);
                 }
-            }
+            };
             
-            initSupabase();
+            setTimeout(checkSession, 2000);
         })();
-    </script>
-    
-    <!-- Registration Script -->
-    <script>
-        // Notification System
-        const notification = {
-            show: function(message, type) {
-                const container = document.getElementById('notificationContainer');
-                if (!container) return;
-                
-                const notif = document.createElement('div');
-                notif.className = `notification notification-${type}`;
-                notif.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i><span>${message}</span>`;
-                container.appendChild(notif);
-                
-                setTimeout(() => notif.remove(), 3000);
-            },
-            success: (msg) => notification.show(msg, 'success'),
-            error: (msg) => notification.show(msg, 'error')
-        };
         
-        // Password Toggle
-        window.togglePassword = function(fieldId, icon) {
-            const field = document.getElementById(fieldId);
-            if (field.type === 'password') {
-                field.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                field.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
-            }
-        };
-        
-        // Registration Handler
-        document.getElementById('registerForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            if (!window.supabase) {
-                notification.error('Supabase not ready. Please refresh.');
-                return;
-            }
-            
-            const fullName = document.getElementById('fullName').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const role = document.getElementById('role').value;
-            const registerBtn = document.getElementById('registerBtn');
-            
-            // Validation
-            if (!fullName || !email || !password) {
-                notification.error('Please fill all fields');
-                return;
-            }
-            
-            if (password !== confirmPassword) {
-                notification.error('Passwords do not match');
-                return;
-            }
-            
-            if (password.length < 6) {
-                notification.error('Password must be at least 6 characters');
-                return;
-            }
-            
-            registerBtn.disabled = true;
-            registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
-            
-            try {
-                const { data, error } = await window.supabase.auth.signUp({
-                    email: email,
-                    password: password,
-                    options: {
-                        data: {
-                            full_name: fullName,
-                            role: role
-                        }
-                    }
-                });
-                
-                if (error) throw error;
-                
-                notification.success('Account created! Please check your email for verification.');
+        // Check URL parameters for messages
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('registered') === 'true') {
                 setTimeout(() => {
-                    window.location.href = 'login.html?registered=true';
-                }, 2000);
-                
-            } catch (error) {
-                notification.error(error.message);
-                registerBtn.disabled = false;
-                registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
+                    notification.success('Account created! Please check your email for verification link.');
+                }, 1000);
             }
-        });
+            if (urlParams.get('verified') === 'true') {
+                setTimeout(() => {
+                    notification.success('Email verified! You can now login.');
+                }, 1000);
+            }
+        })();
     </script>
 </body>
 </html>
