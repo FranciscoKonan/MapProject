@@ -1,5 +1,5 @@
 // ===========================================
-// QUALITY ALERTS - COMPLETE JAVASCRIPT
+// QUALITY ALERTS - MATCHING DASHBOARD ALERTS
 // ===========================================
 
 console.log('🚀 Quality Alerts page loading...');
@@ -18,138 +18,315 @@ let coopSearchTerm = '';
 let supabaseReady = false;
 
 // ===========================================
-// ALERT GENERATION FUNCTIONS
+// ALERT GENERATION FUNCTIONS (Matching Dashboard)
 // ===========================================
 
-// Function to generate alerts from farm data
-function generateAlertsFromFarms(farms) {
-    const alerts = [];
+// Function to detect overlaps between farms
+function detectOverlaps(farms) {
+    const overlaps = [];
     
-    farms.forEach(farm => {
-        // Check for missing data
-        if (!farm.farmer_name || farm.farmer_name === 'Unknown' || !farm.farmer_id) {
-            alerts.push({
-                id: `missing_${farm.id}`,
-                farmId: farm.id,
-                farmerName: farm.farmer_name || 'Unknown',
-                farmerId: farm.farmer_id || 'N/A',
-                cooperative: farm.cooperative || 'Unassigned',
-                supplier: farm.supplier || 'Unknown',
-                type: 'data',
-                severity: 'high',
-                title: 'Missing Data',
-                description: `Farm missing required information: ${!farm.farmer_name ? 'Farmer name, ' : ''}${!farm.farmer_id ? 'Farmer ID' : ''}`,
-                status: 'new',
-                date: new Date().toISOString()
-            });
-        }
-        
-        // Check for area mismatch (if area is 0 or very small)
-        if (!farm.area || farm.area < 0.1) {
-            alerts.push({
-                id: `area_${farm.id}`,
-                farmId: farm.id,
-                farmerName: farm.farmer_name || 'Unknown',
-                farmerId: farm.farmer_id || 'N/A',
-                cooperative: farm.cooperative || 'Unassigned',
-                supplier: farm.supplier || 'Unknown',
-                type: 'area',
-                severity: 'medium',
-                title: 'Area Mismatch',
-                description: `Farm area is ${farm.area || 0} ha. Area seems unusually small or missing.`,
-                status: 'new',
-                date: new Date().toISOString()
-            });
-        }
-        
-        // Check for invalid geometry
-        if (farm.geometry) {
-            try {
-                const geom = typeof farm.geometry === 'string' ? JSON.parse(farm.geometry) : farm.geometry;
-                
-                // Check for self-intersection (simplified check)
-                if (geom.type === 'Polygon' && geom.coordinates[0] && geom.coordinates[0].length > 3) {
-                    // Check if polygon is closed properly
-                    const first = geom.coordinates[0][0];
-                    const last = geom.coordinates[0][geom.coordinates[0].length - 1];
-                    if (first[0] !== last[0] || first[1] !== last[1]) {
-                        alerts.push({
-                            id: `boundary_${farm.id}`,
-                            farmId: farm.id,
-                            farmerName: farm.farmer_name || 'Unknown',
-                            farmerId: farm.farmer_id || 'N/A',
-                            cooperative: farm.cooperative || 'Unassigned',
-                            supplier: farm.supplier || 'Unknown',
-                            type: 'boundary',
-                            severity: 'critical',
-                            title: 'Boundary Issue',
-                            description: 'Farm polygon is not properly closed. This may cause calculation errors.',
-                            status: 'new',
-                            date: new Date().toISOString()
-                        });
-                    }
-                }
-            } catch (e) {
-                alerts.push({
-                    id: `geometry_${farm.id}`,
-                    farmId: farm.id,
-                    farmerName: farm.farmer_name || 'Unknown',
-                    farmerId: farm.farmer_id || 'N/A',
-                    cooperative: farm.cooperative || 'Unassigned',
-                    supplier: farm.supplier || 'Unknown',
-                    type: 'data',
-                    severity: 'high',
-                    title: 'Invalid Geometry',
-                    description: 'Farm geometry data is corrupted or invalid.',
-                    status: 'new',
-                    date: new Date().toISOString()
-                });
-            }
-        } else if (farm.status !== 'rejected') {
-            // Check for missing geometry
-            alerts.push({
-                id: `no_geom_${farm.id}`,
-                farmId: farm.id,
-                farmerName: farm.farmer_name || 'Unknown',
-                farmerId: farm.farmer_id || 'N/A',
-                cooperative: farm.cooperative || 'Unassigned',
-                supplier: farm.supplier || 'Unknown',
-                type: 'data',
-                severity: 'high',
-                title: 'Missing Geometry',
-                description: 'Farm has no geometry data. Cannot display on map.',
-                status: 'new',
-                date: new Date().toISOString()
-            });
-        }
-    });
-    
-    // Check for overlapping farms (simplified - would need spatial analysis)
-    // This is a simplified version - full overlap detection would require Turf.js
     for (let i = 0; i < farms.length; i++) {
         for (let j = i + 1; j < farms.length; j++) {
-            if (farms[i].supplier === farms[j].supplier && 
-                farms[i].cooperative === farms[j].cooperative) {
-                // Potential overlap alert
-                alerts.push({
-                    id: `overlap_${farms[i].id}_${farms[j].id}`,
-                    farmId: `${farms[i].id}, ${farms[j].id}`,
-                    farmerName: `${farms[i].farmer_name} & ${farms[j].farmer_name}`,
-                    farmerId: `${farms[i].farmer_id}, ${farms[j].farmer_id}`,
-                    cooperative: farms[i].cooperative,
-                    supplier: farms[i].supplier,
-                    type: 'overlap',
-                    severity: 'medium',
-                    title: 'Potential Farm Overlap',
-                    description: `Farms from same supplier/cooperative may overlap. Please verify boundaries.`,
-                    status: 'new',
-                    date: new Date().toISOString()
-                });
-                break;
+            const farm1 = farms[i];
+            const farm2 = farms[j];
+            
+            // Only check farms with valid geometries
+            if (farm1.geometry && farm2.geometry) {
+                try {
+                    const geom1 = typeof farm1.geometry === 'string' ? JSON.parse(farm1.geometry) : farm1.geometry;
+                    const geom2 = typeof farm2.geometry === 'string' ? JSON.parse(farm2.geometry) : farm2.geometry;
+                    
+                    // Check if polygons intersect
+                    if (checkPolygonsIntersect(geom1, geom2)) {
+                        overlaps.push({
+                            farm1: farm1,
+                            farm2: farm2,
+                            severity: determineOverlapSeverity(geom1, geom2)
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error checking overlap:', e);
+                }
             }
         }
     }
     
+    return overlaps;
+}
+
+// Check if two polygons intersect
+function checkPolygonsIntersect(polygon1, polygon2) {
+    if (!polygon1 || !polygon2) return false;
+    if (!polygon1.coordinates || !polygon2.coordinates) return false;
+    if (!polygon1.coordinates[0] || !polygon2.coordinates[0]) return false;
+    
+    // Simple bounding box check first
+    const bounds1 = getBoundingBox(polygon1);
+    const bounds2 = getBoundingBox(polygon2);
+    
+    if (!boxesIntersect(bounds1, bounds2)) return false;
+    
+    // Check if any point of polygon1 is inside polygon2
+    for (const point of polygon1.coordinates[0]) {
+        if (isPointInPolygon(point, polygon2)) {
+            return true;
+        }
+    }
+    
+    // Check if any point of polygon2 is inside polygon1
+    for (const point of polygon2.coordinates[0]) {
+        if (isPointInPolygon(point, polygon1)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+function getBoundingBox(polygon) {
+    const coords = polygon.coordinates[0];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    for (const [x, y] of coords) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+    }
+    
+    return { minX, minY, maxX, maxY };
+}
+
+function boxesIntersect(box1, box2) {
+    return !(box2.minX > box1.maxX ||
+             box2.maxX < box1.minX ||
+             box2.minY > box1.maxY ||
+             box2.maxY < box1.minY);
+}
+
+function isPointInPolygon(point, polygon) {
+    const x = point[0];
+    const y = point[1];
+    const coords = polygon.coordinates[0];
+    let inside = false;
+    
+    for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+        const xi = coords[i][0], yi = coords[i][1];
+        const xj = coords[j][0], yj = coords[j][1];
+        
+        const intersect = ((yi > y) != (yj > y)) &&
+            (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    
+    return inside;
+}
+
+function determineOverlapSeverity(geom1, geom2) {
+    // Calculate overlap area (simplified)
+    try {
+        const area1 = calculatePolygonArea(geom1);
+        const area2 = calculatePolygonArea(geom2);
+        const minArea = Math.min(area1, area2);
+        
+        if (minArea > 10) return 'critical';
+        if (minArea > 5) return 'high';
+        if (minArea > 2) return 'medium';
+        return 'low';
+    } catch (e) {
+        return 'medium';
+    }
+}
+
+function calculatePolygonArea(polygon) {
+    if (!polygon || !polygon.coordinates || !polygon.coordinates[0]) return 0;
+    
+    const coords = polygon.coordinates[0];
+    let area = 0;
+    
+    for (let i = 0; i < coords.length; i++) {
+        const j = (i + 1) % coords.length;
+        area += coords[i][0] * coords[j][1];
+        area -= coords[j][0] * coords[i][1];
+    }
+    
+    return Math.abs(area) / 2;
+}
+
+// Check for self-intersection
+function checkSelfIntersection(geometry) {
+    if (!geometry || !geometry.coordinates || !geometry.coordinates[0]) return false;
+    
+    const coords = geometry.coordinates[0];
+    
+    // Check if polygon is closed
+    const first = coords[0];
+    const last = coords[coords.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+        return true;
+    }
+    
+    // Check for self-intersection (simplified)
+    for (let i = 0; i < coords.length - 2; i++) {
+        for (let j = i + 2; j < coords.length - 1; j++) {
+            if (segmentsIntersect(
+                coords[i], coords[i + 1],
+                coords[j], coords[j + 1]
+            )) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+function segmentsIntersect(p1, p2, p3, p4) {
+    const orientation = (p, q, r) => {
+        const val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1]);
+        if (val === 0) return 0;
+        return val > 0 ? 1 : 2;
+    };
+    
+    const o1 = orientation(p1, p2, p3);
+    const o2 = orientation(p1, p2, p4);
+    const o3 = orientation(p3, p4, p1);
+    const o4 = orientation(p3, p4, p2);
+    
+    if (o1 !== o2 && o3 !== o4) return true;
+    
+    return false;
+}
+
+// Main alert generation function
+function generateAlertsFromFarms(farms) {
+    const alerts = [];
+    
+    console.log(`Generating alerts for ${farms.length} farms...`);
+    
+    // 1. Detect overlaps
+    const overlaps = detectOverlaps(farms);
+    overlaps.forEach(overlap => {
+        alerts.push({
+            id: `overlap_${overlap.farm1.id}_${overlap.farm2.id}`,
+            farmId: `${overlap.farm1.farmer_id || overlap.farm1.id}, ${overlap.farm2.farmer_id || overlap.farm2.id}`,
+            farmerName: `${overlap.farm1.farmer_name || 'Unknown'} & ${overlap.farm2.farmer_name || 'Unknown'}`,
+            farmerId: overlap.farm1.farmer_id || overlap.farm1.id,
+            cooperative: overlap.farm1.cooperative || overlap.farm2.cooperative || 'Unassigned',
+            supplier: overlap.farm1.supplier || overlap.farm2.supplier || 'Unknown',
+            type: 'overlap',
+            severity: overlap.severity,
+            title: 'Farm Overlap Detected',
+            description: `Farm "${overlap.farm1.farmer_name || 'Unknown'}" overlaps with "${overlap.farm2.farmer_name || 'Unknown'}". This may cause double-counting issues.`,
+            status: 'new',
+            date: new Date().toISOString(),
+            affectedFarms: [overlap.farm1.id, overlap.farm2.id]
+        });
+    });
+    
+    // 2. Check each farm for individual issues
+    farms.forEach(farm => {
+        // Check for self-intersection
+        if (farm.geometry && checkSelfIntersection(farm.geometry)) {
+            alerts.push({
+                id: `self_intersection_${farm.id}`,
+                farmId: farm.farmer_id || farm.id,
+                farmerName: farm.farmer_name || 'Unknown',
+                farmerId: farm.farmer_id || farm.id,
+                cooperative: farm.cooperative || 'Unassigned',
+                supplier: farm.supplier || 'Unknown',
+                type: 'self_intersection',
+                severity: 'critical',
+                title: 'Self-Intersecting Polygon',
+                description: `Farm polygon is self-intersecting. This indicates a geometry error that needs correction.`,
+                status: 'new',
+                date: new Date().toISOString(),
+                farmId: farm.id
+            });
+        }
+        
+        // Check for missing geometry
+        if (!farm.geometry && farm.status !== 'rejected') {
+            alerts.push({
+                id: `missing_geometry_${farm.id}`,
+                farmId: farm.farmer_id || farm.id,
+                farmerName: farm.farmer_name || 'Unknown',
+                farmerId: farm.farmer_id || farm.id,
+                cooperative: farm.cooperative || 'Unassigned',
+                supplier: farm.supplier || 'Unknown',
+                type: 'data',
+                severity: 'high',
+                title: 'Missing Geometry Data',
+                description: `Farm has no geometry data. Cannot display on map or calculate area.`,
+                status: 'new',
+                date: new Date().toISOString(),
+                farmId: farm.id
+            });
+        }
+        
+        // Check for missing required fields
+        const missingFields = [];
+        if (!farm.farmer_name) missingFields.push('Farmer Name');
+        if (!farm.farmer_id) missingFields.push('Farmer ID');
+        
+        if (missingFields.length > 0) {
+            alerts.push({
+                id: `missing_data_${farm.id}`,
+                farmId: farm.farmer_id || farm.id,
+                farmerName: farm.farmer_name || 'Unknown',
+                farmerId: farm.farmer_id || farm.id,
+                cooperative: farm.cooperative || 'Unassigned',
+                supplier: farm.supplier || 'Unknown',
+                type: 'data',
+                severity: 'medium',
+                title: 'Missing Required Data',
+                description: `Missing fields: ${missingFields.join(', ')}. Please complete the farm information.`,
+                status: 'new',
+                date: new Date().toISOString(),
+                farmId: farm.id
+            });
+        }
+        
+        // Check for area mismatch (area is 0 or very small)
+        if ((!farm.area || farm.area === 0) && farm.geometry) {
+            alerts.push({
+                id: `area_missing_${farm.id}`,
+                farmId: farm.farmer_id || farm.id,
+                farmerName: farm.farmer_name || 'Unknown',
+                farmerId: farm.farmer_id || farm.id,
+                cooperative: farm.cooperative || 'Unassigned',
+                supplier: farm.supplier || 'Unknown',
+                type: 'area',
+                severity: 'medium',
+                title: 'Area Not Calculated',
+                description: `Farm area is not calculated. The geometry exists but area is missing.`,
+                status: 'new',
+                date: new Date().toISOString(),
+                farmId: farm.id
+            });
+        }
+        
+        // Check for suspiciously large area
+        if (farm.area && farm.area > 100) {
+            alerts.push({
+                id: `large_area_${farm.id}`,
+                farmId: farm.farmer_id || farm.id,
+                farmerName: farm.farmer_name || 'Unknown',
+                farmerId: farm.farmer_id || farm.id,
+                cooperative: farm.cooperative || 'Unassigned',
+                supplier: farm.supplier || 'Unknown',
+                type: 'area',
+                severity: 'low',
+                title: 'Unusually Large Area',
+                description: `Farm area is ${farm.area.toFixed(2)} ha, which is unusually large. Please verify.`,
+                status: 'new',
+                date: new Date().toISOString(),
+                farmId: farm.id
+            });
+        }
+    });
+    
+    console.log(`Generated ${alerts.length} alerts`);
     return alerts;
 }
 
@@ -191,7 +368,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ===========================================
 async function loadFarmsAndGenerateAlerts() {
     console.log('📡 Loading farms to generate alerts...');
-    showNotification('Loading farm data...', 'info');
+    showNotification('Analyzing farm data...', 'info');
     
     try {
         if (!window.supabase || !window.supabase.auth) {
@@ -211,8 +388,7 @@ async function loadFarmsAndGenerateAlerts() {
         // Fetch farms
         const { data: farms, error } = await window.supabase
             .from('farms')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('*');
         
         if (error) throw error;
         
@@ -265,48 +441,34 @@ function loadSampleAlerts() {
     allAlerts = [
         {
             id: '1',
-            farmId: 'F12345',
-            farmerName: 'Koffi Jean',
+            farmId: 'F12345, F12346',
+            farmerName: 'Koffi Jean & Konan Marie',
             farmerId: 'F12345',
             cooperative: 'GCC Cooperative',
             supplier: 'GCC',
             type: 'overlap',
             severity: 'critical',
             title: 'Farm Overlap Detected',
-            description: 'This farm overlaps with farm F12346 by approximately 0.5 hectares.',
+            description: 'Farm "Koffi Jean" overlaps with farm "Konan Marie". Overlap area: 0.45 ha. This may cause double-counting issues.',
             status: 'new',
             date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
         },
         {
             id: '2',
-            farmId: 'F12346',
-            farmerName: 'Konan Marie',
-            farmerId: 'F12346',
-            cooperative: 'SITAPA Cooperative',
-            supplier: 'SITAPA',
-            type: 'boundary',
-            severity: 'high',
-            title: 'Boundary Issue',
-            description: 'Farm boundary is not properly closed. The polygon is open.',
-            status: 'new',
-            date: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
-        },
-        {
-            id: '3',
             farmId: 'F12347',
             farmerName: 'N\'Guessan Paul',
             farmerId: 'F12347',
             cooperative: 'COOP-CI',
             supplier: 'Other',
-            type: 'area',
-            severity: 'medium',
-            title: 'Area Mismatch',
-            description: 'Reported area (3.2 ha) differs significantly from calculated area (2.8 ha).',
-            status: 'acknowledged',
-            date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+            type: 'self_intersection',
+            severity: 'critical',
+            title: 'Self-Intersecting Polygon',
+            description: 'Farm polygon is self-intersecting. This indicates a geometry error that needs correction.',
+            status: 'new',
+            date: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
         },
         {
-            id: '4',
+            id: '3',
             farmId: 'F12348',
             farmerName: 'Yao Michel',
             farmerId: 'F12348',
@@ -314,22 +476,36 @@ function loadSampleAlerts() {
             supplier: 'GCC',
             type: 'data',
             severity: 'high',
-            title: 'Missing Data',
-            description: 'Farmer name is missing from the submission.',
+            title: 'Missing Geometry Data',
+            description: 'Farm has no geometry data. Cannot display on map or calculate area.',
             status: 'new',
             date: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
         },
         {
-            id: '5',
+            id: '4',
             farmId: 'F12349',
             farmerName: 'Traore Amadou',
             farmerId: 'F12349',
             cooperative: 'SITAPA Cooperative',
             supplier: 'SITAPA',
-            type: 'overlap',
+            type: 'data',
+            severity: 'medium',
+            title: 'Missing Required Data',
+            description: 'Missing fields: Farmer Name. Please complete the farm information.',
+            status: 'acknowledged',
+            date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+        },
+        {
+            id: '5',
+            farmId: 'F12350',
+            farmerName: 'Kouassi Alphonse',
+            farmerId: 'F12350',
+            cooperative: 'GCC Cooperative',
+            supplier: 'GCC',
+            type: 'area',
             severity: 'low',
-            title: 'Minor Overlap',
-            description: 'Small overlap with adjacent farm (0.05 ha).',
+            title: 'Unusually Large Area',
+            description: 'Farm area is 125.30 ha, which is unusually large. Please verify.',
             status: 'resolved',
             date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
         }
@@ -407,7 +583,8 @@ function applyFilters() {
     updateStats();
     
     // Update export count
-    document.getElementById('exportCount').textContent = `${filteredAlerts.length} alerts`;
+    const exportCount = document.getElementById('exportCount');
+    if (exportCount) exportCount.textContent = `${filteredAlerts.length} alerts`;
     
     // Reset to first page
     currentPage = 1;
@@ -427,11 +604,17 @@ function updateStats() {
     const low = filteredAlerts.filter(a => a.severity === 'low').length;
     const total = filteredAlerts.length;
     
-    document.getElementById('criticalCount').textContent = critical;
-    document.getElementById('highCount').textContent = high;
-    document.getElementById('mediumCount').textContent = medium;
-    document.getElementById('lowCount').textContent = low;
-    document.getElementById('totalAlerts').textContent = total;
+    const criticalEl = document.getElementById('criticalCount');
+    const highEl = document.getElementById('highCount');
+    const mediumEl = document.getElementById('mediumCount');
+    const lowEl = document.getElementById('lowCount');
+    const totalEl = document.getElementById('totalAlerts');
+    
+    if (criticalEl) criticalEl.textContent = critical;
+    if (highEl) highEl.textContent = high;
+    if (mediumEl) mediumEl.textContent = medium;
+    if (lowEl) lowEl.textContent = low;
+    if (totalEl) totalEl.textContent = total;
     
     // Update notification badge
     const newAlerts = filteredAlerts.filter(a => a.status === 'new').length;
@@ -457,7 +640,7 @@ function renderAlerts() {
             <div style="text-align: center; padding: 60px;">
                 <i class="fas fa-check-circle" style="font-size: 48px; color: #22c55e; margin-bottom: 15px;"></i>
                 <h3>No Quality Alerts</h3>
-                <p style="color: #64748b;">All farms are in good quality. No alerts found.</p>
+                <p style="color: #64748b;">All farms meet quality standards. No alerts found.</p>
             </div>
         `;
         return;
@@ -476,8 +659,8 @@ function renderAlerts() {
                 <div class="alert-date">${formatDate(alert.date)}</div>
             </div>
             <div class="alert-details">
-                <p><strong>Farm:</strong> ${escapeHtml(alert.farmerName)} (${escapeHtml(alert.farmerId)})</p>
-                <p><strong>${alert.type === 'overlap' ? 'Farms' : 'Supplier'}:</strong> ${escapeHtml(alert.supplier)} • ${escapeHtml(alert.cooperative)}</p>
+                <p><strong>${alert.type === 'overlap' ? 'Affected Farms' : 'Farm'}:</strong> ${escapeHtml(alert.farmerName)}</p>
+                <p><strong>Supplier:</strong> ${escapeHtml(alert.supplier)} • <strong>Cooperative:</strong> ${escapeHtml(alert.cooperative)}</p>
                 <p>${escapeHtml(alert.description)}</p>
             </div>
             <div class="alert-actions">
@@ -577,8 +760,8 @@ function showAlertModal(alert) {
             </div>
             <div class="modal-body">
                 <div class="modal-row">
-                    <div class="modal-label">Farm:</div>
-                    <div class="modal-value">${escapeHtml(alert.farmerName)} (${escapeHtml(alert.farmerId)})</div>
+                    <div class="modal-label">${alert.type === 'overlap' ? 'Affected Farms' : 'Farm'}:</div>
+                    <div class="modal-value">${escapeHtml(alert.farmerName)}</div>
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Supplier:</div>
@@ -590,7 +773,7 @@ function showAlertModal(alert) {
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Alert Type:</div>
-                    <div class="modal-value">${alert.type.toUpperCase()}</div>
+                    <div class="modal-value">${alert.type.replace('_', ' ').toUpperCase()}</div>
                 </div>
                 <div class="modal-row">
                     <div class="modal-label">Severity:</div>
@@ -661,11 +844,10 @@ function showAlertModal(alert) {
 // EXPORT FUNCTIONS
 // ===========================================
 function exportToCSV() {
-    const headers = ['ID', 'Farm Name', 'Farm ID', 'Supplier', 'Cooperative', 'Type', 'Severity', 'Status', 'Description', 'Date'];
+    const headers = ['ID', 'Farm Name', 'Supplier', 'Cooperative', 'Type', 'Severity', 'Status', 'Description', 'Date'];
     const rows = filteredAlerts.map(alert => [
         alert.id,
         alert.farmerName,
-        alert.farmerId,
         alert.supplier,
         alert.cooperative,
         alert.type,
@@ -685,7 +867,6 @@ function exportToJSON() {
     const data = filteredAlerts.map(alert => ({
         id: alert.id,
         farmName: alert.farmerName,
-        farmId: alert.farmerId,
         supplier: alert.supplier,
         cooperative: alert.cooperative,
         type: alert.type,
@@ -729,156 +910,4 @@ function formatDate(dateString) {
 }
 
 function escapeHtml(str) {
-    if (!str) return '';
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function showNotification(message, type = 'info') {
-    console.log(`[${type}] ${message}`);
-    
-    const colors = {
-        success: '#4CAF50',
-        error: '#F44336',
-        warning: '#FFC107',
-        info: '#2196F3'
-    };
-    
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 12px 24px;
-        background: ${colors[type]};
-        color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10001;
-        animation: slideIn 0.3s ease;
-        font-size: 14px;
-        font-weight: 500;
-    `;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-// ===========================================
-// EVENT LISTENERS
-// ===========================================
-function setupEventListeners() {
-    // Refresh button
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => loadFarmsAndGenerateAlerts());
-    }
-    
-    // Apply filters
-    const applyBtn = document.getElementById('applyFiltersBtn');
-    if (applyBtn) {
-        applyBtn.addEventListener('click', () => applyFilters());
-    }
-    
-    // Clear filters
-    const clearBtn = document.getElementById('clearFiltersBtn');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            document.getElementById('alertTypeFilter').value = 'all';
-            document.getElementById('alertSeverityFilter').value = 'all';
-            document.getElementById('alertSupplierFilter').value = 'all';
-            document.getElementById('alertCoopFilter').value = 'all';
-            document.getElementById('alertStatusFilter').value = 'all';
-            document.getElementById('supplierSearch').value = '';
-            document.getElementById('coopSearch').value = '';
-            supplierSearchTerm = '';
-            coopSearchTerm = '';
-            updateSupplierFilter();
-            updateCooperativeFilter();
-            applyFilters();
-        });
-    }
-    
-    // Filter change listeners
-    document.getElementById('alertTypeFilter')?.addEventListener('change', () => applyFilters());
-    document.getElementById('alertSeverityFilter')?.addEventListener('change', () => applyFilters());
-    document.getElementById('alertSupplierFilter')?.addEventListener('change', () => applyFilters());
-    document.getElementById('alertCoopFilter')?.addEventListener('change', () => applyFilters());
-    document.getElementById('alertStatusFilter')?.addEventListener('change', () => applyFilters());
-    
-    // Search listeners
-    const supplierSearch = document.getElementById('supplierSearch');
-    if (supplierSearch) {
-        supplierSearch.addEventListener('input', (e) => {
-            supplierSearchTerm = e.target.value.toLowerCase();
-            updateSupplierFilter();
-            applyFilters();
-        });
-    }
-    
-    const coopSearch = document.getElementById('coopSearch');
-    if (coopSearch) {
-        coopSearch.addEventListener('input', (e) => {
-            coopSearchTerm = e.target.value.toLowerCase();
-            updateCooperativeFilter();
-            applyFilters();
-        });
-    }
-    
-    // Pagination
-    const prevBtn = document.getElementById('prevPageBtn');
-    if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderAlerts(); updatePagination(); } });
-    
-    const nextBtn = document.getElementById('nextPageBtn');
-    if (nextBtn) nextBtn.addEventListener('click', () => { const total = Math.ceil(filteredAlerts.length / rowsPerPage); if (currentPage < total) { currentPage++; renderAlerts(); updatePagination(); } });
-    
-    // Export buttons
-    document.getElementById('exportCSV')?.addEventListener('click', () => exportToCSV());
-    document.getElementById('exportJSON')?.addEventListener('click', () => exportToJSON());
-    
-    // Mark all as acknowledged
-    const markAllBtn = document.getElementById('markAllReadBtn');
-    if (markAllBtn) {
-        markAllBtn.addEventListener('click', () => {
-            if (confirm('Mark all new alerts as acknowledged?')) {
-                allAlerts.forEach(alert => {
-                    if (alert.status === 'new') alert.status = 'acknowledged';
-                });
-                applyFilters();
-                showNotification('All alerts marked as acknowledged', 'success');
-            }
-        });
-    }
-    
-    // Logout
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            if (window.supabase) await window.supabase.auth.signOut();
-            localStorage.clear();
-            window.location.href = '../login.html';
-        });
-    }
-}
-
-// ===========================================
-// EXPOSE GLOBAL FUNCTIONS
-// ===========================================
-window.viewAlertDetails = viewAlertDetails;
-window.updateAlertStatus = updateAlertStatus;
-window.goToPage = goToPage;
-window.applyFilters = applyFilters;
-window.exportToCSV = exportToCSV;
-window.exportToJSON = exportToJSON;
-
-console.log('✅ Quality Alerts page ready');
+    if (!str)
