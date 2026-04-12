@@ -6,7 +6,19 @@ const cors = require('cors');
 const app = express();
 
 // Essential middleware - ORDER MATTERS!
-app.use(cors()); // Simplest CORS setup
+// Replace your current CORS setup with this:
+app.use(cors({
+    origin: [
+        'http://localhost:5500',           // Local VS Code Live Server
+        'http://127.0.0.1:5500',           // Local alternative
+        'https://franciscokonan.github.io', // Your GitHub Pages URL (update this)
+        'https://*.vercel.app',            // If using Vercel
+        'https://*.netlify.app'            // If using Netlify
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Load environment variables
