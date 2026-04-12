@@ -1,24 +1,14 @@
 require('dotenv').config();
 const express = require('express');
+const axios = require('axios');
+const cron = require('node-cron');
+const wellknown = require('wellknown');
 const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 
 const app = express();
 
-// Essential middleware - ORDER MATTERS!
-// Replace your current CORS setup with this:
-app.use(cors({
-    origin: [
-        'http://localhost:5500',           // Local VS Code Live Server
-        'http://127.0.0.1:5500',           // Local alternative
-        'https://franciscokonan.github.io', // Your GitHub Pages URL (update this)
-        'https://*.vercel.app',            // If using Vercel
-        'https://*.netlify.app'            // If using Netlify
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors());
 app.use(express.json());
 
 // Load environment variables
@@ -30,88 +20,141 @@ const {
   PORT: ENV_PORT
 } = process.env;
 
-// Log what we have (for debugging)
 console.log('📋 Environment check:');
 console.log(`   SUPABASE_URL: ${SUPABASE_URL ? '✅' : '❌'}`);
 console.log(`   SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY ? '✅' : '❌'}`);
 console.log(`   KOBO_TOKEN: ${KOBO_TOKEN ? '✅' : '❌'}`);
 console.log(`   ASSET_UID: ${ASSET_UID ? '✅' : '❌'}`);
 
-// Initialize Supabase (don't fail if credentials missing - API routes will handle errors)
-let supabase = null;
-if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
-  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-  console.log('✅ Supabase client initialized');
-} else {
-  console.warn('⚠️ Supabase credentials missing - API will return mock data');
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+const KOBO_API_BASE = 'https://kf.kobotoolbox.org/api/v2';
+
+// ===========================================
+// KOBO V2 API FUNCTIONS
+// ===========================================
+
+/**
+ * Convert Kobo Polygon string to GeoJSON Polygon
+ */
+function koboPolygonToGeoJSON(polygonString) {
+  if (!polygonString) return null;
+  try {
+    const coords = polygonString.split(';').map(pt => {
+      const parts = pt.trim().split(/\s+/);
+      const lat = parseFloat(parts[0]);
+      const lon = parseFloat(parts[1]);
+      return [lon, lat];
+    });
+    if (coords.length > 0) {
+      const first = coords[0];
+      const last = coords[coords.length - 1];
+      if (first[0] !== last[0] || first[1] !== last[1]) coords.push(first);
+    }
+    return { type: 'Polygon', coordinates: [coords] };
+  } catch (err) {
+    console.error('Polygon parse error:', err.message);
+    return null;
+  }
 }
 
-// ========== ROUTES ==========
-// Define ALL routes BEFORE any error handlers
-
-// TEST ROUTE - Must be first and simplest
-app.get('/api/test', (req, res) => {
-  console.log('✅ /api/test HIT -', new Date().toISOString());
-  res.json({ 
-    status: 'ok', 
-    message: 'Backend is running',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// STATUS ROUTE
-app.get('/api/status', async (req, res) => {
-  console.log('📊 /api/status HIT');
-  
-  // If no Supabase, return mock data
-  if (!supabase) {
-    return res.json({ 
-      status: 'online', 
-      farmsCount: 0,
-      note: 'Supabase not configured',
-      timestamp: new Date().toISOString()
-    });
-  }
-  
+/**
+ * Fetch submissions from Kobo v2 API
+ */
+async function fetchKoboSubmissions() {
   try {
-    const { count, error } = await supabase
-      .from('farms')
-      .select('*', { count: 'exact', head: true });
-    
-    if (error) throw error;
-    
-    res.json({ 
-      status: 'online', 
-      farmsCount: count || 0,
-      timestamp: new Date().toISOString()
-    });
+    console.log('📡 Fetching from Kobo v2 API...');
+    const response = await axios.get(
+      `${KOBO_API_BASE}/assets/${ASSET_UID}/data/`,
+      {
+        headers: { 
+          'Authorization': `Token ${KOBO_TOKEN}`,
+          'Accept': 'application/json'
+        },
+        params: {
+          limit: 1000
+        }
+      }
+    );
+    return response.data.results || [];
   } catch (error) {
-    console.error('Status error:', error.message);
-    res.json({ 
-      status: 'online', 
-      farmsCount: 0, 
-      error: error.message 
-    });
+    console.error('❌ Kobo v2 API error:', error.response?.data || error.message);
+    return [];
+  }
+}
+
+/**
+ * Sync Kobo data to Supabase
+ */
+async function syncKobo() {
+  try {
+    console.log('🔄 Starting Kobo sync at:', new Date().toISOString());
+    
+    const records = await fetchKoboSubmissions();
+    console.log(`📊 Fetched ${records.length} records from Kobo`);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const record of records) {
+      const id = record._uuid || record._id;
+      if (!id) continue;
+
+      console.log(`📝 Processing record: ${id}`);
+      
+      const polygonString = record.Polygon || record.polygon;
+      const geojson = koboPolygonToGeoJSON(polygonString);
+      const wkt = geojson ? wellknown.stringify(geojson) : null;
+
+      try {
+        const { error } = await supabase.rpc('upsert_farm_geom', {
+          p_id: id,
+          p_farmer_name: record.Farmer_Name || record.farmer_name || 'Unknown',
+          p_farmer_id: record.Farmer_ID || record.farmer_id,
+          p_submission_date: record.Submission_Date || record.submission_date,
+          p_cooperative_name: record.Cooperative_Name || record.cooperative_name,
+          p_area: parseFloat(record.Area || record.area) || null,
+          p_geom_wkt: wkt
+        });
+
+        if (error) {
+          console.error('❌ RPC error:', error.message);
+          errorCount++;
+        } else {
+          successCount++;
+        }
+      } catch (err) {
+        console.error('❌ Error:', err.message);
+        errorCount++;
+      }
+    }
+
+    console.log(`✅ Sync completed: ${successCount} updated, ${errorCount} failed`);
+    
+  } catch (err) {
+    console.error('❌ Sync failed:', err.message);
+  }
+}
+
+// ===========================================
+// API ENDPOINTS
+// ===========================================
+
+app.get('/api/test', (req, res) => {
+  res.json({ status: 'ok', message: 'Backend is running', version: 'v2' });
+});
+
+app.get('/api/status', async (req, res) => {
+  try {
+    const { count } = await supabase.from('farms').select('*', { count: 'exact', head: true });
+    res.json({ status: 'online', farmsCount: count || 0 });
+  } catch (error) {
+    res.json({ status: 'online', farmsCount: 0 });
   }
 });
 
-// POLYGONS ROUTE
 app.get('/api/polygons', async (req, res) => {
-  console.log('🗺️ /api/polygons HIT');
-  
-  // If no Supabase, return empty GeoJSON
-  if (!supabase) {
-    return res.json({
-      type: "FeatureCollection",
-      features: []
-    });
-  }
-  
   try {
-    const { data, error } = await supabase
-      .from('farms_geojson')
-      .select('*');
-    
+    const { data, error } = await supabase.from('farms_geojson').select('*');
     if (error) throw error;
     
     const features = (data || []).map(row => ({
@@ -128,70 +171,44 @@ app.get('/api/polygons', async (req, res) => {
       }
     }));
     
-    res.json({
-      type: "FeatureCollection",
-      features: features
-    });
-  } catch (error) {
-    console.error('Polygons error:', error.message);
-    res.status(500).json({ error: error.message });
+    res.json({ type: "FeatureCollection", features: features });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// SYNC ROUTE (placeholder)
-app.get('/sync-kobo', (req, res) => {
-  console.log('🔄 /sync-kobo HIT');
-  res.json({ 
-    status: 'Sync endpoint ready', 
-    message: 'Sync functionality coming soon' 
-  });
+// UPDATED: Real Kobo sync endpoint
+app.get('/sync-kobo', async (req, res) => {
+  try {
+    await syncKobo();
+    res.json({ status: 'Sync completed', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Sync endpoint error:', error);
+    res.status(500).json({ error: 'Sync failed', details: error.message });
+  }
 });
 
-// ROOT ROUTE
+// Auto-sync every 30 minutes
+cron.schedule('*/30 * * * *', async () => {
+  console.log('⏰ Running scheduled sync...');
+  await syncKobo();
+});
+
 app.get('/', (req, res) => {
   res.json({
     name: 'MappingTrace API',
     version: '1.0.0',
     status: 'running',
-    endpoints: [
-      'GET /',
-      'GET /api/test',
-      'GET /api/status', 
-      'GET /api/polygons',
-      'GET /sync-kobo'
-    ]
+    endpoints: ['GET /', 'GET /api/test', 'GET /api/status', 'GET /api/polygons', 'GET /sync-kobo']
   });
 });
 
-// Add this near your other routes
 app.get('/api/alerts', (req, res) => {
-    console.log('📢 /api/alerts called');
-    res.json([]); // Return empty array for now
+  res.json([]);
 });
 
-// 404 handler - MUST be last
-app.use((req, res) => {
-  console.log(`❌ 404 - Not found: ${req.method} ${req.url}`);
-  res.status(404).json({ 
-    error: 'Endpoint not found',
-    available: ['/', '/api/test', '/api/status', '/api/polygons', '/sync-kobo']
-  });
-});
-
-// Error handler
-app.use((err, req, res, next) => {
-  console.error('❌ Server error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-// Start server
 const PORT = ENV_PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Server running on port ${PORT}`);
-  console.log(`📍 Root: http://localhost:${PORT}/`);
-  console.log(`📍 Test: http://localhost:${PORT}/api/test`);
-  console.log(`📍 Status: http://localhost:${PORT}/api/status`);
-  console.log(`📍 Polygons: http://localhost:${PORT}/api/polygons`);
-  console.log(`📍 Sync: http://localhost:${PORT}/sync-kobo\n`);
+  console.log(`📍 Kobo v2 API integration active`);
 });
-
