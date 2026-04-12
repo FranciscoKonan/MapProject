@@ -150,7 +150,7 @@ async function syncKobo() {
             // Check for duplicate
             const exists = await submissionExists(koboId);
             if (exists) {
-                console.log(`⚠️ Skipping duplicate: ${koboId} - ${record.Farmer_Name || record.farmer_name}`);
+                console.log(`⚠️ Skipping duplicate: ${koboId}`);
                 duplicateCount++;
                 continue;
             }
@@ -169,12 +169,11 @@ async function syncKobo() {
                 area: record.Area ? parseFloat(record.Area) : (record.area ? parseFloat(record.area) : null),
                 status: (record.Status || record.status || 'pending').toLowerCase(),
                 kobo_submission_id: koboId,
-                synced_at: new Date().toISOString(),
-                raw_data: record
+                synced_at: new Date().toISOString()
             };
 
             // Add geometry if available
-            if (wkt) {
+            if (geojson) {
                 farmData.geometry = geojson;
             }
 
