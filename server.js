@@ -1,5 +1,5 @@
 // ===========================================
-// MAPPINGTRACE BACKEND - COMPLETE VERSION
+// MAPPINGTRACE BACKEND - COMPLETE FIXED VERSION
 // ===========================================
 
 require('dotenv').config();
@@ -11,10 +11,6 @@ const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 
 const app = express();
-
-// ===========================================
-// MIDDLEWARE
-// ===========================================
 
 app.use(cors({
     origin: [
@@ -28,10 +24,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// ===========================================
-// ENVIRONMENT VARIABLES
-// ===========================================
-
+// Environment variables
 const {
     SUPABASE_URL,
     SUPABASE_SERVICE_KEY,
@@ -46,20 +39,17 @@ console.log(`   SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY ? '✅' : '❌'}`);
 console.log(`   KOBO_TOKEN: ${KOBO_TOKEN ? '✅' : '❌'}`);
 console.log(`   ASSET_UID: ${ASSET_UID ? '✅' : '❌'}`);
 
-// ===========================================
-// SUPABASE CLIENT
-// ===========================================
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 const KOBO_API_BASE = 'https://kf.kobotoolbox.org/api/v2';
+
+// Track last sync time to avoid duplicate processing
+let lastSyncTime = null;
+let isSyncing = false;
 
 // ===========================================
 // KOBO V2 API FUNCTIONS
 // ===========================================
 
-/**
- * Convert Kobo Polygon string to GeoJSON Polygon
- */
 function koboPolygonToGeoJSON(polygonString) {
     if (!polygonString) return null;
     try {
@@ -81,12 +71,18 @@ function koboPolygonToGeoJSON(polygonString) {
     }
 }
 
-/**
- * Fetch submissions from Kobo v2 API
- */
-async function fetchKoboSubmissions() {
+async function fetchKoboSubmissions(since = null) {
     try {
         console.log('📡 Fetching from Kobo v2 API...');
+        
+        let params = { limit: 1000 };
+        
+        // If we have a last sync time, only fetch newer records
+        if (since) {
+            params.query = JSON.stringify({ "_submission_time": { "$gt": since } });
+            console.log(`   Fetching records since: ${since}`);
+        }
+        
         const response = await axios.get(
             `${KOBO_API_BASE}/assets/${ASSET_UID}/data/`,
             {
@@ -94,9 +90,7 @@ async function fetchKoboSubmissions() {
                     'Authorization': `Token ${KOBO_TOKEN}`,
                     'Accept': 'application/json'
                 },
-                params: {
-                    limit: 1000
-                }
+                params: params
             }
         );
         return response.data.results || [];
@@ -106,9 +100,6 @@ async function fetchKoboSubmissions() {
     }
 }
 
-/**
- * Check if a submission already exists in Supabase
- */
 async function submissionExists(koboId) {
     try {
         const { data, error } = await supabase
@@ -128,15 +119,21 @@ async function submissionExists(koboId) {
     }
 }
 
-/**
- * Sync Kobo data to Supabase with deduplication
- */
-async function syncKobo() {
+async function syncKobo(manual = false) {
+    // Prevent concurrent syncs
+    if (isSyncing) {
+        console.log('⚠️ Sync already in progress, skipping...');
+        return { status: 'skipped', message: 'Sync already in progress' };
+    }
+    
+    isSyncing = true;
     const startTime = Date.now();
-    console.log('🔄 Starting Kobo sync at:', new Date().toISOString());
+    console.log(`🔄 Starting Kobo sync at: ${new Date().toISOString()} (${manual ? 'manual' : 'auto'})`);
 
     try {
-        const records = await fetchKoboSubmissions();
+        // Only fetch new records since last sync
+        const fetchSince = manual ? null : lastSyncTime;
+        const records = await fetchKoboSubmissions(fetchSince);
         console.log(`📊 Fetched ${records.length} records from Kobo`);
 
         let newCount = 0;
@@ -158,7 +155,9 @@ async function syncKobo() {
             // Process new record
             const polygonString = record.Polygon || record.polygon;
             const geojson = koboPolygonToGeoJSON(polygonString);
-            const wkt = geojson ? wellknown.stringify(geojson) : null;
+            
+            // Get submission time for tracking
+            const submissionTime = record._submission_time || record.submission_time || new Date().toISOString();
 
             const farmData = {
                 farm_id: uuid,
@@ -169,10 +168,10 @@ async function syncKobo() {
                 area: record.Area ? parseFloat(record.Area) : (record.area ? parseFloat(record.area) : null),
                 status: (record.Status || record.status || 'pending').toLowerCase(),
                 kobo_submission_id: koboId,
-                synced_at: new Date().toISOString()
+                synced_at: new Date().toISOString(),
+                submission_time: submissionTime
             };
 
-            // Add geometry if available
             if (geojson) {
                 farmData.geometry = geojson;
             }
@@ -188,6 +187,11 @@ async function syncKobo() {
                 } else {
                     console.log(`✅ Inserted: ${farmData.farmer_name} (${koboId})`);
                     newCount++;
+                    
+                    // Update last sync time to the most recent submission
+                    if (!lastSyncTime || new Date(submissionTime) > new Date(lastSyncTime)) {
+                        lastSyncTime = submissionTime;
+                    }
                 }
             } catch (err) {
                 console.error('❌ Error inserting record:', err.message);
@@ -195,54 +199,34 @@ async function syncKobo() {
             }
         }
 
+        // If no new records but we have records, update lastSyncTime from the latest record
+        if (records.length > 0 && !lastSyncTime) {
+            const latestRecord = records.reduce((latest, current) => {
+                const currentTime = current._submission_time || current.submission_time;
+                const latestTime = latest._submission_time || latest.submission_time;
+                return new Date(currentTime) > new Date(latestTime) ? current : latest;
+            }, records[0]);
+            lastSyncTime = latestRecord._submission_time || latestRecord.submission_time;
+        }
+
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         console.log(`✅ Sync completed in ${duration}s: ${newCount} new, ${duplicateCount} duplicates, ${errorCount} failed`);
+        console.log(`📅 Last sync time: ${lastSyncTime || 'never'}`);
 
-        return { newCount, duplicateCount, errorCount, duration };
+        return { newCount, duplicateCount, errorCount, duration, lastSyncTime };
 
     } catch (err) {
         console.error('❌ Sync failed:', err.message);
-        throw err;
+        return { status: 'error', message: err.message };
+    } finally {
+        isSyncing = false;
     }
-}
-
-// ===========================================
-// DATABASE SETUP FUNCTIONS
-// ===========================================
-
-/**
- * Ensure required columns exist in farms table
- */
-async function setupDatabase() {
-    console.log('🔧 Checking database setup...');
-
-    // Check if kobo_submission_id column exists
-    const { error: checkError } = await supabase
-        .from('farms')
-        .select('kobo_submission_id')
-        .limit(1);
-
-    if (checkError && checkError.message.includes('column "kobo_submission_id" does not exist')) {
-        console.log('📝 Adding kobo_submission_id column...');
-        const { error: alterError } = await supabase.rpc('add_kobo_submission_id_column');
-        if (alterError) {
-            console.warn('⚠️ Could not add column via RPC, please run SQL manually:');
-            console.log(`
-                ALTER TABLE farms 
-                ADD COLUMN IF NOT EXISTS kobo_submission_id TEXT UNIQUE,
-                ADD COLUMN IF NOT EXISTS synced_at TIMESTAMP;
-            `);
-        }
-    }
-
-    console.log('✅ Database check complete');
 }
 
 // ===========================================
 // API ENDPOINTS
 // ===========================================
 
-// Health check
 app.get('/api/test', (req, res) => {
     res.json({
         status: 'ok',
@@ -252,7 +236,6 @@ app.get('/api/test', (req, res) => {
     });
 });
 
-// Status endpoint
 app.get('/api/status', async (req, res) => {
     try {
         const { count, error } = await supabase
@@ -261,18 +244,11 @@ app.get('/api/status', async (req, res) => {
 
         if (error) throw error;
 
-        // Get last sync info
-        const { data: lastSync } = await supabase
-            .from('farms')
-            .select('synced_at')
-            .order('synced_at', { ascending: false })
-            .limit(1)
-            .single();
-
         res.json({
             status: 'online',
             farmsCount: count || 0,
-            lastSync: lastSync?.synced_at || null,
+            lastSyncTime: lastSyncTime,
+            isSyncing: isSyncing,
             timestamp: new Date().toISOString()
         });
     } catch (error) {
@@ -281,7 +257,6 @@ app.get('/api/status', async (req, res) => {
     }
 });
 
-// Polygons endpoint (GeoJSON)
 app.get('/api/polygons', async (req, res) => {
     console.log('🗺️ /api/polygons called');
 
@@ -319,44 +294,15 @@ app.get('/api/polygons', async (req, res) => {
     }
 });
 
-// Alerts endpoint
 app.get('/api/alerts', async (req, res) => {
-    console.log('🔔 /api/alerts called');
-
-    try {
-        // Get overlapping farms
-        const { data, error } = await supabase
-            .from('farms')
-            .select('farm_id, farmer_name, geometry')
-            .not('geometry', 'is', null);
-
-        if (error) throw error;
-
-        // Simple overlap detection (can be enhanced with PostGIS)
-        const alerts = [];
-        for (let i = 0; i < data.length; i++) {
-            for (let j = i + 1; j < data.length; j++) {
-                // This is a placeholder - actual overlap detection
-                // should use PostGIS ST_Intersects function
-                if (data[i].geometry && data[j].geometry) {
-                    // Add alert logic here
-                }
-            }
-        }
-
-        res.json(alerts);
-    } catch (error) {
-        console.error('Alerts error:', error.message);
-        res.json([]);
-    }
+    res.json([]);
 });
 
-// Kobo sync endpoint
 app.get('/sync-kobo', async (req, res) => {
     console.log('🔄 Manual sync triggered');
-
+    
     try {
-        const result = await syncKobo();
+        const result = await syncKobo(true);
         res.json({
             status: 'success',
             message: 'Sync completed',
@@ -373,54 +319,42 @@ app.get('/sync-kobo', async (req, res) => {
     }
 });
 
-// Root endpoint
 app.get('/', (req, res) => {
     res.json({
         name: 'MappingTrace API',
         version: '2.0.0',
         status: 'running',
-        endpoints: [
-            'GET /',
-            'GET /api/test',
-            'GET /api/status',
-            'GET /api/polygons',
-            'GET /api/alerts',
-            'GET /sync-kobo'
-        ],
-        documentation: 'https://github.com/FranciscoKonan/MapProject'
+        endpoints: ['GET /', 'GET /api/test', 'GET /api/status', 'GET /api/polygons', 'GET /sync-kobo']
     });
 });
 
-// 404 handler
 app.use((req, res) => {
-    console.log(`❌ 404 - Not found: ${req.method} ${req.url}`);
-    res.status(404).json({
-        error: 'Endpoint not found',
-        available: ['/', '/api/test', '/api/status', '/api/polygons', '/api/alerts', '/sync-kobo']
-    });
+    res.status(404).json({ error: 'Endpoint not found' });
 });
 
-// Error handler
 app.use((err, req, res, next) => {
     console.error('❌ Server error:', err);
     res.status(500).json({ error: 'Internal server error' });
 });
 
 // ===========================================
-// SCHEDULED SYNC
+// SCHEDULED SYNC - FIXED
 // ===========================================
 
-// Run every 30 minutes
+// Run every 30 minutes - with proper error logging
 cron.schedule('*/30 * * * *', async () => {
-    console.log('⏰ Running scheduled sync...');
-    await syncKobo();
+    console.log('⏰ Cron job triggered at:', new Date().toISOString());
+    try {
+        await syncKobo(false);
+    } catch (error) {
+        console.error('❌ Cron sync failed:', error);
+    }
 });
 
-// Run once on startup
+// Run initial sync on startup
 setTimeout(async () => {
     console.log('🚀 Running initial sync on startup...');
-    await setupDatabase();
-    await syncKobo();
+    await syncKobo(false);
 }, 5000);
 
 // ===========================================
@@ -431,14 +365,9 @@ const PORT = ENV_PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🚀 Server running on port ${PORT}`);
     console.log(`📍 API URL: http://localhost:${PORT}/`);
-    console.log(`📍 Test: http://localhost:${PORT}/api/test`);
-    console.log(`📍 Status: http://localhost:${PORT}/api/status`);
-    console.log(`📍 Polygons: http://localhost:${PORT}/api/polygons`);
-    console.log(`📍 Alerts: http://localhost:${PORT}/api/alerts`);
-    console.log(`📍 Sync: http://localhost:${PORT}/sync-kobo`);
+    console.log(`📍 Sync endpoint: http://localhost:${PORT}/sync-kobo`);
     console.log(`\n✅ Kobo v2 API integration active`);
     console.log(`✅ Deduplication enabled`);
-    console.log(`✅ Auto-sync every 30 minutes\n`);
+    console.log(`✅ Auto-sync every 30 minutes (cron job active)`);
+    console.log(`✅ Last sync time tracking enabled\n`);
 });
-
-module.exports = app;
