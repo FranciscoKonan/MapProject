@@ -160,17 +160,11 @@ async function syncKobo(manual = false) {
             const submissionTime = record._submission_time || record.submission_time || new Date().toISOString();
 
             const farmData = {
-                farm_id: uuid,
-                farmer_name: record.Farmer_Name || record.farmer_name || 'Unknown',
-                farmer_id: record.Farmer_ID || record.farmer_id,
-                submission_date: record.Submission_Date || record.submission_date || new Date().toISOString().split('T')[0],
-                cooperative_name: record.Cooperative_Name || record.cooperative_name,
-                area: record.Area ? parseFloat(record.Area) : (record.area ? parseFloat(record.area) : null),
-                status: (record.Status || record.status || 'pending').toLowerCase(),
                 kobo_submission_id: koboId,
-                synced_at: new Date().toISOString(),
-                submission_time: submissionTime
-            };
+                submission_data: record,  // Stores the ENTIRE Kobo record
+                geometry: record.geometry || null,
+                synced_at: new Date().toISOString()
+            }
 
             if (geojson) {
                 farmData.geometry = geojson;
