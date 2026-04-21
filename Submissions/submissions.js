@@ -1,6 +1,6 @@
 // ===========================================
 // SUBMISSIONS PAGE - COMPLETE WITH MAP INTEGRATION
-// FIXED: Coordinate projection (Lat/Lon order) + Satellite map
+// FIXED: Coordinate conversion (Lat/Lon to Lon/Lat for Leaflet)
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -26,6 +26,59 @@ let currentMap = null;
 // ===========================================
 const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cnVmbWVsZnRicXBzZW1uamJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzYwNTMsImV4cCI6MjA4NjY1MjA1M30.1NPN666Lt9WZHupvp_XIFu-SnsaextHH_JvXgQPtyV0';
+
+// ===========================================
+// COORDINATE CONVERSION FUNCTIONS
+// ===========================================
+
+/**
+ * Convert coordinates from [lat, lon] to [lon, lat] for Leaflet
+ * Most Kobo data comes as [latitude, longitude]
+ * Leaflet expects [longitude, latitude]
+ */
+function convertToLeafletCoords(coords) {
+    if (!coords || !Array.isArray(coords)) return coords;
+    
+    // If it's a coordinate pair (two numbers)
+    if (coords.length === 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+        // Swap: [lat, lon] -> [lon, lat]
+        return [coords[1], coords[0]];
+    }
+    
+    // Recursively convert nested arrays
+    return coords.map(item => convertToLeafletCoords(item));
+}
+
+/**
+ * Detect if coordinates are in [lat, lon] or [lon, lat] format
+ * Based on valid ranges: lat: -90 to 90, lon: -180 to 180
+ */
+function detectAndFixCoordinateOrder(coords) {
+    if (!coords || !Array.isArray(coords)) return coords;
+    
+    // For a coordinate pair
+    if (coords.length === 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+        const first = coords[0];
+        const second = coords[1];
+        
+        // If first is within latitude range (-90 to 90) and second is within longitude range (-180 to 180)
+        // but first is NOT within longitude range, then it's likely [lat, lon]
+        const firstIsValidLat = first >= -90 && first <= 90;
+        const secondIsValidLon = second >= -180 && second <= 180;
+        const firstIsValidLon = first >= -180 && first <= 180;
+        
+        if (firstIsValidLat && secondIsValidLon && !firstIsValidLon) {
+            console.log(`Converting [lat, lon] (${first}, ${second}) to [lon, lat] for Leaflet`);
+            return [second, first];
+        }
+        
+        // Already in correct format
+        return coords;
+    }
+    
+    // Recursively convert nested arrays
+    return coords.map(item => detectAndFixCoordinateOrder(item));
+}
 
 // ===========================================
 // INITIALIZATION
@@ -81,54 +134,6 @@ function initSupabase(retryCount = 0) {
 }
 
 // ===========================================
-// COORDINATE HELPER FUNCTIONS
-// ===========================================
-
-// Fix coordinate order: Ensure [lng, lat] format and validate
-function fixCoordinateOrder(coords) {
-    if (!coords || !Array.isArray(coords)) return null;
-    
-    // Check if coordinates are valid numbers
-    if (coords.length === 2) {
-        let lng = coords[0];
-        let lat = coords[1];
-        
-        // If longitude is outside valid range (-180 to 180) and latitude is inside (-90 to 90),
-        // they might be swapped
-        if ((lng < -180 || lng > 180) && (lat >= -90 && lat <= 90)) {
-            console.log('Swapping suspected swapped coordinates:', coords);
-            return [lat, lng];
-        }
-        
-        // Ensure longitude is between -180 and 180, latitude between -90 and 90
-        if (lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90) {
-            return [lng, lat];
-        }
-        
-        // Try swapping as last resort
-        if (coords[1] >= -180 && coords[1] <= 180 && coords[0] >= -90 && coords[0] <= 90) {
-            console.log('Swapping coordinates for valid range:', coords);
-            return [coords[1], coords[0]];
-        }
-    }
-    
-    return coords;
-}
-
-// Fix polygon coordinates (recursive)
-function fixPolygonCoordinates(coords) {
-    if (!coords || !Array.isArray(coords)) return coords;
-    
-    // Check if this is a coordinate pair (both are numbers)
-    if (coords.length === 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
-        return fixCoordinateOrder(coords);
-    }
-    
-    // Recursively fix nested arrays
-    return coords.map(ring => fixPolygonCoordinates(ring));
-}
-
-// ===========================================
 // LOAD SUBMISSIONS FROM SUPABASE
 // ===========================================
 async function loadSubmissions() {
@@ -147,14 +152,16 @@ async function loadSubmissions() {
             console.log(`✅ Loaded ${farms.length} farms from database`);
             
             allSubmissions = farms.map(farm => {
-                // Fix geometry coordinates if present
+                // Fix geometry coordinates for Leaflet
                 let fixedGeometry = farm.geometry;
                 if (fixedGeometry && fixedGeometry.coordinates) {
                     try {
+                        // Convert coordinates from [lat, lon] to [lon, lat]
                         fixedGeometry = {
-                            ...fixedGeometry,
-                            coordinates: fixPolygonCoordinates(fixedGeometry.coordinates)
+                            type: fixedGeometry.type,
+                            coordinates: convertToLeafletCoords(fixedGeometry.coordinates)
                         };
+                        console.log(`Fixed geometry for farm ${farm.id}: ${fixedGeometry.type}`);
                     } catch (e) {
                         console.warn('Could not fix geometry:', e);
                     }
@@ -478,16 +485,13 @@ function showModalWithMap(submission) {
     const existing = document.querySelector('.modal-overlay');
     if (existing) existing.remove();
     
-    const hasGeometry = submission.geometry || (submission.submission_data && submission.submission_data.geometry);
+    const hasGeometry = submission.geometry && submission.geometry.coordinates;
     let mapHtml = '';
-    let coordinates = null;
+    let leafletCoords = null;
     
     if (hasGeometry) {
-        const geom = submission.geometry || submission.submission_data?.geometry;
-        if (geom && geom.coordinates) {
-            // Fix coordinate order before storing
-            coordinates = fixPolygonCoordinates(geom.coordinates);
-        }
+        // Coordinates are already converted to [lon, lat] format for Leaflet
+        leafletCoords = submission.geometry.coordinates;
         
         mapHtml = `
             <div class="modal-section">
@@ -601,9 +605,9 @@ function showModalWithMap(submission) {
     
     document.body.appendChild(modal);
     
-    if (hasGeometry && coordinates) {
+    if (hasGeometry && leafletCoords) {
         setTimeout(() => {
-            initSubmissionMap(coordinates, submission);
+            initSubmissionMap(leafletCoords, submission);
         }, 100);
     }
     
@@ -622,45 +626,40 @@ function initSubmissionMap(coordinates, submission) {
         currentMap.remove();
     }
     
-    // Extract center point from coordinates
+    // Calculate center point from coordinates (already in [lon, lat] format)
     let center;
-    let bounds = null;
     
     if (coordinates[0] && Array.isArray(coordinates[0][0])) {
-        // Polygon: coordinates is array of rings
-        const allPoints = coordinates[0];
-        const lats = allPoints.map(p => p[1]);
-        const lngs = allPoints.map(p => p[0]);
-        center = [(Math.min(...lats) + Math.max(...lats)) / 2, 
-                   (Math.min(...lngs) + Math.max(...lngs)) / 2];
-        bounds = [lats, lngs];
+        // Polygon: find centroid
+        let allLons = [];
+        let allLats = [];
+        coordinates[0].forEach(coord => {
+            allLons.push(coord[0]);
+            allLats.push(coord[1]);
+        });
+        center = [(Math.min(...allLats) + Math.max(...allLats)) / 2, 
+                   (Math.min(...allLons) + Math.max(...allLons)) / 2];
     } else if (coordinates[0] && Array.isArray(coordinates[0])) {
         // Line or multi-point
         center = [coordinates[0][1], coordinates[0][0]];
     } else {
-        // Point
+        // Point: coordinates is [lon, lat]
         center = [coordinates[1], coordinates[0]];
     }
     
-    // Create map with NO attribution, using satellite imagery
+    // Create map with satellite imagery
     currentMap = L.map('submissionMap', {
         attributionControl: false
-    }).setView(center, 18); // Zoom level 18 for detailed satellite view
+    }).setView(center, 18);
     
-    // Use Google Satellite imagery (high quality, works well)
+    // Google Satellite imagery
     L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         attribution: '',
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(currentMap);
     
-    // Alternative: ESRI Satellite (also good)
-    // L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    //     maxZoom: 19,
-    //     attribution: ''
-    // }).addTo(currentMap);
-    
-    // Add geometry to map
+    // Add geometry to map (coordinates are already in [lon, lat] format)
     if (coordinates[0] && Array.isArray(coordinates[0][0])) {
         // Polygon
         const polygon = L.polygon(coordinates, {
@@ -674,11 +673,9 @@ function initSubmissionMap(coordinates, submission) {
             <b>${escapeHtml(submission.farmerName)}</b><br>
             <b>Farm ID:</b> ${escapeHtml(submission.farmerId)}<br>
             <b>Area:</b> ${submission.area.toFixed(2)} ha<br>
-            <b>Status:</b> ${submission.status}<br>
-            <i>Click and drag to navigate. Use +/- to zoom.</i>
+            <b>Status:</b> ${submission.status}
         `);
         
-        // Fit map to polygon bounds
         const bounds = polygon.getBounds();
         if (bounds.isValid()) {
             currentMap.fitBounds(bounds);
@@ -696,32 +693,21 @@ function initSubmissionMap(coordinates, submission) {
         }
     } else {
         // Point
-        const marker = L.marker([coordinates[1], coordinates[0]], {
-            icon: L.divIcon({
-                className: 'custom-marker',
-                html: '<i class="fas fa-map-marker-alt" style="color:#FF9800; font-size:24px;"></i>',
-                iconSize: [24, 24],
-                popupAnchor: [0, -12]
-            })
-        }).addTo(currentMap);
-        
+        const marker = L.marker([coordinates[1], coordinates[0]]).addTo(currentMap);
         marker.bindPopup(`
             <b>${escapeHtml(submission.farmerName)}</b><br>
             <b>Farm ID:</b> ${escapeHtml(submission.farmerId)}<br>
             <b>Area:</b> ${submission.area.toFixed(2)} ha<br>
             <b>Status:</b> ${submission.status}
         `);
-        
         marker.openPopup();
     }
     
-    // Add scale control
+    // Add controls
     L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(currentMap);
-    
-    // Add zoom control to top right
     L.control.zoom({ position: 'topright' }).addTo(currentMap);
     
-    console.log('🗺️ Map initialized with satellite imagery');
+    console.log('🗺️ Map initialized with corrected coordinates');
 }
 
 // ===========================================
@@ -901,19 +887,4 @@ function setupEventListeners() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            if (window._supabase) await window._supabase.auth.signOut();
-            localStorage.clear();
-            window.location.href = '../login.html';
-        });
-    }
-}
-
-// Expose global functions
-window.viewSubmission = viewSubmission;
-window.approveSubmission = approveSubmission;
-window.rejectSubmission = rejectSubmission;
-window.goToPage = goToPage;
-window.toggleView = toggleView;
-window.applyFilters = applyFilters;
-
-console.log('✅ Submissions page ready with satellite map and fixed coordinate projection');
+            if (window._supabase
