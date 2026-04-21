@@ -1,5 +1,5 @@
 // ===========================================
-// SUBMISSIONS PAGE - COMPLETE JAVASCRIPT
+// SUBMISSIONS PAGE - COMPLETE WITH MAP INTEGRATION
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -20,18 +20,28 @@ let coopSearchTerm = '';
 let supabaseReady = false;
 
 // ===========================================
-// SUPABASE CONFIGURATION (Same as Dashboard)
+// SUPABASE CONFIGURATION
 // ===========================================
 const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cnVmbWVsZnRicXBzZW1uamJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzYwNTMsImV4cCI6MjA4NjY1MjA1M30.1NPN666Lt9WZHupvp_XIFu-SnsaextHH_JvXgQPtyV0';
 
 // ===========================================
-// INITIALIZATION - Wait for DOM and Supabase
+// INITIALIZATION
 // ===========================================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📌 DOM Content Loaded');
     
-    // Load user data from localStorage (same as Dashboard)
+    // Load user data from localStorage
+    loadUserData();
+    
+    // Initialize Supabase
+    initSupabase();
+    
+    // Setup event listeners
+    setupEventListeners();
+});
+
+function loadUserData() {
     const userData = localStorage.getItem('mappingtrace_user');
     if (userData) {
         const user = JSON.parse(userData);
@@ -39,7 +49,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('userRole').textContent = user.role || 'User';
         document.getElementById('userAvatar').textContent = user.avatar || 'U';
     } else {
-        // Try to load from Dashboard's format
         const dashboardUser = localStorage.getItem('dashboardUser');
         if (dashboardUser) {
             const user = JSON.parse(dashboardUser);
@@ -48,13 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('userAvatar').textContent = user.initials || 'U';
         }
     }
-    
-    // Initialize Supabase
-    initSupabase();
-    
-    // Setup event listeners
-    setupEventListeners();
-});
+}
 
 function initSupabase(retryCount = 0) {
     console.log('🔧 Initializing Supabase...');
@@ -71,11 +74,10 @@ function initSupabase(retryCount = 0) {
     }
     
     try {
-        window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window._supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         supabaseReady = true;
         console.log('✅ Supabase initialized successfully');
         
-        // Check session and load data
         checkSessionAndLoad();
         
     } catch (error) {
@@ -90,7 +92,7 @@ function initSupabase(retryCount = 0) {
 
 async function checkSessionAndLoad() {
     try {
-        const { data: { session } } = await window.supabase.auth.getSession();
+        const { data: { session } } = await window._supabase.auth.getSession();
         
         if (!session) {
             console.log('⚠️ No active session, redirecting to login');
@@ -111,15 +113,14 @@ async function checkSessionAndLoad() {
 }
 
 // ===========================================
-// LOAD SUBMISSIONS - Same pattern as Dashboard
+// LOAD SUBMISSIONS FROM SUPABASE
 // ===========================================
 async function loadSubmissions() {
     console.log('📡 Loading submissions from farms table...');
     showNotification('Loading submissions...', 'info');
     
     try {
-        // Fetch farms data (same as Dashboard)
-        const { data: farms, error } = await window.supabase
+        const { data: farms, error } = await window._supabase
             .from('farms')
             .select('*')
             .order('created_at', { ascending: false });
@@ -132,27 +133,27 @@ async function loadSubmissions() {
         if (farms && farms.length > 0) {
             console.log(`✅ Loaded ${farms.length} farms from database`);
             
-            // Transform farms data to submissions format
             allSubmissions = farms.map(farm => ({
                 id: farm.id,
                 farmerId: farm.farmer_id || farm.id,
                 farmerName: farm.farmer_name || 'Unknown Farmer',
-                cooperative: farm.cooperative || farm.cooperative_name || 'Unassigned',
+                cooperative: farm.cooperative_name || farm.cooperative || 'Unassigned',
                 supplier: farm.supplier || 'Unknown',
                 area: farm.area || 0,
                 status: farm.status || 'pending',
                 enumerator: farm.enumerator || 'N/A',
-                updatedBy: farm.updated_by || farm.enumerator || 'System',
+                updatedBy: farm.validated_by || farm.enumerator || 'System',
                 submissionDate: farm.submission_date || farm.created_at || new Date().toISOString(),
-                geometry: farm.geometry
+                geometry: farm.geometry,
+                submission_data: farm.submission_data,
+                validation_status: farm.validation_status,
+                rejection_reason: farm.rejection_reason,
+                validated_at: farm.validated_at,
+                validated_by: farm.validated_by
             }));
             
-            // Update filter options
             updateFilterOptions();
-            
-            // Apply filters and render
             applyFilters();
-            
             showNotification(`Loaded ${allSubmissions.length} submissions`, 'success');
             
         } else {
@@ -169,19 +170,15 @@ async function loadSubmissions() {
 }
 
 // ===========================================
-// SAMPLE DATA (Fallback when no data in Supabase)
+// SAMPLE DATA (Fallback)
 // ===========================================
 function loadSampleData() {
     console.log('📊 Loading sample submissions data');
     
     allSubmissions = [
-        { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 2.5, status: 'validated', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: '2', farmerId: 'F12346', farmerName: 'Konan Marie', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.8, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: '4', farmerId: 'F12348', farmerName: 'Yao Michel', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 4.1, status: 'validated', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: '5', farmerId: 'F12349', farmerName: 'Traore Amadou', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.2, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: '6', farmerId: 'F12350', farmerName: 'Kouassi Alphonse', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 5.3, status: 'validated', enumerator: 'EN003', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: '7', farmerId: 'F12351', farmerName: 'Diomande Issa', cooperative: 'COOP-CI', supplier: 'Other', area: 2.2, status: 'pending', enumerator: 'EN001', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() }
+        { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 2.5, status: 'approved', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
+        { id: '2', farmerId: 'F12346', farmerName: 'Konan Marie', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.8, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
+        { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), geometry: null }
     ];
     
     updateFilterOptions();
@@ -189,13 +186,9 @@ function loadSampleData() {
     showNotification('Using sample data (demo mode)', 'info');
 }
 
-// ===========================================
-// UPDATE FILTER OPTIONS
-// ===========================================
 function updateFilterOptions() {
     uniqueSuppliers = [...new Set(allSubmissions.map(s => s.supplier))].sort();
     uniqueCooperatives = [...new Set(allSubmissions.map(s => s.cooperative))].sort();
-    
     updateSupplierFilter();
     updateCooperativeFilter();
 }
@@ -230,9 +223,6 @@ function updateCooperativeFilter() {
     select.innerHTML = options;
 }
 
-// ===========================================
-// APPLY FILTERS
-// ===========================================
 function applyFilters() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const supplier = document.getElementById('supplierFilter')?.value || 'all';
@@ -240,35 +230,21 @@ function applyFilters() {
     const status = document.getElementById('statusFilter')?.value || 'all';
     
     filteredSubmissions = allSubmissions.filter(sub => {
-        // Search filter
         if (searchTerm) {
             const matches = sub.farmerId.toLowerCase().includes(searchTerm) ||
                            sub.farmerName.toLowerCase().includes(searchTerm);
             if (!matches) return false;
         }
-        
-        // Supplier filter
         if (supplier !== 'all' && sub.supplier !== supplier) return false;
-        
-        // Cooperative filter
         if (cooperative !== 'all' && sub.cooperative !== cooperative) return false;
-        
-        // Status filter
         if (status !== 'all' && sub.status !== status) return false;
-        
         return true;
     });
     
-    // Sort
     sortSubmissions();
-    
-    // Update stats
     updateStats();
-    
-    // Reset to first page
     currentPage = 1;
     
-    // Render current view
     if (currentView === 'table') {
         renderTableView();
         updatePagination();
@@ -299,12 +275,9 @@ function sortSubmissions() {
     });
 }
 
-// ===========================================
-// UPDATE STATISTICS
-// ===========================================
 function updateStats() {
     const pending = filteredSubmissions.filter(s => s.status === 'pending').length;
-    const validated = filteredSubmissions.filter(s => s.status === 'validated').length;
+    const validated = filteredSubmissions.filter(s => s.status === 'approved' || s.status === 'validated').length;
     const rejected = filteredSubmissions.filter(s => s.status === 'rejected').length;
     const total = filteredSubmissions.length;
     
@@ -315,9 +288,6 @@ function updateStats() {
     document.getElementById('totalRecords').textContent = total;
 }
 
-// ===========================================
-// RENDER TABLE VIEW
-// ===========================================
 function renderTableView() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
@@ -326,7 +296,7 @@ function renderTableView() {
     const pageData = filteredSubmissions.slice(start, start + rowsPerPage);
     
     if (pageData.length === 0) {
-        tbody.innerHTML = '运转<td colspan="7" style="text-align:center;padding:40px;">No submissions found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">No submissions found</td></tr>';
         return;
     }
     
@@ -357,14 +327,10 @@ function renderTableView() {
     `).join('');
 }
 
-// ===========================================
-// RENDER GROUP VIEW
-// ===========================================
 function renderGroupView() {
     const container = document.getElementById('groupViewContent');
     if (!container) return;
     
-    // Group by supplier
     const groups = {};
     filteredSubmissions.forEach(sub => {
         if (!groups[sub.supplier]) {
@@ -386,7 +352,7 @@ function renderGroupView() {
                 </div>
                 <div class="group-stats">
                     ${submissions.length} farms • 
-                    ${submissions.filter(s => s.status === 'validated').length} validated • 
+                    ${submissions.filter(s => s.status === 'approved').length} approved • 
                     ${submissions.filter(s => s.status === 'pending').length} pending • 
                     ${submissions.filter(s => s.status === 'rejected').length} rejected
                 </div>
@@ -407,9 +373,6 @@ function renderGroupView() {
     `).join('');
 }
 
-// ===========================================
-// PAGINATION
-// ===========================================
 function updatePagination() {
     const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
     const start = (currentPage - 1) * rowsPerPage + 1;
@@ -457,9 +420,6 @@ function goToPage(page) {
     updatePagination();
 }
 
-// ===========================================
-// TOGGLE VIEW
-// ===========================================
 function toggleView() {
     const tableView = document.getElementById('tableView');
     const groupView = document.getElementById('groupView');
@@ -482,138 +442,153 @@ function toggleView() {
 }
 
 // ===========================================
-// ACTIONS
+// MAP INTEGRATION FOR SUBMISSION REVIEW
 // ===========================================
-async function viewSubmission(id) {
+
+function viewSubmission(id) {
     const submission = allSubmissions.find(s => s.id === id);
     if (!submission) return;
     
-    showModal(submission);
+    showModalWithMap(submission);
 }
 
-async function approveSubmission(id) {
-    if (!confirm('Are you sure you want to approve this submission?')) return;
-    
-    const submission = allSubmissions.find(s => s.id === id);
-    if (submission) {
-        // Update in Supabase if available
-        if (window.supabase && supabaseReady) {
-            try {
-                const { error } = await window.supabase
-                    .from('farms')
-                    .update({ status: 'validated', updated_by: 'Admin' })
-                    .eq('id', id);
-                
-                if (error) throw error;
-                showNotification('Submission approved in database!', 'success');
-            } catch (error) {
-                console.error('Error updating Supabase:', error);
-                showNotification('Error updating database. Local update only.', 'warning');
-            }
-        }
-        
-        submission.status = 'validated';
-        applyFilters();
-        showNotification('Submission approved!', 'success');
-    }
-}
-
-async function rejectSubmission(id) {
-    const reason = prompt('Please enter rejection reason:', 'Invalid data');
-    if (!reason) return;
-    
-    const submission = allSubmissions.find(s => s.id === id);
-    if (submission) {
-        // Update in Supabase if available
-        if (window.supabase && supabaseReady) {
-            try {
-                const { error } = await window.supabase
-                    .from('farms')
-                    .update({ status: 'rejected', updated_by: 'Admin', rejection_reason: reason })
-                    .eq('id', id);
-                
-                if (error) throw error;
-                showNotification('Submission rejected in database!', 'info');
-            } catch (error) {
-                console.error('Error updating Supabase:', error);
-                showNotification('Error updating database. Local update only.', 'warning');
-            }
-        }
-        
-        submission.status = 'rejected';
-        applyFilters();
-        showNotification('Submission rejected!', 'info');
-    }
-}
-
-function showModal(submission) {
+function showModalWithMap(submission) {
     // Remove existing modal
     const existing = document.querySelector('.modal-overlay');
     if (existing) existing.remove();
+    
+    // Check if submission has geometry
+    const hasGeometry = submission.geometry || 
+                       (submission.submission_data && submission.submission_data.geometry);
+    
+    let mapHtml = '';
+    let coordinates = null;
+    
+    if (hasGeometry) {
+        // Extract coordinates
+        const geom = submission.geometry || submission.submission_data?.geometry;
+        if (geom && geom.coordinates) {
+            coordinates = geom.coordinates;
+        }
+        
+        mapHtml = `
+            <div class="modal-section">
+                <div class="modal-section-title">
+                    <i class="fas fa-map-marker-alt"></i> Farm Location Map
+                </div>
+                <div id="submissionMap"></div>
+                <div class="map-info">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>Decision Support:</strong> Use this map to verify farm boundaries, 
+                    check location accuracy, and assess accessibility before approving or rejecting.
+                </div>
+            </div>
+        `;
+    } else {
+        mapHtml = `
+            <div class="modal-section">
+                <div class="modal-section-title">
+                    <i class="fas fa-map-marker-alt"></i> Farm Location
+                </div>
+                <div style="padding: 20px; background: #f5f5f5; border-radius: 8px; text-align: center; color: #999;">
+                    <i class="fas fa-draw-polygon" style="font-size: 48px; margin-bottom: 10px;"></i>
+                    <p>No location data available for this submission.</p>
+                    <p style="font-size: 12px;">The farm polygon or point coordinates are missing.</p>
+                </div>
+            </div>
+        `;
+    }
     
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.innerHTML = `
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-file-alt"></i> Submission Details</h3>
+                <h3><i class="fas fa-file-alt"></i> Submission Review - Decision Making</h3>
                 <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <div class="modal-row">
-                    <div class="modal-label">Farmer ID:</div>
-                    <div class="modal-value">${escapeHtml(submission.farmerId)}</div>
-                </div>
-                <div class="modal-row">
-                    <div class="modal-label">Farmer Name:</div>
-                    <div class="modal-value">${escapeHtml(submission.farmerName)}</div>
-                </div>
-                <div class="modal-row">
-                    <div class="modal-label">Cooperative:</div>
-                    <div class="modal-value">${escapeHtml(submission.cooperative)}</div>
-                </div>
-                <div class="modal-row">
-                    <div class="modal-label">Supplier:</div>
-                    <div class="modal-value">${escapeHtml(submission.supplier)}</div>
-                </div>
-                <div class="modal-row">
-                    <div class="modal-label">Area:</div>
-                    <div class="modal-value">${submission.area.toFixed(2)} ha</div>
-                </div>
-                <div class="modal-row">
-                    <div class="modal-label">Status:</div>
-                    <div class="modal-value">
-                        <span class="status-badge ${submission.status}">${submission.status}</span>
+                <div class="modal-section">
+                    <div class="modal-section-title">
+                        <i class="fas fa-user-farmer"></i> Farmer Information
+                    </div>
+                    <div class="modal-row">
+                        <div class="modal-label">Farmer ID:</div>
+                        <div class="modal-value">${escapeHtml(submission.farmerId)}</div>
+                    </div>
+                    <div class="modal-row">
+                        <div class="modal-label">Farmer Name:</div>
+                        <div class="modal-value">${escapeHtml(submission.farmerName)}</div>
+                    </div>
+                    <div class="modal-row">
+                        <div class="modal-label">Cooperative:</div>
+                        <div class="modal-value">${escapeHtml(submission.cooperative)}</div>
+                    </div>
+                    <div class="modal-row">
+                        <div class="modal-label">Supplier:</div>
+                        <div class="modal-value">${escapeHtml(submission.supplier)}</div>
+                    </div>
+                    <div class="modal-row">
+                        <div class="modal-label">Enumerator:</div>
+                        <div class="modal-value">${escapeHtml(submission.enumerator)}</div>
                     </div>
                 </div>
-                <div class="modal-row">
-                    <div class="modal-label">Enumerator:</div>
-                    <div class="modal-value">${escapeHtml(submission.enumerator)}</div>
+                
+                <div class="modal-section">
+                    <div class="modal-section-title">
+                        <i class="fas fa-chart-line"></i> Farm Data
+                    </div>
+                    <div class="modal-row">
+                        <div class="modal-label">Declared Area:</div>
+                        <div class="modal-value"><strong>${submission.area.toFixed(2)} hectares</strong></div>
+                    </div>
+                    <div class="modal-row">
+                        <div class="modal-label">Current Status:</div>
+                        <div class="modal-value">
+                            <span class="status-badge ${submission.status}">${submission.status}</span>
+                        </div>
+                    </div>
+                    <div class="modal-row">
+                        <div class="modal-label">Submission Date:</div>
+                        <div class="modal-value">${new Date(submission.submissionDate).toLocaleString()}</div>
+                    </div>
                 </div>
-                <div class="modal-row">
-                    <div class="modal-label">Submitted:</div>
-                    <div class="modal-value">${new Date(submission.submissionDate).toLocaleString()}</div>
-                </div>
+                
+                ${mapHtml}
+                
                 ${submission.status === 'pending' ? `
                     <div class="modal-actions">
-                        <button class="modal-btn approve" onclick="approveSubmission('${submission.id}'); document.querySelector('.modal-overlay').remove()">
-                            <i class="fas fa-check"></i> Approve
+                        <button class="modal-btn approve" onclick="approveSubmission('${submission.id}'); document.querySelector('.modal-overlay')?.remove()">
+                            <i class="fas fa-check"></i> Approve Submission
                         </button>
-                        <button class="modal-btn reject" onclick="rejectSubmission('${submission.id}'); document.querySelector('.modal-overlay').remove()">
-                            <i class="fas fa-times"></i> Reject
+                        <button class="modal-btn reject" onclick="rejectSubmission('${submission.id}'); document.querySelector('.modal-overlay')?.remove()">
+                            <i class="fas fa-times"></i> Reject Submission
                         </button>
                         <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">
                             Cancel
                         </button>
                     </div>
-                ` : ''}
+                ` : `
+                    <div class="modal-actions">
+                        <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">
+                            Close
+                        </button>
+                    </div>
+                `}
             </div>
         </div>
     `;
     
     document.body.appendChild(modal);
+    
+    // Initialize map if geometry exists
+    if (hasGeometry && coordinates) {
+        setTimeout(() => {
+            initSubmissionMap(coordinates, submission);
+        }, 100);
+    }
     
     // Close on overlay click
     modal.addEventListener('click', function(e) {
@@ -623,12 +598,150 @@ function showModal(submission) {
     });
 }
 
+function initSubmissionMap(coordinates, submission) {
+    const mapContainer = document.getElementById('submissionMap');
+    if (!mapContainer) return;
+    
+    // Determine center point
+    let center;
+    let bounds = null;
+    
+    if (coordinates[0] && Array.isArray(coordinates[0][0])) {
+        const lats = coordinates[0].map(c => c[1]);
+        const lngs = coordinates[0].map(c => c[0]);
+        center = [(Math.min(...lats) + Math.max(...lats)) / 2, 
+                   (Math.min(...lngs) + Math.max(...lngs)) / 2];
+        bounds = [[Math.min(...lats), Math.min(...lngs)], 
+                  [Math.max(...lats), Math.max(...lngs)]];
+    } else if (coordinates[0] && Array.isArray(coordinates[0])) {
+        center = [coordinates[0][1], coordinates[0][0]];
+    } else {
+        center = [coordinates[1], coordinates[0]];
+    }
+    
+    const map = L.map('submissionMap').setView(center, 15);
+    
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
+        subdomains: 'abcd',
+        maxZoom: 20
+    }).addTo(map);
+    
+    // Add satellite layer
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri'
+    });
+    
+    const baseMaps = {
+        "Street Map": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'),
+        "Satellite": satelliteLayer
+    };
+    
+    L.control.layers(baseMaps).addTo(map);
+    
+    // Add geometry
+    if (coordinates[0] && Array.isArray(coordinates[0][0])) {
+        const polygon = L.polygon(coordinates, {
+            color: '#FF9800',
+            weight: 3,
+            fillColor: '#FF9800',
+            fillOpacity: 0.3
+        }).addTo(map);
+        
+        polygon.bindPopup(`
+            <b>${escapeHtml(submission.farmerName)}</b><br>
+            Area: ${submission.area.toFixed(2)} ha<br>
+            Status: ${submission.status}
+        `);
+        
+        map.fitBounds(polygon.getBounds());
+    } else {
+        const marker = L.marker([coordinates[1], coordinates[0]]).addTo(map);
+        marker.bindPopup(`
+            <b>${escapeHtml(submission.farmerName)}</b><br>
+            Area: ${submission.area.toFixed(2)} ha<br>
+            Status: ${submission.status}
+        `);
+    }
+    
+    L.control.scale().addTo(map);
+}
+
+// ===========================================
+// APPROVE/REJECT FUNCTIONS
+// ===========================================
+
+async function approveSubmission(id) {
+    if (!confirm('Are you sure you want to APPROVE this submission?')) return;
+    
+    const submission = allSubmissions.find(s => s.id === id);
+    if (!submission) return;
+    
+    if (window._supabase && supabaseReady) {
+        try {
+            const { error } = await window._supabase
+                .from('farms')
+                .update({ 
+                    status: 'approved', 
+                    validation_status: 'approved',
+                    validated_by: document.getElementById('userName')?.textContent || 'Admin',
+                    validated_at: new Date().toISOString()
+                })
+                .eq('id', id);
+            
+            if (error) throw error;
+            showNotification('Submission approved in database!', 'success');
+        } catch (error) {
+            console.error('Error updating Supabase:', error);
+            showNotification('Error updating database. Local update only.', 'warning');
+        }
+    }
+    
+    submission.status = 'approved';
+    applyFilters();
+    showNotification('Submission approved successfully!', 'success');
+}
+
+async function rejectSubmission(id) {
+    const reason = prompt('Please enter rejection reason:', 'Invalid or incomplete data');
+    if (!reason) return;
+    
+    const submission = allSubmissions.find(s => s.id === id);
+    if (!submission) return;
+    
+    if (window._supabase && supabaseReady) {
+        try {
+            const { error } = await window._supabase
+                .from('farms')
+                .update({ 
+                    status: 'rejected', 
+                    validation_status: 'rejected',
+                    rejection_reason: reason,
+                    validated_by: document.getElementById('userName')?.textContent || 'Admin',
+                    validated_at: new Date().toISOString()
+                })
+                .eq('id', id);
+            
+            if (error) throw error;
+            showNotification('Submission rejected in database!', 'info');
+        } catch (error) {
+            console.error('Error updating Supabase:', error);
+            showNotification('Error updating database. Local update only.', 'warning');
+        }
+    }
+    
+    submission.status = 'rejected';
+    applyFilters();
+    showNotification('Submission rejected!', 'info');
+}
+
 // ===========================================
 // HELPER FUNCTIONS
 // ===========================================
+
 function escapeHtml(str) {
     if (!str) return '';
-    return str
+    return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -671,26 +784,13 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-// ===========================================
-// EVENT LISTENERS
-// ===========================================
 function setupEventListeners() {
-    // Refresh button
     const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => loadSubmissions());
-    }
+    if (refreshBtn) refreshBtn.addEventListener('click', () => loadSubmissions());
     
-    // Search input
     const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('keyup', (e) => {
-            if (e.key === 'Enter') applyFilters();
-        });
-        searchInput.addEventListener('input', () => applyFilters());
-    }
+    if (searchInput) searchInput.addEventListener('input', () => applyFilters());
     
-    // Supplier search
     const supplierSearch = document.getElementById('supplierSearchInput');
     if (supplierSearch) {
         supplierSearch.addEventListener('input', (e) => {
@@ -700,7 +800,6 @@ function setupEventListeners() {
         });
     }
     
-    // Cooperative search
     const coopSearch = document.getElementById('coopSearchInput');
     if (coopSearch) {
         coopSearch.addEventListener('input', (e) => {
@@ -710,7 +809,6 @@ function setupEventListeners() {
         });
     }
     
-    // Filters
     const supplierFilter = document.getElementById('supplierFilter');
     if (supplierFilter) supplierFilter.addEventListener('change', () => applyFilters());
     
@@ -720,18 +818,15 @@ function setupEventListeners() {
     const statusFilter = document.getElementById('statusFilter');
     if (statusFilter) statusFilter.addEventListener('change', () => applyFilters());
     
-    // Toggle view button
     const toggleBtn = document.getElementById('toggleViewBtn');
     if (toggleBtn) toggleBtn.addEventListener('click', () => toggleView());
     
-    // Pagination buttons
     const prevBtn = document.getElementById('prevPageBtn');
     if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTableView(); updatePagination(); } });
     
     const nextBtn = document.getElementById('nextPageBtn');
     if (nextBtn) nextBtn.addEventListener('click', () => { const total = Math.ceil(filteredSubmissions.length / rowsPerPage); if (currentPage < total) { currentPage++; renderTableView(); updatePagination(); } });
     
-    // Sort headers
     document.querySelectorAll('th[data-sort]').forEach(th => {
         th.addEventListener('click', () => {
             const column = th.getAttribute('data-sort');
@@ -745,35 +840,23 @@ function setupEventListeners() {
         });
     });
     
-    // Logout
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            if (window.supabase) await window.supabase.auth.signOut();
+            if (window._supabase) await window._supabase.auth.signOut();
             localStorage.clear();
             window.location.href = '../login.html';
         });
     }
 }
 
-// ===========================================
-// EXPOSE GLOBAL FUNCTIONS
-// ===========================================
+// Expose global functions
 window.viewSubmission = viewSubmission;
 window.approveSubmission = approveSubmission;
 window.rejectSubmission = rejectSubmission;
 window.goToPage = goToPage;
 window.toggleView = toggleView;
 window.applyFilters = applyFilters;
-window.sortTable = (column) => {
-    if (currentSort.column === column) {
-        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-    } else {
-        currentSort.column = column;
-        currentSort.direction = 'asc';
-    }
-    applyFilters();
-};
 
-console.log('✅ Submissions page ready');
+console.log('✅ Submissions page ready with map integration');
