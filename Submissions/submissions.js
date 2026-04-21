@@ -1,6 +1,6 @@
 // ===========================================
 // SUBMISSIONS PAGE - COMPLETE WITH MAP INTEGRATION
-// FIXED: Supabase update for approve/reject
+// FIXED: Working Supabase updates with debugging
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -20,6 +20,7 @@ let supplierSearchTerm = '';
 let coopSearchTerm = '';
 let supabaseReady = false;
 let currentMap = null;
+let supabaseClient = null;
 
 // ===========================================
 // SUPABASE CONFIGURATION
@@ -84,9 +85,11 @@ function initSupabase(retryCount = 0) {
     }
     
     try {
-        window._supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window._supabase = supabaseClient;
         supabaseReady = true;
         console.log('✅ Supabase initialized successfully');
+        console.log('Supabase URL:', SUPABASE_URL);
         loadSubmissions();
     } catch (error) {
         console.error('❌ Supabase init error:', error);
@@ -102,12 +105,17 @@ async function loadSubmissions() {
     showNotification('Loading submissions...', 'info');
     
     try {
-        const { data: farms, error } = await window._supabase
+        const { data: farms, error } = await supabaseClient
             .from('farms')
             .select('*')
             .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase select error:', error);
+            throw error;
+        }
+        
+        console.log('Raw farms data from Supabase:', farms);
         
         if (farms && farms.length > 0) {
             console.log(`✅ Loaded ${farms.length} farms from database`);
@@ -143,6 +151,8 @@ async function loadSubmissions() {
                 };
             });
             
+            console.log('Processed submissions:', allSubmissions);
+            
             updateFilterOptions();
             applyFilters();
             showNotification(`Loaded ${allSubmissions.length} submissions`, 'success');
@@ -152,6 +162,7 @@ async function loadSubmissions() {
         }
     } catch (error) {
         console.error('Error loading submissions:', error);
+        showNotification('Error loading submissions: ' + error.message, 'error');
         loadSampleData();
     }
 }
@@ -163,14 +174,14 @@ function loadSampleData() {
     console.log('📊 Loading sample submissions data');
     
     allSubmissions = [
-        { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 2.5, status: 'approved', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
+        { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 2.5, status: 'pending', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
         { id: '2', farmerId: 'F12346', farmerName: 'Konan Marie', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.8, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
         { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), geometry: null }
     ];
     
     updateFilterOptions();
     applyFilters();
-    showNotification('Using sample data (demo mode)', 'info');
+    showNotification('Using sample data (demo mode) - Database not connected', 'warning');
 }
 
 function updateFilterOptions() {
@@ -659,16 +670,22 @@ function initSubmissionMap(coordinates, submission) {
 // ===========================================
 
 async function approveSubmission(id) {
-    console.log(`✅ Approving submission ${id}...`);
+    console.log(`========== APPROVE SUBMISSION ==========`);
+    console.log(`Submission ID: ${id}`);
     
-    if (!confirm('Are you sure you want to APPROVE this submission?')) return;
+    if (!confirm('Are you sure you want to APPROVE this submission?')) {
+        console.log('User cancelled approval');
+        return;
+    }
     
     const submission = allSubmissions.find(s => s.id == id);
     if (!submission) {
-        console.error('Submission not found:', id);
+        console.error('❌ Submission not found:', id);
         showNotification('Submission not found!', 'error');
         return;
     }
+    
+    console.log('Submission data:', submission);
     
     // Close modal if open
     const modal = document.querySelector('.modal-overlay');
@@ -676,66 +693,84 @@ async function approveSubmission(id) {
     
     // Get current user name
     const userName = document.getElementById('userName')?.textContent || 'Admin';
+    const currentTime = new Date().toISOString();
     
-    if (window._supabase && supabaseReady) {
-        try {
-            showNotification('Updating database...', 'info');
-            
-            // Update in Supabase
-            const { data, error } = await window._supabase
-                .from('farms')
-                .update({ 
-                    status: 'approved',
-                    validation_status: 'approved',
-                    validated_by: userName,
-                    validated_at: new Date().toISOString()
-                })
-                .eq('id', id)
-                .select();
-            
-            if (error) {
-                console.error('Supabase error:', error);
-                throw error;
-            }
-            
-            console.log('Supabase update successful:', data);
-            showNotification('Submission approved in database!', 'success');
-            
-            // Update local data
-            submission.status = 'approved';
-            submission.validation_status = 'approved';
-            submission.validated_by = userName;
-            submission.validated_at = new Date().toISOString();
-            
-        } catch (error) {
-            console.error('Error updating Supabase:', error);
-            showNotification('Error updating database: ' + error.message, 'error');
-            return;
-        }
-    } else {
-        // Fallback: local update only
-        console.warn('Supabase not ready, updating locally only');
-        submission.status = 'approved';
-        showNotification('Submission approved (local only - database not connected)', 'warning');
+    console.log(`User: ${userName}`);
+    console.log(`Time: ${currentTime}`);
+    
+    if (!supabaseReady || !supabaseClient) {
+        console.error('❌ Supabase not ready!');
+        showNotification('Database not connected. Please refresh the page.', 'error');
+        return;
     }
     
-    // Refresh the view
-    applyFilters();
-    showNotification('Submission approved successfully!', 'success');
+    try {
+        showNotification('Updating database...', 'info');
+        console.log('📡 Sending update to Supabase...');
+        
+        const updateData = {
+            status: 'approved',
+            validation_status: 'approved',
+            validated_by: userName,
+            validated_at: currentTime
+        };
+        
+        console.log('Update payload:', updateData);
+        
+        const { data, error } = await supabaseClient
+            .from('farms')
+            .update(updateData)
+            .eq('id', id)
+            .select();
+        
+        if (error) {
+            console.error('❌ Supabase error:', error);
+            throw error;
+        }
+        
+        console.log('✅ Supabase update successful!');
+        console.log('Response data:', data);
+        
+        // Update local data
+        submission.status = 'approved';
+        submission.validation_status = 'approved';
+        submission.validated_by = userName;
+        submission.validated_at = currentTime;
+        
+        // Refresh the view
+        applyFilters();
+        showNotification('Submission approved successfully!', 'success');
+        
+        console.log(`✅ Submission ${id} approved successfully`);
+        
+    } catch (error) {
+        console.error('❌ Error during approval:', error);
+        showNotification('Error updating database: ' + error.message, 'error');
+    }
+    
+    console.log(`========== END APPROVE ==========`);
 }
 
 async function rejectSubmission(id) {
-    console.log(`❌ Rejecting submission ${id}...`);
+    console.log(`========== REJECT SUBMISSION ==========`);
+    console.log(`Submission ID: ${id}`);
     
     const reason = prompt('Please enter rejection reason:', 'Invalid or incomplete data');
-    if (!reason) return;
+    if (!reason) {
+        console.log('User cancelled rejection (no reason provided)');
+        return;
+    }
+    
+    console.log(`Rejection reason: ${reason}`);
     
     const submission = allSubmissions.find(s => s.id == id);
     if (!submission) {
-        console.error('Submission not found:', id);
+        console.error('❌ Submission not found:', id);
         showNotification('Submission not found!', 'error');
         return;
     }
+    
+    console.log('Submission data:', submission);
     
     // Close modal if open
     const modal = document.querySelector('.modal-overlay');
@@ -743,54 +778,64 @@ async function rejectSubmission(id) {
     
     // Get current user name
     const userName = document.getElementById('userName')?.textContent || 'Admin';
+    const currentTime = new Date().toISOString();
     
-    if (window._supabase && supabaseReady) {
-        try {
-            showNotification('Updating database...', 'info');
-            
-            // Update in Supabase
-            const { data, error } = await window._supabase
-                .from('farms')
-                .update({ 
-                    status: 'rejected',
-                    validation_status: 'rejected',
-                    rejection_reason: reason,
-                    validated_by: userName,
-                    validated_at: new Date().toISOString()
-                })
-                .eq('id', id)
-                .select();
-            
-            if (error) {
-                console.error('Supabase error:', error);
-                throw error;
-            }
-            
-            console.log('Supabase update successful:', data);
-            showNotification('Submission rejected in database!', 'info');
-            
-            // Update local data
-            submission.status = 'rejected';
-            submission.validation_status = 'rejected';
-            submission.rejection_reason = reason;
-            submission.validated_by = userName;
-            submission.validated_at = new Date().toISOString();
-            
-        } catch (error) {
-            console.error('Error updating Supabase:', error);
-            showNotification('Error updating database: ' + error.message, 'error');
-            return;
-        }
-    } else {
-        // Fallback: local update only
-        console.warn('Supabase not ready, updating locally only');
-        submission.status = 'rejected';
-        showNotification('Submission rejected (local only - database not connected)', 'warning');
+    console.log(`User: ${userName}`);
+    console.log(`Time: ${currentTime}`);
+    
+    if (!supabaseReady || !supabaseClient) {
+        console.error('❌ Supabase not ready!');
+        showNotification('Database not connected. Please refresh the page.', 'error');
+        return;
     }
     
-    // Refresh the view
-    applyFilters();
-    showNotification('Submission rejected!', 'info');
+    try {
+        showNotification('Updating database...', 'info');
+        console.log('📡 Sending update to Supabase...');
+        
+        const updateData = {
+            status: 'rejected',
+            validation_status: 'rejected',
+            rejection_reason: reason,
+            validated_by: userName,
+            validated_at: currentTime
+        };
+        
+        console.log('Update payload:', updateData);
+        
+        const { data, error } = await supabaseClient
+            .from('farms')
+            .update(updateData)
+            .eq('id', id)
+            .select();
+        
+        if (error) {
+            console.error('❌ Supabase error:', error);
+            throw error;
+        }
+        
+        console.log('✅ Supabase update successful!');
+        console.log('Response data:', data);
+        
+        // Update local data
+        submission.status = 'rejected';
+        submission.validation_status = 'rejected';
+        submission.rejection_reason = reason;
+        submission.validated_by = userName;
+        submission.validated_at = currentTime;
+        
+        // Refresh the view
+        applyFilters();
+        showNotification('Submission rejected!', 'info');
+        
+        console.log(`✅ Submission ${id} rejected successfully`);
+        
+    } catch (error) {
+        console.error('❌ Error during rejection:', error);
+        showNotification('Error updating database: ' + error.message, 'error');
+    }
+    
+    console.log(`========== END REJECT ==========`);
 }
 
 // ===========================================
@@ -808,7 +853,7 @@ function escapeHtml(str) {
 }
 
 function showNotification(message, type = 'info') {
-    console.log(`[${type}] ${message}`);
+    console.log(`[${type.toUpperCase()}] ${message}`);
     
     const colors = {
         success: '#4CAF50',
@@ -823,7 +868,7 @@ function showNotification(message, type = 'info') {
         bottom: 20px;
         right: 20px;
         padding: 12px 24px;
-        background: ${colors[type]};
+        background: ${colors[type] || colors.info};
         color: white;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -889,32 +934,4 @@ function setupEventListeners() {
         th.addEventListener('click', () => {
             const column = th.getAttribute('data-sort');
             if (currentSort.column === column) {
-                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-            } else {
-                currentSort.column = column;
-                currentSort.direction = 'asc';
-            }
-            applyFilters();
-        });
-    });
-    
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            if (window._supabase) await window._supabase.auth.signOut();
-            localStorage.clear();
-            window.location.href = '../login.html';
-        });
-    }
-}
-
-// Expose global functions
-window.viewSubmission = viewSubmission;
-window.approveSubmission = approveSubmission;
-window.rejectSubmission = rejectSubmission;
-window.goToPage = goToPage;
-window.toggleView = toggleView;
-window.applyFilters = applyFilters;
-
-console.log('✅ Submissions page ready with working Supabase updates');
+                currentSort
