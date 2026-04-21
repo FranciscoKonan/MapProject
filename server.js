@@ -159,15 +159,18 @@ async function syncKobo(manual = false) {
             // Get submission time for tracking
             const submissionTime = record._submission_time || record.submission_time || new Date().toISOString();
 
+            // FIXED: Only use fields that exist in the new table
             const farmData = {
                 kobo_submission_id: koboId,
                 submission_data: record,  // Stores the ENTIRE Kobo record
-                geometry: record.geometry || null,
                 synced_at: new Date().toISOString()
-            }
+            };
 
+            // Add geometry if it exists (from polygon or direct geometry)
             if (geojson) {
                 farmData.geometry = geojson;
+            } else if (record.geometry) {
+                farmData.geometry = record.geometry;
             }
 
             try {
@@ -179,7 +182,8 @@ async function syncKobo(manual = false) {
                     console.error('❌ Insert error:', error.message);
                     errorCount++;
                 } else {
-                    console.log(`✅ Inserted: ${farmData.farmer_name} (${koboId})`);
+                    // FIXED: Removed farmer_name reference since it doesn't exist
+                    console.log(`✅ Inserted record: ${koboId}`);
                     newCount++;
                     
                     // Update last sync time to the most recent submission
@@ -257,26 +261,30 @@ app.get('/api/polygons', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('farms')
-            .select('id, farm_id, farmer_name, farmer_id, cooperative_name, area, status, geometry, submission_date');
+            .select('id, kobo_submission_id, submission_data, geometry, synced_at');
 
         if (error) throw error;
 
         const features = (data || [])
             .filter(row => row.geometry)
-            .map(row => ({
-                type: "Feature",
-                geometry: row.geometry,
-                properties: {
-                    id: row.id,
-                    farm_id: row.farm_id,
-                    farmer_name: row.farmer_name,
-                    farmer_id: row.farmer_id,
-                    cooperative_name: row.cooperative_name,
-                    area: row.area,
-                    status: row.status || 'pending',
-                    submission_date: row.submission_date
-                }
-            }));
+            .map(row => {
+                // Extract data from submission_data JSONB
+                const record = row.submission_data || {};
+                return {
+                    type: "Feature",
+                    geometry: row.geometry,
+                    properties: {
+                        id: row.id,
+                        farm_id: record.farm_id || record._uuid,
+                        farmer_name: record.Farmer_Name || record.farmer_name || 'Unknown',
+                        farmer_id: record.Farmer_ID || record.farmer_id,
+                        cooperative_name: record.Cooperative_Name || record.cooperative_name,
+                        area: parseFloat(record.Area || record.area || 0),
+                        status: (record.Status || record.status || 'pending').toLowerCase(),
+                        submission_date: record.Submission_Date || record.submission_date || row.synced_at
+                    }
+                };
+            });
 
         res.json({
             type: "FeatureCollection",
