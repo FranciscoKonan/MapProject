@@ -1,6 +1,6 @@
 // ===========================================
 // SUBMISSIONS PAGE - COMPLETE WITH MAP INTEGRATION
-// FIXED: Coordinate conversion (Lat/Lon to Lon/Lat for Leaflet)
+// FIXED: Supabase update for approve/reject
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -31,53 +31,14 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // COORDINATE CONVERSION FUNCTIONS
 // ===========================================
 
-/**
- * Convert coordinates from [lat, lon] to [lon, lat] for Leaflet
- * Most Kobo data comes as [latitude, longitude]
- * Leaflet expects [longitude, latitude]
- */
 function convertToLeafletCoords(coords) {
     if (!coords || !Array.isArray(coords)) return coords;
     
-    // If it's a coordinate pair (two numbers)
     if (coords.length === 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
-        // Swap: [lat, lon] -> [lon, lat]
         return [coords[1], coords[0]];
     }
     
-    // Recursively convert nested arrays
     return coords.map(item => convertToLeafletCoords(item));
-}
-
-/**
- * Detect if coordinates are in [lat, lon] or [lon, lat] format
- * Based on valid ranges: lat: -90 to 90, lon: -180 to 180
- */
-function detectAndFixCoordinateOrder(coords) {
-    if (!coords || !Array.isArray(coords)) return coords;
-    
-    // For a coordinate pair
-    if (coords.length === 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
-        const first = coords[0];
-        const second = coords[1];
-        
-        // If first is within latitude range (-90 to 90) and second is within longitude range (-180 to 180)
-        // but first is NOT within longitude range, then it's likely [lat, lon]
-        const firstIsValidLat = first >= -90 && first <= 90;
-        const secondIsValidLon = second >= -180 && second <= 180;
-        const firstIsValidLon = first >= -180 && first <= 180;
-        
-        if (firstIsValidLat && secondIsValidLon && !firstIsValidLon) {
-            console.log(`Converting [lat, lon] (${first}, ${second}) to [lon, lat] for Leaflet`);
-            return [second, first];
-        }
-        
-        // Already in correct format
-        return coords;
-    }
-    
-    // Recursively convert nested arrays
-    return coords.map(item => detectAndFixCoordinateOrder(item));
 }
 
 // ===========================================
@@ -152,16 +113,13 @@ async function loadSubmissions() {
             console.log(`✅ Loaded ${farms.length} farms from database`);
             
             allSubmissions = farms.map(farm => {
-                // Fix geometry coordinates for Leaflet
                 let fixedGeometry = farm.geometry;
                 if (fixedGeometry && fixedGeometry.coordinates) {
                     try {
-                        // Convert coordinates from [lat, lon] to [lon, lat]
                         fixedGeometry = {
                             type: fixedGeometry.type,
                             coordinates: convertToLeafletCoords(fixedGeometry.coordinates)
                         };
-                        console.log(`Fixed geometry for farm ${farm.id}: ${fixedGeometry.type}`);
                     } catch (e) {
                         console.warn('Could not fix geometry:', e);
                     }
@@ -490,7 +448,6 @@ function showModalWithMap(submission) {
     let leafletCoords = null;
     
     if (hasGeometry) {
-        // Coordinates are already converted to [lon, lat] format for Leaflet
         leafletCoords = submission.geometry.coordinates;
         
         mapHtml = `
@@ -582,10 +539,10 @@ function showModalWithMap(submission) {
                 
                 ${submission.status === 'pending' ? `
                     <div class="modal-actions">
-                        <button class="modal-btn approve" onclick="approveSubmission('${submission.id}'); document.querySelector('.modal-overlay')?.remove()">
+                        <button class="modal-btn approve" onclick="approveSubmission('${submission.id}')">
                             <i class="fas fa-check"></i> Approve Submission
                         </button>
-                        <button class="modal-btn reject" onclick="rejectSubmission('${submission.id}'); document.querySelector('.modal-overlay')?.remove()">
+                        <button class="modal-btn reject" onclick="rejectSubmission('${submission.id}')">
                             <i class="fas fa-times"></i> Reject Submission
                         </button>
                         <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">
@@ -626,11 +583,9 @@ function initSubmissionMap(coordinates, submission) {
         currentMap.remove();
     }
     
-    // Calculate center point from coordinates (already in [lon, lat] format)
     let center;
     
     if (coordinates[0] && Array.isArray(coordinates[0][0])) {
-        // Polygon: find centroid
         let allLons = [];
         let allLats = [];
         coordinates[0].forEach(coord => {
@@ -640,28 +595,22 @@ function initSubmissionMap(coordinates, submission) {
         center = [(Math.min(...allLats) + Math.max(...allLats)) / 2, 
                    (Math.min(...allLons) + Math.max(...allLons)) / 2];
     } else if (coordinates[0] && Array.isArray(coordinates[0])) {
-        // Line or multi-point
         center = [coordinates[0][1], coordinates[0][0]];
     } else {
-        // Point: coordinates is [lon, lat]
         center = [coordinates[1], coordinates[0]];
     }
     
-    // Create map with satellite imagery
     currentMap = L.map('submissionMap', {
         attributionControl: false
     }).setView(center, 18);
     
-    // Google Satellite imagery
     L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         attribution: '',
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(currentMap);
     
-    // Add geometry to map (coordinates are already in [lon, lat] format)
     if (coordinates[0] && Array.isArray(coordinates[0][0])) {
-        // Polygon
         const polygon = L.polygon(coordinates, {
             color: '#FF9800',
             weight: 3,
@@ -681,7 +630,6 @@ function initSubmissionMap(coordinates, submission) {
             currentMap.fitBounds(bounds);
         }
     } else if (coordinates[0] && Array.isArray(coordinates[0])) {
-        // Line
         const polyline = L.polyline(coordinates, {
             color: '#FF9800',
             weight: 3
@@ -692,7 +640,6 @@ function initSubmissionMap(coordinates, submission) {
             currentMap.fitBounds(bounds);
         }
     } else {
-        // Point
         const marker = L.marker([coordinates[1], coordinates[0]]).addTo(currentMap);
         marker.bindPopup(`
             <b>${escapeHtml(submission.farmerName)}</b><br>
@@ -703,77 +650,145 @@ function initSubmissionMap(coordinates, submission) {
         marker.openPopup();
     }
     
-    // Add controls
     L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(currentMap);
     L.control.zoom({ position: 'topright' }).addTo(currentMap);
-    
-    console.log('🗺️ Map initialized with corrected coordinates');
 }
 
 // ===========================================
-// APPROVE/REJECT FUNCTIONS
+// APPROVE/REJECT FUNCTIONS - FIXED FOR SUPABASE
 // ===========================================
 
 async function approveSubmission(id) {
+    console.log(`✅ Approving submission ${id}...`);
+    
     if (!confirm('Are you sure you want to APPROVE this submission?')) return;
     
     const submission = allSubmissions.find(s => s.id == id);
-    if (!submission) return;
+    if (!submission) {
+        console.error('Submission not found:', id);
+        showNotification('Submission not found!', 'error');
+        return;
+    }
+    
+    // Close modal if open
+    const modal = document.querySelector('.modal-overlay');
+    if (modal) modal.remove();
+    
+    // Get current user name
+    const userName = document.getElementById('userName')?.textContent || 'Admin';
     
     if (window._supabase && supabaseReady) {
         try {
-            const { error } = await window._supabase
+            showNotification('Updating database...', 'info');
+            
+            // Update in Supabase
+            const { data, error } = await window._supabase
                 .from('farms')
                 .update({ 
-                    status: 'approved', 
+                    status: 'approved',
                     validation_status: 'approved',
-                    validated_by: document.getElementById('userName')?.textContent || 'Admin',
+                    validated_by: userName,
                     validated_at: new Date().toISOString()
                 })
-                .eq('id', id);
+                .eq('id', id)
+                .select();
             
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase error:', error);
+                throw error;
+            }
+            
+            console.log('Supabase update successful:', data);
             showNotification('Submission approved in database!', 'success');
+            
+            // Update local data
+            submission.status = 'approved';
+            submission.validation_status = 'approved';
+            submission.validated_by = userName;
+            submission.validated_at = new Date().toISOString();
+            
         } catch (error) {
             console.error('Error updating Supabase:', error);
-            showNotification('Error updating database. Local update only.', 'warning');
+            showNotification('Error updating database: ' + error.message, 'error');
+            return;
         }
+    } else {
+        // Fallback: local update only
+        console.warn('Supabase not ready, updating locally only');
+        submission.status = 'approved';
+        showNotification('Submission approved (local only - database not connected)', 'warning');
     }
     
-    submission.status = 'approved';
+    // Refresh the view
     applyFilters();
     showNotification('Submission approved successfully!', 'success');
 }
 
 async function rejectSubmission(id) {
+    console.log(`❌ Rejecting submission ${id}...`);
+    
     const reason = prompt('Please enter rejection reason:', 'Invalid or incomplete data');
     if (!reason) return;
     
     const submission = allSubmissions.find(s => s.id == id);
-    if (!submission) return;
+    if (!submission) {
+        console.error('Submission not found:', id);
+        showNotification('Submission not found!', 'error');
+        return;
+    }
+    
+    // Close modal if open
+    const modal = document.querySelector('.modal-overlay');
+    if (modal) modal.remove();
+    
+    // Get current user name
+    const userName = document.getElementById('userName')?.textContent || 'Admin';
     
     if (window._supabase && supabaseReady) {
         try {
-            const { error } = await window._supabase
+            showNotification('Updating database...', 'info');
+            
+            // Update in Supabase
+            const { data, error } = await window._supabase
                 .from('farms')
                 .update({ 
-                    status: 'rejected', 
+                    status: 'rejected',
                     validation_status: 'rejected',
                     rejection_reason: reason,
-                    validated_by: document.getElementById('userName')?.textContent || 'Admin',
+                    validated_by: userName,
                     validated_at: new Date().toISOString()
                 })
-                .eq('id', id);
+                .eq('id', id)
+                .select();
             
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase error:', error);
+                throw error;
+            }
+            
+            console.log('Supabase update successful:', data);
             showNotification('Submission rejected in database!', 'info');
+            
+            // Update local data
+            submission.status = 'rejected';
+            submission.validation_status = 'rejected';
+            submission.rejection_reason = reason;
+            submission.validated_by = userName;
+            submission.validated_at = new Date().toISOString();
+            
         } catch (error) {
             console.error('Error updating Supabase:', error);
-            showNotification('Error updating database. Local update only.', 'warning');
+            showNotification('Error updating database: ' + error.message, 'error');
+            return;
         }
+    } else {
+        // Fallback: local update only
+        console.warn('Supabase not ready, updating locally only');
+        submission.status = 'rejected';
+        showNotification('Submission rejected (local only - database not connected)', 'warning');
     }
     
-    submission.status = 'rejected';
+    // Refresh the view
     applyFilters();
     showNotification('Submission rejected!', 'info');
 }
@@ -902,4 +917,4 @@ window.goToPage = goToPage;
 window.toggleView = toggleView;
 window.applyFilters = applyFilters;
 
-console.log('✅ Submissions page ready with satellite map and fixed coordinate conversion');
+console.log('✅ Submissions page ready with working Supabase updates');
