@@ -934,4 +934,33 @@ function setupEventListeners() {
         th.addEventListener('click', () => {
             const column = th.getAttribute('data-sort');
             if (currentSort.column === column) {
-                currentSort
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            applyFilters();
+        });
+    });
+    
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (supabaseClient) await supabaseClient.auth.signOut();
+            localStorage.clear();
+            window.location.href = '../login.html';
+        });
+    }
+}
+
+// Expose global functions
+window.viewSubmission = viewSubmission;
+window.approveSubmission = approveSubmission;
+window.rejectSubmission = rejectSubmission;
+window.goToPage = goToPage;
+window.toggleView = toggleView;
+window.applyFilters = applyFilters;
+
+console.log('✅ Submissions page ready with working Supabase updates');
+console.log('Open Console (F12) to see debug logs when approving/rejecting');
