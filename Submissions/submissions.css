@@ -2,23 +2,172 @@
    SUBMISSIONS PAGE STYLES
    =========================================== */
 
-.submissions-container {
-    padding: 20px;
-    height: calc(100vh - 70px);
-    overflow-y: auto;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
 }
 
 /* ===========================================
-   FILTERS SECTION
+   LAYOUT
    =========================================== */
+.layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 260px;
+    background: #0f172a;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+.sidebar-header {
+    padding: 24px 20px;
+    border-bottom: 1px solid #1e293b;
+}
+
+.sidebar-header h2 {
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.menu {
+    flex: 1;
+    padding: 20px 0;
+}
+
+.menu a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    color: #cbd5e1;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.menu a:hover {
+    background: #1e293b;
+    color: white;
+}
+
+.menu a.active {
+    background: #2c6e49;
+    color: white;
+}
+
+.menu-bottom {
+    margin-top: auto;
+    padding: 20px 0;
+    border-top: 1px solid #1e293b;
+}
+
+/* MAIN CONTENT */
+.main {
+    flex: 1;
+    margin-left: 260px;
+    min-height: 100vh;
+}
+
+.main-header {
+    background: white;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+    z-index: 99;
+}
+
+.header-title h1 {
+    font-size: 24px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.breadcrumb {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    background: #2c6e49;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: white;
+}
+
+.user-details .user-name {
+    font-weight: 600;
+}
+
+.user-details .user-role {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.sync-btn {
+    background: #2c6e49;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.sync-btn:hover {
+    background: #1e4f33;
+}
+
+/* ===========================================
+   SUBMISSIONS CONTAINER
+   =========================================== */
+.submissions-container {
+    padding: 24px;
+}
+
+/* FILTERS SECTION */
 .filters-section {
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
-    margin-bottom: 20px;
-    padding: 15px;
+    margin-bottom: 24px;
+    padding: 16px;
     background: white;
-    border-radius: 12px;
+    border-radius: 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
@@ -105,13 +254,11 @@
     transform: translateY(-1px);
 }
 
-/* ===========================================
-   STATS SECTION
-   =========================================== */
+/* STATS SECTION */
 .stats-section {
     display: flex;
     gap: 15px;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
     flex-wrap: wrap;
 }
 
@@ -161,9 +308,7 @@
     color: #004085;
 }
 
-/* ===========================================
-   TABLE VIEW
-   =========================================== */
+/* TABLE VIEW */
 .table-view {
     background: white;
     border-radius: 12px;
@@ -224,6 +369,7 @@ tr:hover {
     font-weight: 600;
 }
 
+.status-badge.approved,
 .status-badge.validated {
     background: #d1fae5;
     color: #065f46;
@@ -283,9 +429,7 @@ tr:hover {
     transform: translateY(-1px);
 }
 
-/* ===========================================
-   PAGINATION
-   =========================================== */
+/* PAGINATION */
 .pagination-container {
     display: flex;
     justify-content: space-between;
@@ -351,9 +495,7 @@ tr:hover {
     border-color: #2c6e49;
 }
 
-/* ===========================================
-   GROUP VIEW
-   =========================================== */
+/* GROUP VIEW */
 .group-view {
     background: white;
     border-radius: 12px;
@@ -425,9 +567,7 @@ tr:hover {
     color: #64748b;
 }
 
-/* ===========================================
-   MODAL STYLES
-   =========================================== */
+/* MODAL WITH MAP STYLES */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -445,9 +585,9 @@ tr:hover {
 .modal-content {
     background: white;
     border-radius: 16px;
-    max-width: 500px;
+    max-width: 900px;
     width: 90%;
-    max-height: 80vh;
+    max-height: 85vh;
     overflow-y: auto;
     animation: slideUp 0.3s ease;
 }
@@ -460,6 +600,9 @@ tr:hover {
     justify-content: space-between;
     align-items: center;
     border-radius: 16px 16px 0 0;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .modal-header h3 {
@@ -473,23 +616,53 @@ tr:hover {
     background: none;
     border: none;
     color: white;
-    font-size: 20px;
+    font-size: 24px;
     cursor: pointer;
     padding: 5px;
+    transition: opacity 0.3s;
+}
+
+.modal-close:hover {
+    opacity: 0.8;
 }
 
 .modal-body {
     padding: 20px;
 }
 
-.modal-row {
-    display: flex;
-    padding: 10px 0;
+.modal-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
     border-bottom: 1px solid #e2e8f0;
 }
 
+.modal-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.modal-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #2c6e49;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-section-title i {
+    font-size: 18px;
+}
+
+.modal-row {
+    display: flex;
+    padding: 8px 0;
+}
+
 .modal-label {
-    width: 120px;
+    width: 130px;
     font-weight: 600;
     color: #475569;
 }
@@ -499,22 +672,45 @@ tr:hover {
     color: #1e293b;
 }
 
+#submissionMap {
+    height: 350px;
+    border-radius: 12px;
+    margin-top: 10px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.map-info {
+    margin-top: 10px;
+    padding: 12px;
+    background: #f0fdf4;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #166534;
+    border-left: 3px solid #4CAF50;
+}
+
+.map-info i {
+    margin-right: 6px;
+}
+
 .modal-actions {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     margin-top: 20px;
-    padding-top: 15px;
+    padding-top: 20px;
     border-top: 1px solid #e2e8f0;
 }
 
 .modal-btn {
     flex: 1;
-    padding: 10px;
+    padding: 12px;
     border: none;
     border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
     transition: all 0.2s;
+    font-size: 14px;
 }
 
 .modal-btn.approve {
@@ -522,9 +718,19 @@ tr:hover {
     color: white;
 }
 
+.modal-btn.approve:hover {
+    background: #45a049;
+    transform: translateY(-1px);
+}
+
 .modal-btn.reject {
     background: #f44336;
     color: white;
+}
+
+.modal-btn.reject:hover {
+    background: #da190b;
+    transform: translateY(-1px);
 }
 
 .modal-btn.cancel {
@@ -532,6 +738,11 @@ tr:hover {
     color: #475569;
 }
 
+.modal-btn.cancel:hover {
+    background: #cbd5e1;
+}
+
+/* Animations */
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -540,7 +751,7 @@ tr:hover {
 @keyframes slideUp {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(30px);
     }
     to {
         opacity: 1;
@@ -548,9 +759,17 @@ tr:hover {
     }
 }
 
-/* ===========================================
-   RESPONSIVE
-   =========================================== */
+/* Leaflet map overrides */
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+}
+
+.leaflet-popup-content {
+    font-size: 12px;
+    margin: 8px 12px;
+}
+
+/* RESPONSIVE */
 @media (max-width: 1024px) {
     .filter-group {
         width: calc(50% - 15px);
@@ -559,9 +778,26 @@ tr:hover {
     .filter-search, .filter-select, .search-box {
         width: 100%;
     }
+    
+    .modal-content {
+        max-width: 95%;
+    }
 }
 
 @media (max-width: 768px) {
+    .sidebar {
+        width: 70px;
+    }
+    
+    .sidebar-header h2 span,
+    .menu a span {
+        display: none;
+    }
+    
+    .main {
+        margin-left: 70px;
+    }
+    
     .filters-section {
         flex-direction: column;
     }
@@ -586,6 +822,28 @@ tr:hover {
         flex-direction: column;
         gap: 10px;
     }
+    
+    .modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    #submissionMap {
+        height: 250px;
+    }
+    
+    .modal-row {
+        flex-direction: column;
+    }
+    
+    .modal-label {
+        width: 100%;
+        margin-bottom: 4px;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
 }
 
 @media (max-width: 480px) {
@@ -601,4 +859,31 @@ tr:hover {
     .action-btn {
         width: 100%;
     }
+    
+    .modal-header h3 {
+        font-size: 16px;
+    }
+    
+    #submissionMap {
+        height: 200px;
+    }
+}
+
+/* Scrollbar styling */
+.modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
 }
