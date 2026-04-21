@@ -887,3 +887,28 @@ tr:hover {
 .modal-content::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
+
+/* Remove Leaflet attribution */
+.leaflet-control-attribution {
+    display: none !important;
+}
+
+/* Hide any other map logos or watermarks */
+.leaflet-control-logo,
+.leaflet-bottom .leaflet-right {
+    display: none !important;
+}
+
+/* Optional: Add custom attribution if needed */
+.custom-map-attribution {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    font-size: 9px;
+    color: #666;
+    background: rgba(255,255,255,0.7);
+    padding: 2px 5px;
+    border-radius: 3px;
+    z-index: 1000;
+    pointer-events: none;
+}
