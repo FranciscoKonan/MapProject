@@ -572,24 +572,16 @@ function initSubmissionMap(coordinates, submission) {
         center = [coordinates[1], coordinates[0]];
     }
     
-    currentMap = L.map('submissionMap').setView(center, 15);
+    // Create map with NO attribution
+    currentMap = L.map('submissionMap', {
+        attributionControl: false  // This removes the attribution control entirely
+    }).setView(center, 15);
     
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
-        subdomains: 'abcd',
-        maxZoom: 20
+    // Use OpenStreetMap tiles (reliable and free) - NO attribution text shown
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: ''  // Empty attribution to hide text
     }).addTo(currentMap);
-    
-    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri'
-    });
-    
-    const baseMaps = {
-        "Street Map": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'),
-        "Satellite": satelliteLayer
-    };
-    
-    L.control.layers(baseMaps).addTo(currentMap);
     
     if (coordinates[0] && Array.isArray(coordinates[0][0])) {
         const polygon = L.polygon(coordinates, {
@@ -615,7 +607,8 @@ function initSubmissionMap(coordinates, submission) {
         `);
     }
     
-    L.control.scale().addTo(currentMap);
+    // Add scale control without attribution
+    L.control.scale({ metric: true, imperial: false }).addTo(currentMap);
 }
 
 // ===========================================
