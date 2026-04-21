@@ -18,6 +18,7 @@ let uniqueCooperatives = [];
 let supplierSearchTerm = '';
 let coopSearchTerm = '';
 let supabaseReady = false;
+let currentMap = null;
 
 // ===========================================
 // SUPABASE CONFIGURATION
@@ -30,14 +31,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // ===========================================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📌 DOM Content Loaded');
-    
-    // Load user data from localStorage
     loadUserData();
-    
-    // Initialize Supabase
     initSupabase();
-    
-    // Setup event listeners
     setupEventListeners();
 });
 
@@ -77,37 +72,9 @@ function initSupabase(retryCount = 0) {
         window._supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         supabaseReady = true;
         console.log('✅ Supabase initialized successfully');
-        
-        checkSessionAndLoad();
-        
+        loadSubmissions();
     } catch (error) {
         console.error('❌ Supabase init error:', error);
-        if (retryCount < 5) {
-            setTimeout(() => initSupabase(retryCount + 1), 1000);
-        } else {
-            loadSampleData();
-        }
-    }
-}
-
-async function checkSessionAndLoad() {
-    try {
-        const { data: { session } } = await window._supabase.auth.getSession();
-        
-        if (!session) {
-            console.log('⚠️ No active session, redirecting to login');
-            showNotification('Please login to view submissions', 'warning');
-            setTimeout(() => {
-                window.location.href = '../login.html';
-            }, 2000);
-            return;
-        }
-        
-        console.log('👤 User logged in:', session.user.email);
-        loadSubmissions();
-        
-    } catch (error) {
-        console.error('Session check error:', error);
         loadSampleData();
     }
 }
@@ -125,10 +92,7 @@ async function loadSubmissions() {
             .select('*')
             .order('created_at', { ascending: false });
         
-        if (error) {
-            console.error('Supabase error:', error);
-            throw error;
-        }
+        if (error) throw error;
         
         if (farms && farms.length > 0) {
             console.log(`✅ Loaded ${farms.length} farms from database`);
@@ -147,24 +111,18 @@ async function loadSubmissions() {
                 geometry: farm.geometry,
                 submission_data: farm.submission_data,
                 validation_status: farm.validation_status,
-                rejection_reason: farm.rejection_reason,
-                validated_at: farm.validated_at,
-                validated_by: farm.validated_by
+                rejection_reason: farm.rejection_reason
             }));
             
             updateFilterOptions();
             applyFilters();
             showNotification(`Loaded ${allSubmissions.length} submissions`, 'success');
-            
         } else {
             console.log('⚠️ No farms found in database');
-            showNotification('No farms found. Add farms to see submissions.', 'info');
             loadSampleData();
         }
-        
     } catch (error) {
         console.error('Error loading submissions:', error);
-        showNotification('Error loading submissions: ' + error.message, 'error');
         loadSampleData();
     }
 }
@@ -178,7 +136,9 @@ function loadSampleData() {
     allSubmissions = [
         { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 2.5, status: 'approved', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
         { id: '2', farmerId: 'F12346', farmerName: 'Konan Marie', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.8, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
-        { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), geometry: null }
+        { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
+        { id: '4', farmerId: 'F12348', farmerName: 'Yao Michel', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 4.1, status: 'approved', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
+        { id: '5', farmerId: 'F12349', farmerName: 'Traore Amadou', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.2, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), geometry: null }
     ];
     
     updateFilterOptions();
@@ -203,7 +163,7 @@ function updateSupplierFilter() {
     
     let options = '<option value="all">All Suppliers</option>';
     filtered.forEach(s => {
-        options += `<option value="${s}">${s}</option>`;
+        options += `<option value="${s}">${escapeHtml(s)}</option>`;
     });
     select.innerHTML = options;
 }
@@ -218,7 +178,7 @@ function updateCooperativeFilter() {
     
     let options = '<option value="all">All Cooperatives</option>';
     filtered.forEach(c => {
-        options += `<option value="${c}">${c}</option>`;
+        options += `<option value="${c}">${escapeHtml(c)}</option>`;
     });
     select.innerHTML = options;
 }
@@ -446,26 +406,21 @@ function toggleView() {
 // ===========================================
 
 function viewSubmission(id) {
-    const submission = allSubmissions.find(s => s.id === id);
+    const submission = allSubmissions.find(s => s.id == id);
     if (!submission) return;
     
     showModalWithMap(submission);
 }
 
 function showModalWithMap(submission) {
-    // Remove existing modal
     const existing = document.querySelector('.modal-overlay');
     if (existing) existing.remove();
     
-    // Check if submission has geometry
-    const hasGeometry = submission.geometry || 
-                       (submission.submission_data && submission.submission_data.geometry);
-    
+    const hasGeometry = submission.geometry || (submission.submission_data && submission.submission_data.geometry);
     let mapHtml = '';
     let coordinates = null;
     
     if (hasGeometry) {
-        // Extract coordinates
         const geom = submission.geometry || submission.submission_data?.geometry;
         if (geom && geom.coordinates) {
             coordinates = geom.coordinates;
@@ -583,14 +538,12 @@ function showModalWithMap(submission) {
     
     document.body.appendChild(modal);
     
-    // Initialize map if geometry exists
     if (hasGeometry && coordinates) {
         setTimeout(() => {
             initSubmissionMap(coordinates, submission);
         }, 100);
     }
     
-    // Close on overlay click
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             modal.remove();
@@ -602,32 +555,31 @@ function initSubmissionMap(coordinates, submission) {
     const mapContainer = document.getElementById('submissionMap');
     if (!mapContainer) return;
     
-    // Determine center point
+    if (currentMap) {
+        currentMap.remove();
+    }
+    
     let center;
-    let bounds = null;
     
     if (coordinates[0] && Array.isArray(coordinates[0][0])) {
         const lats = coordinates[0].map(c => c[1]);
         const lngs = coordinates[0].map(c => c[0]);
         center = [(Math.min(...lats) + Math.max(...lats)) / 2, 
                    (Math.min(...lngs) + Math.max(...lngs)) / 2];
-        bounds = [[Math.min(...lats), Math.min(...lngs)], 
-                  [Math.max(...lats), Math.max(...lngs)]];
     } else if (coordinates[0] && Array.isArray(coordinates[0])) {
         center = [coordinates[0][1], coordinates[0][0]];
     } else {
         center = [coordinates[1], coordinates[0]];
     }
     
-    const map = L.map('submissionMap').setView(center, 15);
+    currentMap = L.map('submissionMap').setView(center, 15);
     
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
         subdomains: 'abcd',
         maxZoom: 20
-    }).addTo(map);
+    }).addTo(currentMap);
     
-    // Add satellite layer
     const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles &copy; Esri'
     });
@@ -637,16 +589,15 @@ function initSubmissionMap(coordinates, submission) {
         "Satellite": satelliteLayer
     };
     
-    L.control.layers(baseMaps).addTo(map);
+    L.control.layers(baseMaps).addTo(currentMap);
     
-    // Add geometry
     if (coordinates[0] && Array.isArray(coordinates[0][0])) {
         const polygon = L.polygon(coordinates, {
             color: '#FF9800',
             weight: 3,
             fillColor: '#FF9800',
             fillOpacity: 0.3
-        }).addTo(map);
+        }).addTo(currentMap);
         
         polygon.bindPopup(`
             <b>${escapeHtml(submission.farmerName)}</b><br>
@@ -654,9 +605,9 @@ function initSubmissionMap(coordinates, submission) {
             Status: ${submission.status}
         `);
         
-        map.fitBounds(polygon.getBounds());
+        currentMap.fitBounds(polygon.getBounds());
     } else {
-        const marker = L.marker([coordinates[1], coordinates[0]]).addTo(map);
+        const marker = L.marker([coordinates[1], coordinates[0]]).addTo(currentMap);
         marker.bindPopup(`
             <b>${escapeHtml(submission.farmerName)}</b><br>
             Area: ${submission.area.toFixed(2)} ha<br>
@@ -664,7 +615,7 @@ function initSubmissionMap(coordinates, submission) {
         `);
     }
     
-    L.control.scale().addTo(map);
+    L.control.scale().addTo(currentMap);
 }
 
 // ===========================================
@@ -674,7 +625,7 @@ function initSubmissionMap(coordinates, submission) {
 async function approveSubmission(id) {
     if (!confirm('Are you sure you want to APPROVE this submission?')) return;
     
-    const submission = allSubmissions.find(s => s.id === id);
+    const submission = allSubmissions.find(s => s.id == id);
     if (!submission) return;
     
     if (window._supabase && supabaseReady) {
@@ -706,7 +657,7 @@ async function rejectSubmission(id) {
     const reason = prompt('Please enter rejection reason:', 'Invalid or incomplete data');
     if (!reason) return;
     
-    const submission = allSubmissions.find(s => s.id === id);
+    const submission = allSubmissions.find(s => s.id == id);
     if (!submission) return;
     
     if (window._supabase && supabaseReady) {
@@ -762,7 +713,7 @@ function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.style.cssText = `
         position: fixed;
-        top: 20px;
+        bottom: 20px;
         right: 20px;
         padding: 12px 24px;
         background: ${colors[type]};
