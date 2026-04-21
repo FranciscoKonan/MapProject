@@ -887,4 +887,19 @@ function setupEventListeners() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            if (window._supabase
+            if (window._supabase) await window._supabase.auth.signOut();
+            localStorage.clear();
+            window.location.href = '../login.html';
+        });
+    }
+}
+
+// Expose global functions
+window.viewSubmission = viewSubmission;
+window.approveSubmission = approveSubmission;
+window.rejectSubmission = rejectSubmission;
+window.goToPage = goToPage;
+window.toggleView = toggleView;
+window.applyFilters = applyFilters;
+
+console.log('✅ Submissions page ready with satellite map and fixed coordinate conversion');
