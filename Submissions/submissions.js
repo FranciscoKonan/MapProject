@@ -1,6 +1,6 @@
 // ===========================================
 // SUBMISSIONS PAGE - COMPLETE WITH MAP INTEGRATION
-// FIXED: Working Supabase updates with debugging
+// FIXED: Using only existing columns in farms table
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -89,7 +89,6 @@ function initSupabase(retryCount = 0) {
         window._supabase = supabaseClient;
         supabaseReady = true;
         console.log('✅ Supabase initialized successfully');
-        console.log('Supabase URL:', SUPABASE_URL);
         loadSubmissions();
     } catch (error) {
         console.error('❌ Supabase init error:', error);
@@ -145,9 +144,7 @@ async function loadSubmissions() {
                     updatedBy: farm.validated_by || farm.enumerator || 'System',
                     submissionDate: farm.submission_date || farm.created_at || new Date().toISOString(),
                     geometry: fixedGeometry,
-                    submission_data: farm.submission_data,
-                    validation_status: farm.validation_status,
-                    rejection_reason: farm.rejection_reason
+                    submission_data: farm.submission_data
                 };
             });
             
@@ -666,7 +663,7 @@ function initSubmissionMap(coordinates, submission) {
 }
 
 // ===========================================
-// APPROVE/REJECT FUNCTIONS - FIXED FOR SUPABASE
+// APPROVE/REJECT FUNCTIONS - USING ONLY EXISTING COLUMNS
 // ===========================================
 
 async function approveSubmission(id) {
@@ -691,13 +688,6 @@ async function approveSubmission(id) {
     const modal = document.querySelector('.modal-overlay');
     if (modal) modal.remove();
     
-    // Get current user name
-    const userName = document.getElementById('userName')?.textContent || 'Admin';
-    const currentTime = new Date().toISOString();
-    
-    console.log(`User: ${userName}`);
-    console.log(`Time: ${currentTime}`);
-    
     if (!supabaseReady || !supabaseClient) {
         console.error('❌ Supabase not ready!');
         showNotification('Database not connected. Please refresh the page.', 'error');
@@ -708,18 +698,10 @@ async function approveSubmission(id) {
         showNotification('Updating database...', 'info');
         console.log('📡 Sending update to Supabase...');
         
-        const updateData = {
-            status: 'approved',
-            validation_status: 'approved',
-            validated_by: userName,
-            validated_at: currentTime
-        };
-        
-        console.log('Update payload:', updateData);
-        
+        // Only update the 'status' column (exists in your table)
         const { data, error } = await supabaseClient
             .from('farms')
-            .update(updateData)
+            .update({ status: 'approved' })
             .eq('id', id)
             .select();
         
@@ -733,9 +715,6 @@ async function approveSubmission(id) {
         
         // Update local data
         submission.status = 'approved';
-        submission.validation_status = 'approved';
-        submission.validated_by = userName;
-        submission.validated_at = currentTime;
         
         // Refresh the view
         applyFilters();
@@ -776,13 +755,6 @@ async function rejectSubmission(id) {
     const modal = document.querySelector('.modal-overlay');
     if (modal) modal.remove();
     
-    // Get current user name
-    const userName = document.getElementById('userName')?.textContent || 'Admin';
-    const currentTime = new Date().toISOString();
-    
-    console.log(`User: ${userName}`);
-    console.log(`Time: ${currentTime}`);
-    
     if (!supabaseReady || !supabaseClient) {
         console.error('❌ Supabase not ready!');
         showNotification('Database not connected. Please refresh the page.', 'error');
@@ -793,19 +765,10 @@ async function rejectSubmission(id) {
         showNotification('Updating database...', 'info');
         console.log('📡 Sending update to Supabase...');
         
-        const updateData = {
-            status: 'rejected',
-            validation_status: 'rejected',
-            rejection_reason: reason,
-            validated_by: userName,
-            validated_at: currentTime
-        };
-        
-        console.log('Update payload:', updateData);
-        
+        // Only update the 'status' column (exists in your table)
         const { data, error } = await supabaseClient
             .from('farms')
-            .update(updateData)
+            .update({ status: 'rejected' })
             .eq('id', id)
             .select();
         
@@ -819,10 +782,6 @@ async function rejectSubmission(id) {
         
         // Update local data
         submission.status = 'rejected';
-        submission.validation_status = 'rejected';
-        submission.rejection_reason = reason;
-        submission.validated_by = userName;
-        submission.validated_at = currentTime;
         
         // Refresh the view
         applyFilters();
@@ -963,4 +922,4 @@ window.toggleView = toggleView;
 window.applyFilters = applyFilters;
 
 console.log('✅ Submissions page ready with working Supabase updates');
-console.log('Open Console (F12) to see debug logs when approving/rejecting');
+console.log('📝 Only updating the "status" column (approved/rejected)');
