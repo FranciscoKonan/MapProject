@@ -1,5 +1,6 @@
 // ===========================================
 // SUBMISSIONS PAGE - COMPLETE WITH MAP INTEGRATION
+// FIXED: Coordinate projection (Lat/Lon order) + Satellite map
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -80,6 +81,54 @@ function initSupabase(retryCount = 0) {
 }
 
 // ===========================================
+// COORDINATE HELPER FUNCTIONS
+// ===========================================
+
+// Fix coordinate order: Ensure [lng, lat] format and validate
+function fixCoordinateOrder(coords) {
+    if (!coords || !Array.isArray(coords)) return null;
+    
+    // Check if coordinates are valid numbers
+    if (coords.length === 2) {
+        let lng = coords[0];
+        let lat = coords[1];
+        
+        // If longitude is outside valid range (-180 to 180) and latitude is inside (-90 to 90),
+        // they might be swapped
+        if ((lng < -180 || lng > 180) && (lat >= -90 && lat <= 90)) {
+            console.log('Swapping suspected swapped coordinates:', coords);
+            return [lat, lng];
+        }
+        
+        // Ensure longitude is between -180 and 180, latitude between -90 and 90
+        if (lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90) {
+            return [lng, lat];
+        }
+        
+        // Try swapping as last resort
+        if (coords[1] >= -180 && coords[1] <= 180 && coords[0] >= -90 && coords[0] <= 90) {
+            console.log('Swapping coordinates for valid range:', coords);
+            return [coords[1], coords[0]];
+        }
+    }
+    
+    return coords;
+}
+
+// Fix polygon coordinates (recursive)
+function fixPolygonCoordinates(coords) {
+    if (!coords || !Array.isArray(coords)) return coords;
+    
+    // Check if this is a coordinate pair (both are numbers)
+    if (coords.length === 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+        return fixCoordinateOrder(coords);
+    }
+    
+    // Recursively fix nested arrays
+    return coords.map(ring => fixPolygonCoordinates(ring));
+}
+
+// ===========================================
 // LOAD SUBMISSIONS FROM SUPABASE
 // ===========================================
 async function loadSubmissions() {
@@ -97,22 +146,37 @@ async function loadSubmissions() {
         if (farms && farms.length > 0) {
             console.log(`✅ Loaded ${farms.length} farms from database`);
             
-            allSubmissions = farms.map(farm => ({
-                id: farm.id,
-                farmerId: farm.farmer_id || farm.id,
-                farmerName: farm.farmer_name || 'Unknown Farmer',
-                cooperative: farm.cooperative_name || farm.cooperative || 'Unassigned',
-                supplier: farm.supplier || 'Unknown',
-                area: farm.area || 0,
-                status: farm.status || 'pending',
-                enumerator: farm.enumerator || 'N/A',
-                updatedBy: farm.validated_by || farm.enumerator || 'System',
-                submissionDate: farm.submission_date || farm.created_at || new Date().toISOString(),
-                geometry: farm.geometry,
-                submission_data: farm.submission_data,
-                validation_status: farm.validation_status,
-                rejection_reason: farm.rejection_reason
-            }));
+            allSubmissions = farms.map(farm => {
+                // Fix geometry coordinates if present
+                let fixedGeometry = farm.geometry;
+                if (fixedGeometry && fixedGeometry.coordinates) {
+                    try {
+                        fixedGeometry = {
+                            ...fixedGeometry,
+                            coordinates: fixPolygonCoordinates(fixedGeometry.coordinates)
+                        };
+                    } catch (e) {
+                        console.warn('Could not fix geometry:', e);
+                    }
+                }
+                
+                return {
+                    id: farm.id,
+                    farmerId: farm.farmer_id || farm.id,
+                    farmerName: farm.farmer_name || 'Unknown Farmer',
+                    cooperative: farm.cooperative_name || farm.cooperative || 'Unassigned',
+                    supplier: farm.supplier || 'Unknown',
+                    area: farm.area || 0,
+                    status: farm.status || 'pending',
+                    enumerator: farm.enumerator || 'N/A',
+                    updatedBy: farm.validated_by || farm.enumerator || 'System',
+                    submissionDate: farm.submission_date || farm.created_at || new Date().toISOString(),
+                    geometry: fixedGeometry,
+                    submission_data: farm.submission_data,
+                    validation_status: farm.validation_status,
+                    rejection_reason: farm.rejection_reason
+                };
+            });
             
             updateFilterOptions();
             applyFilters();
@@ -136,9 +200,7 @@ function loadSampleData() {
     allSubmissions = [
         { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 2.5, status: 'approved', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
         { id: '2', farmerId: 'F12346', farmerName: 'Konan Marie', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.8, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
-        { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
-        { id: '4', farmerId: 'F12348', farmerName: 'Yao Michel', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 4.1, status: 'approved', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
-        { id: '5', farmerId: 'F12349', farmerName: 'Traore Amadou', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.2, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), geometry: null }
+        { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), geometry: null }
     ];
     
     updateFilterOptions();
@@ -423,19 +485,20 @@ function showModalWithMap(submission) {
     if (hasGeometry) {
         const geom = submission.geometry || submission.submission_data?.geometry;
         if (geom && geom.coordinates) {
-            coordinates = geom.coordinates;
+            // Fix coordinate order before storing
+            coordinates = fixPolygonCoordinates(geom.coordinates);
         }
         
         mapHtml = `
             <div class="modal-section">
                 <div class="modal-section-title">
-                    <i class="fas fa-map-marker-alt"></i> Farm Location Map
+                    <i class="fas fa-map-marker-alt"></i> Farm Location Map (Satellite View)
                 </div>
                 <div id="submissionMap"></div>
                 <div class="map-info">
                     <i class="fas fa-info-circle"></i> 
-                    <strong>Decision Support:</strong> Use this map to verify farm boundaries, 
-                    check location accuracy, and assess accessibility before approving or rejecting.
+                    <strong>Decision Support:</strong> Use satellite imagery to verify farm boundaries, 
+                    check vegetation, crop health, and assess accessibility before approving or rejecting.
                 </div>
             </div>
         `;
@@ -559,56 +622,106 @@ function initSubmissionMap(coordinates, submission) {
         currentMap.remove();
     }
     
+    // Extract center point from coordinates
     let center;
+    let bounds = null;
     
     if (coordinates[0] && Array.isArray(coordinates[0][0])) {
-        const lats = coordinates[0].map(c => c[1]);
-        const lngs = coordinates[0].map(c => c[0]);
+        // Polygon: coordinates is array of rings
+        const allPoints = coordinates[0];
+        const lats = allPoints.map(p => p[1]);
+        const lngs = allPoints.map(p => p[0]);
         center = [(Math.min(...lats) + Math.max(...lats)) / 2, 
                    (Math.min(...lngs) + Math.max(...lngs)) / 2];
+        bounds = [lats, lngs];
     } else if (coordinates[0] && Array.isArray(coordinates[0])) {
+        // Line or multi-point
         center = [coordinates[0][1], coordinates[0][0]];
     } else {
+        // Point
         center = [coordinates[1], coordinates[0]];
     }
     
-    // Create map with NO attribution
+    // Create map with NO attribution, using satellite imagery
     currentMap = L.map('submissionMap', {
-        attributionControl: false  // This removes the attribution control entirely
-    }).setView(center, 15);
+        attributionControl: false
+    }).setView(center, 18); // Zoom level 18 for detailed satellite view
     
-    // Use OpenStreetMap tiles (reliable and free) - NO attribution text shown
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: ''  // Empty attribution to hide text
+    // Use Google Satellite imagery (high quality, works well)
+    L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        attribution: '',
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(currentMap);
     
+    // Alternative: ESRI Satellite (also good)
+    // L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    //     maxZoom: 19,
+    //     attribution: ''
+    // }).addTo(currentMap);
+    
+    // Add geometry to map
     if (coordinates[0] && Array.isArray(coordinates[0][0])) {
+        // Polygon
         const polygon = L.polygon(coordinates, {
             color: '#FF9800',
             weight: 3,
             fillColor: '#FF9800',
-            fillOpacity: 0.3
+            fillOpacity: 0.35
         }).addTo(currentMap);
         
         polygon.bindPopup(`
             <b>${escapeHtml(submission.farmerName)}</b><br>
-            Area: ${submission.area.toFixed(2)} ha<br>
-            Status: ${submission.status}
+            <b>Farm ID:</b> ${escapeHtml(submission.farmerId)}<br>
+            <b>Area:</b> ${submission.area.toFixed(2)} ha<br>
+            <b>Status:</b> ${submission.status}<br>
+            <i>Click and drag to navigate. Use +/- to zoom.</i>
         `);
         
-        currentMap.fitBounds(polygon.getBounds());
+        // Fit map to polygon bounds
+        const bounds = polygon.getBounds();
+        if (bounds.isValid()) {
+            currentMap.fitBounds(bounds);
+        }
+    } else if (coordinates[0] && Array.isArray(coordinates[0])) {
+        // Line
+        const polyline = L.polyline(coordinates, {
+            color: '#FF9800',
+            weight: 3
+        }).addTo(currentMap);
+        
+        const bounds = polyline.getBounds();
+        if (bounds.isValid()) {
+            currentMap.fitBounds(bounds);
+        }
     } else {
-        const marker = L.marker([coordinates[1], coordinates[0]]).addTo(currentMap);
+        // Point
+        const marker = L.marker([coordinates[1], coordinates[0]], {
+            icon: L.divIcon({
+                className: 'custom-marker',
+                html: '<i class="fas fa-map-marker-alt" style="color:#FF9800; font-size:24px;"></i>',
+                iconSize: [24, 24],
+                popupAnchor: [0, -12]
+            })
+        }).addTo(currentMap);
+        
         marker.bindPopup(`
             <b>${escapeHtml(submission.farmerName)}</b><br>
-            Area: ${submission.area.toFixed(2)} ha<br>
-            Status: ${submission.status}
+            <b>Farm ID:</b> ${escapeHtml(submission.farmerId)}<br>
+            <b>Area:</b> ${submission.area.toFixed(2)} ha<br>
+            <b>Status:</b> ${submission.status}
         `);
+        
+        marker.openPopup();
     }
     
-    // Add scale control without attribution
-    L.control.scale({ metric: true, imperial: false }).addTo(currentMap);
+    // Add scale control
+    L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(currentMap);
+    
+    // Add zoom control to top right
+    L.control.zoom({ position: 'topright' }).addTo(currentMap);
+    
+    console.log('🗺️ Map initialized with satellite imagery');
 }
 
 // ===========================================
@@ -803,4 +916,4 @@ window.goToPage = goToPage;
 window.toggleView = toggleView;
 window.applyFilters = applyFilters;
 
-console.log('✅ Submissions page ready with map integration');
+console.log('✅ Submissions page ready with satellite map and fixed coordinate projection');
