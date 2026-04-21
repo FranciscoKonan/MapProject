@@ -1,6 +1,6 @@
 // ===========================================
 // SUBMISSIONS PAGE - COMPLETE WITH MAP INTEGRATION
-// FIXED: Using only existing columns in farms table
+// USING "validated" status instead of "approved"
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -272,7 +272,7 @@ function sortSubmissions() {
 
 function updateStats() {
     const pending = filteredSubmissions.filter(s => s.status === 'pending').length;
-    const validated = filteredSubmissions.filter(s => s.status === 'approved' || s.status === 'validated').length;
+    const validated = filteredSubmissions.filter(s => s.status === 'validated').length;
     const rejected = filteredSubmissions.filter(s => s.status === 'rejected').length;
     const total = filteredSubmissions.length;
     
@@ -309,7 +309,7 @@ function renderTableView() {
                         <i class="fas fa-eye"></i>
                     </button>
                     ${sub.status === 'pending' ? `
-                        <button class="action-btn validate" onclick="approveSubmission('${sub.id}')">
+                        <button class="action-btn validate" onclick="validateSubmission('${sub.id}')">
                             <i class="fas fa-check"></i>
                         </button>
                         <button class="action-btn reject" onclick="rejectSubmission('${sub.id}')">
@@ -347,7 +347,7 @@ function renderGroupView() {
                 </div>
                 <div class="group-stats">
                     ${submissions.length} farms • 
-                    ${submissions.filter(s => s.status === 'approved').length} approved • 
+                    ${submissions.filter(s => s.status === 'validated').length} validated • 
                     ${submissions.filter(s => s.status === 'pending').length} pending • 
                     ${submissions.filter(s => s.status === 'rejected').length} rejected
                 </div>
@@ -467,7 +467,7 @@ function showModalWithMap(submission) {
                 <div class="map-info">
                     <i class="fas fa-info-circle"></i> 
                     <strong>Decision Support:</strong> Use satellite imagery to verify farm boundaries, 
-                    check vegetation, crop health, and assess accessibility before approving or rejecting.
+                    check vegetation, crop health, and assess accessibility before validating or rejecting.
                 </div>
             </div>
         `;
@@ -547,8 +547,8 @@ function showModalWithMap(submission) {
                 
                 ${submission.status === 'pending' ? `
                     <div class="modal-actions">
-                        <button class="modal-btn approve" onclick="approveSubmission('${submission.id}')">
-                            <i class="fas fa-check"></i> Approve Submission
+                        <button class="modal-btn approve" onclick="validateSubmission('${submission.id}')">
+                            <i class="fas fa-check"></i> Validate Submission
                         </button>
                         <button class="modal-btn reject" onclick="rejectSubmission('${submission.id}')">
                             <i class="fas fa-times"></i> Reject Submission
@@ -663,15 +663,15 @@ function initSubmissionMap(coordinates, submission) {
 }
 
 // ===========================================
-// APPROVE/REJECT FUNCTIONS - USING ONLY EXISTING COLUMNS
+// VALIDATE/REJECT FUNCTIONS - USING "validated" status
 // ===========================================
 
-async function approveSubmission(id) {
-    console.log(`========== APPROVE SUBMISSION ==========`);
+async function validateSubmission(id) {
+    console.log(`========== VALIDATE SUBMISSION ==========`);
     console.log(`Submission ID: ${id}`);
     
-    if (!confirm('Are you sure you want to APPROVE this submission?')) {
-        console.log('User cancelled approval');
+    if (!confirm('Are you sure you want to VALIDATE this submission?')) {
+        console.log('User cancelled validation');
         return;
     }
     
@@ -698,10 +698,10 @@ async function approveSubmission(id) {
         showNotification('Updating database...', 'info');
         console.log('📡 Sending update to Supabase...');
         
-        // Only update the 'status' column (exists in your table)
+        // Update status to 'validated'
         const { data, error } = await supabaseClient
             .from('farms')
-            .update({ status: 'approved' })
+            .update({ status: 'validated' })
             .eq('id', id)
             .select();
         
@@ -714,20 +714,20 @@ async function approveSubmission(id) {
         console.log('Response data:', data);
         
         // Update local data
-        submission.status = 'approved';
+        submission.status = 'validated';
         
         // Refresh the view
         applyFilters();
-        showNotification('Submission approved successfully!', 'success');
+        showNotification('Submission validated successfully!', 'success');
         
-        console.log(`✅ Submission ${id} approved successfully`);
+        console.log(`✅ Submission ${id} validated successfully`);
         
     } catch (error) {
-        console.error('❌ Error during approval:', error);
+        console.error('❌ Error during validation:', error);
         showNotification('Error updating database: ' + error.message, 'error');
     }
     
-    console.log(`========== END APPROVE ==========`);
+    console.log(`========== END VALIDATE ==========`);
 }
 
 async function rejectSubmission(id) {
@@ -765,7 +765,7 @@ async function rejectSubmission(id) {
         showNotification('Updating database...', 'info');
         console.log('📡 Sending update to Supabase...');
         
-        // Only update the 'status' column (exists in your table)
+        // Update status to 'rejected'
         const { data, error } = await supabaseClient
             .from('farms')
             .update({ status: 'rejected' })
@@ -915,11 +915,11 @@ function setupEventListeners() {
 
 // Expose global functions
 window.viewSubmission = viewSubmission;
-window.approveSubmission = approveSubmission;
+window.validateSubmission = validateSubmission;
 window.rejectSubmission = rejectSubmission;
 window.goToPage = goToPage;
 window.toggleView = toggleView;
 window.applyFilters = applyFilters;
 
-console.log('✅ Submissions page ready with working Supabase updates');
-console.log('📝 Only updating the "status" column (approved/rejected)');
+console.log('✅ Submissions page ready with "validated" status');
+console.log('📝 Status values: pending → validated (approved) or rejected');
