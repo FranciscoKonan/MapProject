@@ -1,25 +1,855 @@
-// ===========================================
-// SUBMISSIONS PAGE - COMPLETE WITH MAP INTEGRATION
-// Matches Dashboard layout and functionality
-// ===========================================
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submissions | MappingTrace</title>
+    
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Dashboard CSS Files -->
+    <link rel="stylesheet" href="../globalCSS.css">
+    <link rel="stylesheet" href="../layoutCSS.css">
+    <link rel="stylesheet" href="../tableCSS.css">
+    
+    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+    
+    <style>
+        /* Submissions specific styles - exactly matching Dashboard table section */
+        
+        .submissions-table-section {
+            padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl) var(--spacing-xl);
+            width: 100%;
+        }
+        
+        /* Matching Dashboard KPI section */
+        .kpis {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: var(--spacing-lg);
+            padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-lg) var(--spacing-xl);
+            width: 100%;
+        }
+        
+        .kpi {
+            background: var(--light-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-lg);
+            transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+        }
+        
+        .kpi:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .kpi-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--font-size-xl);
+            flex-shrink: 0;
+        }
+        
+        .kpi-icon.pending {
+            background: #fef9c3;
+            color: #eab308;
+        }
+        
+        .kpi-icon.validated {
+            background: #dcfce7;
+            color: #22c55e;
+        }
+        
+        .kpi-icon.rejected {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .kpi-icon.total {
+            background: #dbeafe;
+            color: var(--primary-color);
+        }
+        
+        .kpi-content {
+            flex: 1;
+        }
+        
+        .kpi-content h4 {
+            font-size: var(--font-size-sm);
+            color: var(--gray-600);
+            margin-bottom: var(--spacing-xs);
+            font-weight: 500;
+        }
+        
+        .kpi-value {
+            font-size: var(--font-size-2xl);
+            font-weight: 700;
+            color: var(--dark-color);
+            margin-bottom: 4px;
+        }
+        
+        /* Table Header - exactly matching Dashboard */
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-lg);
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+        }
+        
+        .table-header h3 {
+            margin: 0;
+            font-size: var(--font-size-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            color: var(--dark-color);
+        }
+        
+        .table-header h3 i {
+            color: var(--primary-color);
+        }
+        
+        .table-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+        
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+        
+        .search-box input {
+            border: none;
+            padding: 8px 12px;
+            width: 200px;
+            font-size: var(--font-size-sm);
+            outline: none;
+        }
+        
+        .search-box button {
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            color: var(--gray-600);
+        }
+        
+        .search-box button:hover {
+            color: var(--primary-color);
+        }
+        
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            background: white;
+            cursor: pointer;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--gray-300);
+            background: white;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-700);
+            transition: all var(--transition-fast);
+        }
+        
+        .btn-icon:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        /* Table Container - exactly matching Dashboard */
+        .table-container {
+            background: white;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead tr {
+            background: var(--gray-100);
+            border-bottom: 1px solid var(--gray-300);
+        }
+        
+        th {
+            padding: var(--spacing-md) var(--spacing-lg);
+            text-align: left;
+            font-weight: 600;
+            font-size: var(--font-size-sm);
+            color: var(--gray-700);
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        th:hover {
+            background: var(--gray-200);
+        }
+        
+        th i {
+            margin-left: var(--spacing-xs);
+            font-size: var(--font-size-xs);
+            color: var(--gray-500);
+        }
+        
+        td {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid var(--gray-300);
+            font-size: var(--font-size-sm);
+        }
+        
+        tr:hover {
+            background: var(--gray-100);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+        }
+        
+        .status-badge.validated {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-badge.pending {
+            background: #fef9c3;
+            color: #854d0e;
+        }
+        
+        .status-badge.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+        
+        .action-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--font-size-xs);
+            transition: all var(--transition-fast);
+        }
+        
+        .action-btn.view {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .action-btn.view:hover {
+            background: #2563eb;
+        }
+        
+        .action-btn.validate {
+            background: #22c55e;
+            color: white;
+        }
+        
+        .action-btn.validate:hover {
+            background: #16a34a;
+        }
+        
+        .action-btn.reject {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .action-btn.reject:hover {
+            background: #dc2626;
+        }
+        
+        /* Table Footer - exactly matching Dashboard */
+        .table-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-lg);
+            border-top: 1px solid var(--gray-300);
+            background: white;
+        }
+        
+        .table-stats {
+            font-size: var(--font-size-sm);
+            color: var(--gray-600);
+        }
+        
+        .pagination {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .pagination-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--gray-300);
+            background: white;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .page-numbers {
+            display: flex;
+            gap: var(--spacing-xs);
+        }
+        
+        .page-number {
+            padding: 6px 10px;
+            border: 1px solid var(--gray-300);
+            background: white;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+            transition: all var(--transition-fast);
+        }
+        
+        .page-number:hover {
+            background: var(--gray-100);
+            border-color: var(--primary-color);
+        }
+        
+        .page-number.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        /* Group View */
+        .group-view {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .group-card {
+            background: var(--gray-100);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            border: 1px solid var(--gray-300);
+        }
+        
+        .group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--gray-300);
+        }
+        
+        .group-title {
+            font-weight: 600;
+            font-size: var(--font-size-md);
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .group-stats {
+            font-size: var(--font-size-xs);
+            color: var(--gray-600);
+        }
+        
+        .group-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--spacing-md);
+        }
+        
+        .group-item {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: 1px solid var(--gray-300);
+        }
+        
+        .group-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-color);
+        }
+        
+        .group-item-name {
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+            color: var(--dark-color);
+        }
+        
+        .group-item-details {
+            font-size: var(--font-size-xs);
+            color: var(--gray-600);
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: var(--radius-xl);
+            max-width: 900px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+        
+        .modal-header {
+            padding: var(--spacing-lg) var(--spacing-xl);
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            position: sticky;
+            top: 0;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .modal-close:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+        
+        .modal-body {
+            padding: var(--spacing-xl);
+        }
+        
+        .modal-section {
+            margin-bottom: var(--spacing-lg);
+            padding-bottom: var(--spacing-lg);
+            border-bottom: 1px solid var(--gray-300);
+        }
+        
+        .modal-section:last-child {
+            border-bottom: none;
+        }
+        
+        .modal-section-title {
+            font-size: var(--font-size-md);
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .modal-row {
+            display: flex;
+            padding: var(--spacing-xs) 0;
+        }
+        
+        .modal-label {
+            width: 130px;
+            font-weight: 600;
+            color: var(--gray-600);
+            font-size: var(--font-size-sm);
+        }
+        
+        .modal-value {
+            flex: 1;
+            color: var(--dark-color);
+            font-size: var(--font-size-sm);
+        }
+        
+        #submissionMap {
+            height: 350px;
+            border-radius: var(--radius-md);
+            margin-top: var(--spacing-sm);
+            border: 1px solid var(--gray-300);
+        }
+        
+        .map-info {
+            margin-top: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background: #f0fdf4;
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-xs);
+            color: #166534;
+            border-left: 3px solid #4CAF50;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--gray-300);
+        }
+        
+        .modal-btn {
+            flex: 1;
+            padding: var(--spacing-sm);
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: var(--font-size-sm);
+            transition: all var(--transition-fast);
+        }
+        
+        .modal-btn.approve {
+            background: #22c55e;
+            color: white;
+        }
+        
+        .modal-btn.reject {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .modal-btn.cancel {
+            background: var(--gray-300);
+            color: var(--gray-700);
+        }
+        
+        .modal-btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.9;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Leaflet attribution removal */
+        .leaflet-control-attribution {
+            display: none !important;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .kpis {
+                padding: var(--spacing-lg);
+            }
+            .submissions-table-section {
+                padding: var(--spacing-lg);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .kpis {
+                grid-template-columns: 1fr;
+                gap: var(--spacing-md);
+            }
+            .table-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .table-actions {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+            .search-box input {
+                width: 150px;
+            }
+            .table-footer {
+                flex-direction: column;
+                gap: var(--spacing-md);
+            }
+            .group-items {
+                grid-template-columns: 1fr;
+            }
+            .modal-row {
+                flex-direction: column;
+            }
+            .modal-label {
+                width: 100%;
+                margin-bottom: var(--spacing-xs);
+            }
+            #submissionMap {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- SIDEBAR (same as Dashboard) -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <i class="fas fa-map-marked-alt"></i>
+                    <span>MappingTrace</span>
+                </h2>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <nav class="menu">
+                <a href="../Dashboard.html" data-title="Dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="../LiveMapping/live-mapping.html" data-title="Live Mapping">
+                    <i class="fas fa-map"></i>
+                    <span>Live Mapping</span>
+                </a>
+                <a href="#" class="active" data-title="Submissions">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Submissions</span>
+                </a>
+                <a href="../QualityAlerts/quality-alerts.html" data-title="Quality Alerts">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Quality Alerts</span>
+                </a>
+                <a href="../Exports/exports.html" data-title="Exports">
+                    <i class="fas fa-file-export"></i>
+                    <span>Exports</span>
+                </a>
+                <div class="menu-bottom">
+                    <a href="#" id="logoutBtn" data-title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
 
-console.log('🚀 Submissions page loading...');
+        <!-- MAIN CONTENT -->
+        <main class="main">
+            <!-- HEADER (same as Dashboard) -->
+            <header class="main-header">
+                <div class="header-title">
+                    <h1><i class="fas fa-clipboard-list"></i> Submissions</h1>
+                    <div class="breadcrumb">Home / Submissions</div>
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">FK</div>
+                    <div class="user-details">
+                        <div class="user-name" id="userName">Loading...</div>
+                        <div class="user-role" id="userRole">Loading...</div>
+                    </div>
+                    <button class="sync-btn" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="notifications-btn" id="notificationsBtn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notificationBadge">0</span>
+                    </button>
+                </div>
+            </header>
 
-// ===========================================
-// GLOBAL VARIABLES
-// ===========================================
-let allSubmissions = [];
-let filteredSubmissions = [];
-let currentPage = 1;
-let rowsPerPage = 10;
-let currentSort = { column: 'submissionDate', direction: 'desc' };
-let currentView = 'table';
-let uniqueSuppliers = [];
-let uniqueCooperatives = [];
-let supplierSearchTerm = '';
-let coopSearchTerm = '';
-let supabaseReady = false;
-let currentMap = null;
-let supabaseClient = null;
+            <!-- KPI SECTION (exactly matching Dashboard) -->
+            <div class="kpis">
+                <div class="kpi">
+                    <div class="kpi-icon pending">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <h4>Pending</h4>
+                        <p class="kpi-value" id="pendingCount">0</p>
+                    </div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-icon validated">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <h4>Validated</h4>
+                        <p class="kpi-value" id="validatedCount">0</p>
+                    </div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-icon rejected">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <h4>Rejected</h4>
+                        <p class="kpi-value" id="rejectedCount">0</p>
+                    </div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-icon total">
+                        <i class="fas fa-tractor"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <h4>Total Submissions</h4>
+                        <p class="kpi-value" id="totalCount">0</p>
+                    </div>
+                </div>
+            </div>
 
-// =
+            <!-- TABLE SECTION (exactly matching Dashboard table section) -->
+            <div class="submissions-table-section">
+                <div class="table-header">
+                    <h3><i class="fas fa-history"></i> Submissions</h3>
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <input type="text" id="searchInput" placeholder="Search by ID, farmer...">
+                            <button onclick="applyFilters()"><i class="fas fa-search"></i></button>
+                        </div>
+                        <select id="supplierFilter" class="filter-select" onchange="applyFilters()">
+                            <option value="all">All Suppliers</option>
+                        </select>
+                        <select id="cooperativeFilter" class="filter-select" onchange="applyFilters()">
+                            <option value="all">All Cooperatives</option>
+                        </select>
+                        <select id="statusFilter" class="filter-select" onchange="applyFilters()">
+                            <option value="all">All Status</option>
+                            <option value="validated">Validated</option>
+                            <option value="pending">Pending</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                        <button id="toggleViewBtn" class="btn-icon" onclick="toggleView()" title="Toggle Group View">
+                            <i class="fas fa-layer-group"></i>
+                        </button>
+                        <button onclick="refreshData()" class="btn-icon" title="Refresh">
+                            <i class="fas fa-redo-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Table View -->
+                <div id="tableView">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th onclick="sortTable('farmerId')">Farmer ID <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('farmerName')">Farmer Name <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('cooperative')">Cooperative <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('supplier')">Supplier <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('area')">Area (ha) <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('status')">Status <i class="fas fa-sort"></i></th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <tr><td colspan="7" style="text-align:center;padding:60px;">Loading submissions...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="table-footer">
+                        <div class="table-stats">Showing <span id="showingStart">0</span>-<span id="showingEnd">0</span> of <span id="totalRecords">0</span></div>
+                        <div class="pagination">
+                            <button onclick="prevPage()" class="pagination-btn" id="prevBtn" disabled><i class="fas fa-chevron-left"></i></button>
+                            <div class="page-numbers" id="pageNumbers"></div>
+                            <button onclick="nextPage()" class="pagination-btn" id="nextBtn"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group View -->
+                <div id="groupView" style="display: none;">
+                    <div id="groupViewContent"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    
+    <!-- Submissions JavaScript -->
+    <script src="submissions.js"></script>
+</body>
+</html>
