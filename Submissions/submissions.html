@@ -12,22 +12,298 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    <!-- Dashboard CSS Files -->
-    <link rel="stylesheet" href="../globalCSS.css">
-    <link rel="stylesheet" href="../layoutCSS.css">
-    <link rel="stylesheet" href="../tableCSS.css">
-    
-    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
-    
+    <!-- Custom CSS -->
     <style>
-        /* Submissions specific styles - exactly matching Dashboard table section */
-        
-        .submissions-table-section {
-            padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl) var(--spacing-xl);
-            width: 100%;
+        /* ===========================================
+           GLOBAL VARIABLES - Same as Dashboard
+           =========================================== */
+        :root {
+            --primary-color: #2c6e49;
+            --primary-dark: #1e4f33;
+            --primary-light: #4CAF50;
+            --danger-color: #dc2626;
+            --warning-color: #f97316;
+            --success-color: #22c55e;
+            --dark-color: #1e293b;
+            --light-color: #ffffff;
+            --gray-100: #f8fafc;
+            --gray-200: #f1f5f9;
+            --gray-300: #e2e8f0;
+            --gray-400: #cbd5e1;
+            --gray-500: #94a3b8;
+            --gray-600: #64748b;
+            --gray-700: #475569;
+            
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 12px;
+            --spacing-lg: 20px;
+            --spacing-xl: 24px;
+            --spacing-2xl: 32px;
+            
+            --font-size-xs: 11px;
+            --font-size-sm: 13px;
+            --font-size-md: 14px;
+            --font-size-lg: 18px;
+            --font-size-xl: 24px;
+            --font-size-2xl: 32px;
+            
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --radius-full: 9999px;
+            
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-xl: 0 10px 15px rgba(0,0,0,0.1);
+            
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.3s ease;
+            
+            --header-height: 64px;
         }
         
-        /* Matching Dashboard KPI section */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f1f5f9;
+            color: var(--dark-color);
+        }
+        
+        /* ===========================================
+           LAYOUT - Same as Dashboard
+           =========================================== */
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* SIDEBAR */
+        .sidebar {
+            width: 80px;
+            background: linear-gradient(180deg, #0f172a 0%, #0a0f1a 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease;
+            z-index: 1000;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            white-space: nowrap;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            height: 100vh;
+        }
+        
+        .sidebar:hover {
+            width: 250px;
+        }
+        
+        .sidebar-header {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 70px;
+        }
+        
+        .sidebar-header h2 {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-size: var(--font-size-xl);
+            color: white;
+            margin: 0;
+        }
+        
+        .sidebar-header h2 i {
+            color: var(--primary-color);
+        }
+        
+        .sidebar-header h2 span {
+            opacity: 0;
+            transition: opacity 0.2s ease 0.1s;
+        }
+        
+        .sidebar:hover .sidebar-header h2 span {
+            opacity: 1;
+        }
+        
+        /* MENU */
+        .menu {
+            flex: 1;
+            padding: var(--spacing-lg) 0;
+            overflow-y: auto;
+        }
+        
+        .menu a {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md) var(--spacing-lg);
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: all var(--transition-fast);
+            border-left: 3px solid transparent;
+        }
+        
+        .menu a span {
+            opacity: 0;
+            transition: opacity 0.2s ease 0.1s;
+        }
+        
+        .sidebar:hover .menu a span {
+            opacity: 1;
+        }
+        
+        .menu a:hover {
+            background: rgba(76, 175, 80, 0.2);
+            color: white;
+            border-left-color: var(--primary-color);
+        }
+        
+        .menu a.active {
+            background: rgba(76, 175, 80, 0.2);
+            color: white;
+            border-left-color: var(--primary-color);
+        }
+        
+        .menu a i {
+            width: 24px;
+            text-align: center;
+            font-size: var(--font-size-lg);
+        }
+        
+        .menu-bottom {
+            margin-top: auto;
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* MAIN CONTENT */
+        .main {
+            flex: 1;
+            margin-left: 80px;
+            width: calc(100% - 80px);
+            min-height: 100vh;
+        }
+        
+        /* MAIN HEADER */
+        .main-header {
+            height: var(--header-height);
+            background: white;
+            border-bottom: 1px solid var(--gray-300);
+            padding: 0 var(--spacing-xl);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+        }
+        
+        .header-title h1 {
+            font-size: var(--font-size-xl);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .header-title h1 i {
+            color: var(--primary-color);
+        }
+        
+        .breadcrumb {
+            font-size: var(--font-size-xs);
+            color: var(--gray-600);
+            margin-top: 2px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-lg);
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-full);
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        
+        .user-details .user-name {
+            font-weight: 600;
+            font-size: var(--font-size-sm);
+        }
+        
+        .user-details .user-role {
+            font-size: var(--font-size-xs);
+            color: var(--gray-600);
+        }
+        
+        .sync-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: var(--font-size-sm);
+        }
+        
+        .sync-btn:hover {
+            background: var(--primary-dark);
+        }
+        
+        .notifications-btn {
+            position: relative;
+            background: none;
+            border: none;
+            color: var(--gray-700);
+            font-size: var(--font-size-lg);
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+        }
+        
+        .notifications-btn:hover {
+            background: var(--gray-200);
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 8px;
+            height: 8px;
+            background: var(--danger-color);
+            border-radius: var(--radius-full);
+            border: 2px solid white;
+        }
+        
+        /* ===========================================
+           KPI SECTION - Exact same as Dashboard
+           =========================================== */
         .kpis {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -37,14 +313,14 @@
         }
         
         .kpi {
-            background: var(--light-color);
+            background: white;
             border-radius: var(--radius-lg);
             padding: var(--spacing-xl);
             box-shadow: var(--shadow-md);
             display: flex;
             align-items: center;
             gap: var(--spacing-lg);
-            transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+            transition: transform 0.2s;
         }
         
         .kpi:hover {
@@ -59,8 +335,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: var(--font-size-xl);
-            flex-shrink: 0;
+            font-size: 24px;
         }
         
         .kpi-icon.pending {
@@ -83,14 +358,10 @@
             color: var(--primary-color);
         }
         
-        .kpi-content {
-            flex: 1;
-        }
-        
         .kpi-content h4 {
             font-size: var(--font-size-sm);
             color: var(--gray-600);
-            margin-bottom: var(--spacing-xs);
+            margin-bottom: 4px;
             font-weight: 500;
         }
         
@@ -98,10 +369,16 @@
             font-size: var(--font-size-2xl);
             font-weight: 700;
             color: var(--dark-color);
-            margin-bottom: 4px;
         }
         
-        /* Table Header - exactly matching Dashboard */
+        /* ===========================================
+           TABLE SECTION - Same as Dashboard
+           =========================================== */
+        .table-section {
+            padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl) var(--spacing-xl);
+            width: 100%;
+        }
+        
         .table-header {
             display: flex;
             justify-content: space-between;
@@ -112,12 +389,10 @@
         }
         
         .table-header h3 {
-            margin: 0;
             font-size: var(--font-size-lg);
             display: flex;
             align-items: center;
             gap: var(--spacing-sm);
-            color: var(--dark-color);
         }
         
         .table-header h3 i {
@@ -155,10 +430,6 @@
             color: var(--gray-600);
         }
         
-        .search-box button:hover {
-            color: var(--primary-color);
-        }
-        
         .filter-select {
             padding: 8px 12px;
             border: 1px solid var(--gray-300);
@@ -166,11 +437,6 @@
             font-size: var(--font-size-sm);
             background: white;
             cursor: pointer;
-        }
-        
-        .filter-select:focus {
-            outline: none;
-            border-color: var(--primary-color);
         }
         
         .btn-icon {
@@ -184,7 +450,6 @@
             align-items: center;
             justify-content: center;
             color: var(--gray-700);
-            transition: all var(--transition-fast);
         }
         
         .btn-icon:hover {
@@ -193,7 +458,6 @@
             border-color: var(--primary-color);
         }
         
-        /* Table Container - exactly matching Dashboard */
         .table-container {
             background: white;
             border-radius: var(--radius-lg);
@@ -218,17 +482,10 @@
             font-size: var(--font-size-sm);
             color: var(--gray-700);
             cursor: pointer;
-            user-select: none;
         }
         
         th:hover {
             background: var(--gray-200);
-        }
-        
-        th i {
-            margin-left: var(--spacing-xs);
-            font-size: var(--font-size-xs);
-            color: var(--gray-500);
         }
         
         td {
@@ -275,7 +532,6 @@
             border-radius: var(--radius-md);
             cursor: pointer;
             font-size: var(--font-size-xs);
-            transition: all var(--transition-fast);
         }
         
         .action-btn.view {
@@ -283,17 +539,9 @@
             color: white;
         }
         
-        .action-btn.view:hover {
-            background: #2563eb;
-        }
-        
         .action-btn.validate {
             background: #22c55e;
             color: white;
-        }
-        
-        .action-btn.validate:hover {
-            background: #16a34a;
         }
         
         .action-btn.reject {
@@ -301,11 +549,6 @@
             color: white;
         }
         
-        .action-btn.reject:hover {
-            background: #dc2626;
-        }
-        
-        /* Table Footer - exactly matching Dashboard */
         .table-footer {
             display: flex;
             justify-content: space-between;
@@ -332,13 +575,11 @@
             background: white;
             border-radius: var(--radius-md);
             cursor: pointer;
-            transition: all var(--transition-fast);
         }
         
         .pagination-btn:hover:not(:disabled) {
             background: var(--primary-color);
             color: white;
-            border-color: var(--primary-color);
         }
         
         .pagination-btn:disabled {
@@ -358,12 +599,6 @@
             border-radius: var(--radius-md);
             cursor: pointer;
             font-size: var(--font-size-sm);
-            transition: all var(--transition-fast);
-        }
-        
-        .page-number:hover {
-            background: var(--gray-100);
-            border-color: var(--primary-color);
         }
         
         .page-number.active {
@@ -377,7 +612,6 @@
             background: white;
             border-radius: var(--radius-lg);
             padding: var(--spacing-lg);
-            box-shadow: var(--shadow-md);
         }
         
         .group-card {
@@ -399,11 +633,7 @@
         
         .group-title {
             font-weight: 600;
-            font-size: var(--font-size-md);
             color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
         }
         
         .group-stats {
@@ -422,7 +652,6 @@
             border-radius: var(--radius-md);
             padding: var(--spacing-md);
             cursor: pointer;
-            transition: all var(--transition-fast);
             border: 1px solid var(--gray-300);
         }
         
@@ -432,18 +661,7 @@
             border-color: var(--primary-color);
         }
         
-        .group-item-name {
-            font-weight: 600;
-            margin-bottom: var(--spacing-xs);
-            color: var(--dark-color);
-        }
-        
-        .group-item-details {
-            font-size: var(--font-size-xs);
-            color: var(--gray-600);
-        }
-        
-        /* Modal Styles */
+        /* Modal */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -455,7 +673,6 @@
             align-items: center;
             justify-content: center;
             z-index: 10000;
-            animation: fadeIn 0.2s ease;
         }
         
         .modal-content {
@@ -465,7 +682,6 @@
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
-            animation: slideUp 0.3s ease;
         }
         
         .modal-header {
@@ -475,16 +691,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-            position: sticky;
-            top: 0;
-        }
-        
-        .modal-header h3 {
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
         }
         
         .modal-close {
@@ -495,12 +701,6 @@
             height: 36px;
             border-radius: var(--radius-full);
             cursor: pointer;
-            transition: all var(--transition-fast);
-        }
-        
-        .modal-close:hover {
-            background: rgba(255,255,255,0.3);
-            transform: rotate(90deg);
         }
         
         .modal-body {
@@ -518,13 +718,9 @@
         }
         
         .modal-section-title {
-            font-size: var(--font-size-md);
             font-weight: 600;
             margin-bottom: var(--spacing-md);
             color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
         }
         
         .modal-row {
@@ -536,30 +732,12 @@
             width: 130px;
             font-weight: 600;
             color: var(--gray-600);
-            font-size: var(--font-size-sm);
-        }
-        
-        .modal-value {
-            flex: 1;
-            color: var(--dark-color);
-            font-size: var(--font-size-sm);
         }
         
         #submissionMap {
             height: 350px;
             border-radius: var(--radius-md);
             margin-top: var(--spacing-sm);
-            border: 1px solid var(--gray-300);
-        }
-        
-        .map-info {
-            margin-top: var(--spacing-sm);
-            padding: var(--spacing-md);
-            background: #f0fdf4;
-            border-radius: var(--radius-md);
-            font-size: var(--font-size-xs);
-            color: #166534;
-            border-left: 3px solid #4CAF50;
         }
         
         .modal-actions {
@@ -577,8 +755,6 @@
             border-radius: var(--radius-md);
             cursor: pointer;
             font-weight: 600;
-            font-size: var(--font-size-sm);
-            transition: all var(--transition-fast);
         }
         
         .modal-btn.approve {
@@ -593,67 +769,31 @@
         
         .modal-btn.cancel {
             background: var(--gray-300);
-            color: var(--gray-700);
-        }
-        
-        .modal-btn:hover {
-            transform: translateY(-1px);
-            opacity: 0.9;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        /* Leaflet attribution removal */
-        .leaflet-control-attribution {
-            display: none !important;
-        }
-        
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .kpis {
-                padding: var(--spacing-lg);
-            }
-            .submissions-table-section {
-                padding: var(--spacing-lg);
-            }
         }
         
         @media (max-width: 768px) {
+            .sidebar {
+                width: 0;
+                transform: translateX(-100%);
+            }
+            .main {
+                margin-left: 0;
+                width: 100%;
+            }
             .kpis {
                 grid-template-columns: 1fr;
-                gap: var(--spacing-md);
+                padding: var(--spacing-lg);
+            }
+            .table-section {
+                padding: var(--spacing-lg);
             }
             .table-header {
                 flex-direction: column;
                 align-items: flex-start;
             }
-            .table-actions {
-                width: 100%;
-                flex-wrap: wrap;
-            }
-            .search-box input {
-                width: 150px;
-            }
             .table-footer {
                 flex-direction: column;
                 gap: var(--spacing-md);
-            }
-            .group-items {
-                grid-template-columns: 1fr;
             }
             .modal-row {
                 flex-direction: column;
@@ -662,48 +802,42 @@
                 width: 100%;
                 margin-bottom: var(--spacing-xs);
             }
-            #submissionMap {
-                height: 250px;
-            }
         }
     </style>
 </head>
 <body>
     <div class="layout">
-        <!-- SIDEBAR (same as Dashboard) -->
+        <!-- SIDEBAR -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>
                     <i class="fas fa-map-marked-alt"></i>
                     <span>MappingTrace</span>
                 </h2>
-                <button class="sidebar-toggle" id="sidebarToggle">
-                    <i class="fas fa-bars"></i>
-                </button>
             </div>
             <nav class="menu">
-                <a href="../Dashboard.html" data-title="Dashboard">
+                <a href="../Dashboard.html">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="../LiveMapping/live-mapping.html" data-title="Live Mapping">
+                <a href="../LiveMapping/live-mapping.html">
                     <i class="fas fa-map"></i>
                     <span>Live Mapping</span>
                 </a>
-                <a href="#" class="active" data-title="Submissions">
+                <a href="#" class="active">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Submissions</span>
                 </a>
-                <a href="../QualityAlerts/quality-alerts.html" data-title="Quality Alerts">
+                <a href="../QualityAlerts/quality-alerts.html">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Quality Alerts</span>
                 </a>
-                <a href="../Exports/exports.html" data-title="Exports">
+                <a href="../Exports/exports.html">
                     <i class="fas fa-file-export"></i>
                     <span>Exports</span>
                 </a>
                 <div class="menu-bottom">
-                    <a href="#" id="logoutBtn" data-title="Logout">
+                    <a href="#" id="logoutBtn">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>Logout</span>
                     </a>
@@ -713,7 +847,6 @@
 
         <!-- MAIN CONTENT -->
         <main class="main">
-            <!-- HEADER (same as Dashboard) -->
             <header class="main-header">
                 <div class="header-title">
                     <h1><i class="fas fa-clipboard-list"></i> Submissions</h1>
@@ -730,12 +863,12 @@
                     </button>
                     <button class="notifications-btn" id="notificationsBtn">
                         <i class="fas fa-bell"></i>
-                        <span class="notification-badge" id="notificationBadge">0</span>
+                        <span class="notification-badge" id="notificationBadge"></span>
                     </button>
                 </div>
             </header>
 
-            <!-- KPI SECTION (exactly matching Dashboard) -->
+            <!-- KPI SECTION -->
             <div class="kpis">
                 <div class="kpi">
                     <div class="kpi-icon pending">
@@ -769,14 +902,14 @@
                         <i class="fas fa-tractor"></i>
                     </div>
                     <div class="kpi-content">
-                        <h4>Total Submissions</h4>
+                        <h4>Total Farms</h4>
                         <p class="kpi-value" id="totalCount">0</p>
                     </div>
                 </div>
             </div>
 
-            <!-- TABLE SECTION (exactly matching Dashboard table section) -->
-            <div class="submissions-table-section">
+            <!-- TABLE SECTION -->
+            <div class="table-section">
                 <div class="table-header">
                     <h3><i class="fas fa-history"></i> Submissions</h3>
                     <div class="table-actions">
@@ -796,16 +929,12 @@
                             <option value="pending">Pending</option>
                             <option value="rejected">Rejected</option>
                         </select>
-                        <button id="toggleViewBtn" class="btn-icon" onclick="toggleView()" title="Toggle Group View">
+                        <button id="toggleViewBtn" class="btn-icon" onclick="toggleView()">
                             <i class="fas fa-layer-group"></i>
-                        </button>
-                        <button onclick="refreshData()" class="btn-icon" title="Refresh">
-                            <i class="fas fa-redo-alt"></i>
                         </button>
                     </div>
                 </div>
                 
-                <!-- Table View -->
                 <div id="tableView">
                     <div class="table-container">
                         <table>
@@ -829,14 +958,13 @@
                     <div class="table-footer">
                         <div class="table-stats">Showing <span id="showingStart">0</span>-<span id="showingEnd">0</span> of <span id="totalRecords">0</span></div>
                         <div class="pagination">
-                            <button onclick="prevPage()" class="pagination-btn" id="prevBtn" disabled><i class="fas fa-chevron-left"></i></button>
+                            <button class="pagination-btn" id="prevBtn" disabled onclick="prevPage()"><i class="fas fa-chevron-left"></i></button>
                             <div class="page-numbers" id="pageNumbers"></div>
-                            <button onclick="nextPage()" class="pagination-btn" id="nextBtn"><i class="fas fa-chevron-right"></i></button>
+                            <button class="pagination-btn" id="nextBtn" onclick="nextPage()"><i class="fas fa-chevron-right"></i></button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Group View -->
                 <div id="groupView" style="display: none;">
                     <div id="groupViewContent"></div>
                 </div>
@@ -848,8 +976,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-    
-    <!-- Submissions JavaScript -->
     <script src="submissions.js"></script>
 </body>
 </html>
