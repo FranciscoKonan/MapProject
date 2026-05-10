@@ -1,6 +1,6 @@
 // ===========================================
 // SUBMISSIONS PAGE - COMPLETE WITH MAP INTEGRATION
-// USING "validated" status instead of "approved"
+// Matches Dashboard layout and functionality
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -59,14 +59,6 @@ function loadUserData() {
         document.getElementById('userName').textContent = user.fullName || 'User';
         document.getElementById('userRole').textContent = user.role || 'User';
         document.getElementById('userAvatar').textContent = user.avatar || 'U';
-    } else {
-        const dashboardUser = localStorage.getItem('dashboardUser');
-        if (dashboardUser) {
-            const user = JSON.parse(dashboardUser);
-            document.getElementById('userName').textContent = user.name || 'User';
-            document.getElementById('userRole').textContent = user.role || 'User';
-            document.getElementById('userAvatar').textContent = user.initials || 'U';
-        }
     }
 }
 
@@ -80,6 +72,7 @@ function initSupabase(retryCount = 0) {
             return;
         }
         console.error('❌ Supabase library failed to load');
+        showNotification('Supabase library failed to load', 'error');
         loadSampleData();
         return;
     }
@@ -104,6 +97,18 @@ async function loadSubmissions() {
     showNotification('Loading submissions...', 'info');
     
     try {
+        // Check session
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        if (!session) {
+            console.log('⚠️ No active session');
+            showNotification('Please login to view submissions', 'warning');
+            setTimeout(() => {
+                window.location.href = '../login.html';
+            }, 2000);
+            return;
+        }
+        
         const { data: farms, error } = await supabaseClient
             .from('farms')
             .select('*')
@@ -148,7 +153,7 @@ async function loadSubmissions() {
                 };
             });
             
-            console.log('Processed submissions:', allSubmissions);
+            console.log('Processed submissions:', allSubmissions.length);
             
             updateFilterOptions();
             applyFilters();
@@ -173,7 +178,8 @@ function loadSampleData() {
     allSubmissions = [
         { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 2.5, status: 'pending', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
         { id: '2', farmerId: 'F12346', farmerName: 'Konan Marie', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.8, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
-        { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), geometry: null }
+        { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
+        { id: '4', farmerId: 'F12348', farmerName: 'Yao Michelle', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 5.1, status: 'validated', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), geometry: null }
     ];
     
     updateFilterOptions();
@@ -181,6 +187,9 @@ function loadSampleData() {
     showNotification('Using sample data (demo mode) - Database not connected', 'warning');
 }
 
+// ===========================================
+// FILTER FUNCTIONS
+// ===========================================
 function updateFilterOptions() {
     uniqueSuppliers = [...new Set(allSubmissions.map(s => s.supplier))].sort();
     uniqueCooperatives = [...new Set(allSubmissions.map(s => s.cooperative))].sort();
@@ -270,6 +279,19 @@ function sortSubmissions() {
     });
 }
 
+function sortTable(column) {
+    if (currentSort.column === column) {
+        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.column = column;
+        currentSort.direction = 'asc';
+    }
+    applyFilters();
+}
+
+// Make sortTable global
+window.sortTable = sortTable;
+
 function updateStats() {
     const pending = filteredSubmissions.filter(s => s.status === 'pending').length;
     const validated = filteredSubmissions.filter(s => s.status === 'validated').length;
@@ -281,8 +303,18 @@ function updateStats() {
     document.getElementById('rejectedCount').textContent = rejected;
     document.getElementById('totalCount').textContent = total;
     document.getElementById('totalRecords').textContent = total;
+    
+    // Update notification badge
+    const badge = document.getElementById('notificationBadge');
+    if (badge) {
+        const newAlerts = filteredSubmissions.filter(s => s.status === 'pending').length;
+        badge.style.display = newAlerts > 0 ? 'block' : 'none';
+    }
 }
 
+// ===========================================
+// RENDER FUNCTIONS
+// ===========================================
 function renderTableView() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
@@ -291,7 +323,7 @@ function renderTableView() {
     const pageData = filteredSubmissions.slice(start, start + rowsPerPage);
     
     if (pageData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">No submissions found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:60px;">No submissions found</td></tr>';
         return;
     }
     
@@ -320,6 +352,11 @@ function renderTableView() {
             </td>
         </tr>
     `).join('');
+    
+    // Update showing stats
+    const showingEnd = Math.min(start + rowsPerPage, filteredSubmissions.length);
+    document.getElementById('showingStart').textContent = start + 1;
+    document.getElementById('showingEnd').textContent = showingEnd;
 }
 
 function renderGroupView() {
@@ -368,16 +405,14 @@ function renderGroupView() {
     `).join('');
 }
 
+// ===========================================
+// PAGINATION FUNCTIONS
+// ===========================================
 function updatePagination() {
     const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
-    const start = (currentPage - 1) * rowsPerPage + 1;
-    const end = Math.min(currentPage * rowsPerPage, filteredSubmissions.length);
     
-    document.getElementById('showingStart').textContent = start;
-    document.getElementById('showingEnd').textContent = end;
-    
-    const prevBtn = document.getElementById('prevPageBtn');
-    const nextBtn = document.getElementById('nextPageBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
     
     if (prevBtn) prevBtn.disabled = currentPage === 1;
     if (nextBtn) nextBtn.disabled = currentPage === totalPages || totalPages === 0;
@@ -415,6 +450,27 @@ function goToPage(page) {
     updatePagination();
 }
 
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        renderTableView();
+        updatePagination();
+    }
+}
+
+function nextPage() {
+    const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
+    if (currentPage < totalPages) {
+        currentPage++;
+        renderTableView();
+        updatePagination();
+    }
+}
+
+window.prevPage = prevPage;
+window.nextPage = nextPage;
+window.goToPage = goToPage;
+
 function toggleView() {
     const tableView = document.getElementById('tableView');
     const groupView = document.getElementById('groupView');
@@ -424,17 +480,25 @@ function toggleView() {
         tableView.style.display = 'none';
         groupView.style.display = 'block';
         currentView = 'group';
-        toggleBtn.innerHTML = '<i class="fas fa-table"></i> Table View';
+        if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-table"></i>';
         renderGroupView();
     } else {
         tableView.style.display = 'block';
         groupView.style.display = 'none';
         currentView = 'table';
-        toggleBtn.innerHTML = '<i class="fas fa-layer-group"></i> Group View';
+        if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-layer-group"></i>';
         renderTableView();
         updatePagination();
     }
 }
+
+window.toggleView = toggleView;
+
+function refreshData() {
+    loadSubmissions();
+}
+
+window.refreshData = refreshData;
 
 // ===========================================
 // MAP INTEGRATION FOR SUBMISSION REVIEW
@@ -443,9 +507,10 @@ function toggleView() {
 function viewSubmission(id) {
     const submission = allSubmissions.find(s => s.id == id);
     if (!submission) return;
-    
     showModalWithMap(submission);
 }
+
+window.viewSubmission = viewSubmission;
 
 function showModalWithMap(submission) {
     const existing = document.querySelector('.modal-overlay');
@@ -663,7 +728,7 @@ function initSubmissionMap(coordinates, submission) {
 }
 
 // ===========================================
-// VALIDATE/REJECT FUNCTIONS - USING "validated" status
+// VALIDATE/REJECT FUNCTIONS
 // ===========================================
 
 async function validateSubmission(id) {
@@ -682,9 +747,6 @@ async function validateSubmission(id) {
         return;
     }
     
-    console.log('Submission data:', submission);
-    
-    // Close modal if open
     const modal = document.querySelector('.modal-overlay');
     if (modal) modal.remove();
     
@@ -698,7 +760,6 @@ async function validateSubmission(id) {
         showNotification('Updating database...', 'info');
         console.log('📡 Sending update to Supabase...');
         
-        // Update status to 'validated'
         const { data, error } = await supabaseClient
             .from('farms')
             .update({ status: 'validated' })
@@ -711,24 +772,18 @@ async function validateSubmission(id) {
         }
         
         console.log('✅ Supabase update successful!');
-        console.log('Response data:', data);
         
-        // Update local data
         submission.status = 'validated';
-        
-        // Refresh the view
         applyFilters();
         showNotification('Submission validated successfully!', 'success');
-        
-        console.log(`✅ Submission ${id} validated successfully`);
         
     } catch (error) {
         console.error('❌ Error during validation:', error);
         showNotification('Error updating database: ' + error.message, 'error');
     }
-    
-    console.log(`========== END VALIDATE ==========`);
 }
+
+window.validateSubmission = validateSubmission;
 
 async function rejectSubmission(id) {
     console.log(`========== REJECT SUBMISSION ==========`);
@@ -736,7 +791,7 @@ async function rejectSubmission(id) {
     
     const reason = prompt('Please enter rejection reason:', 'Invalid or incomplete data');
     if (!reason) {
-        console.log('User cancelled rejection (no reason provided)');
+        console.log('User cancelled rejection');
         return;
     }
     
@@ -749,9 +804,6 @@ async function rejectSubmission(id) {
         return;
     }
     
-    console.log('Submission data:', submission);
-    
-    // Close modal if open
     const modal = document.querySelector('.modal-overlay');
     if (modal) modal.remove();
     
@@ -765,7 +817,6 @@ async function rejectSubmission(id) {
         showNotification('Updating database...', 'info');
         console.log('📡 Sending update to Supabase...');
         
-        // Update status to 'rejected'
         const { data, error } = await supabaseClient
             .from('farms')
             .update({ status: 'rejected' })
@@ -778,24 +829,18 @@ async function rejectSubmission(id) {
         }
         
         console.log('✅ Supabase update successful!');
-        console.log('Response data:', data);
         
-        // Update local data
         submission.status = 'rejected';
-        
-        // Refresh the view
         applyFilters();
         showNotification('Submission rejected!', 'info');
-        
-        console.log(`✅ Submission ${id} rejected successfully`);
         
     } catch (error) {
         console.error('❌ Error during rejection:', error);
         showNotification('Error updating database: ' + error.message, 'error');
     }
-    
-    console.log(`========== END REJECT ==========`);
 }
+
+window.rejectSubmission = rejectSubmission;
 
 // ===========================================
 // HELPER FUNCTIONS
@@ -832,7 +877,6 @@ function showNotification(message, type = 'info') {
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         z-index: 10001;
-        animation: slideIn 0.3s ease;
         font-size: 14px;
         font-weight: 500;
     `;
@@ -841,7 +885,8 @@ function showNotification(message, type = 'info') {
     document.body.appendChild(notification);
     
     setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
@@ -851,6 +896,9 @@ function setupEventListeners() {
     if (refreshBtn) refreshBtn.addEventListener('click', () => loadSubmissions());
     
     const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') applyFilters();
+    });
     if (searchInput) searchInput.addEventListener('input', () => applyFilters());
     
     const supplierSearch = document.getElementById('supplierSearchInput');
@@ -880,28 +928,6 @@ function setupEventListeners() {
     const statusFilter = document.getElementById('statusFilter');
     if (statusFilter) statusFilter.addEventListener('change', () => applyFilters());
     
-    const toggleBtn = document.getElementById('toggleViewBtn');
-    if (toggleBtn) toggleBtn.addEventListener('click', () => toggleView());
-    
-    const prevBtn = document.getElementById('prevPageBtn');
-    if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTableView(); updatePagination(); } });
-    
-    const nextBtn = document.getElementById('nextPageBtn');
-    if (nextBtn) nextBtn.addEventListener('click', () => { const total = Math.ceil(filteredSubmissions.length / rowsPerPage); if (currentPage < total) { currentPage++; renderTableView(); updatePagination(); } });
-    
-    document.querySelectorAll('th[data-sort]').forEach(th => {
-        th.addEventListener('click', () => {
-            const column = th.getAttribute('data-sort');
-            if (currentSort.column === column) {
-                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-            } else {
-                currentSort.column = column;
-                currentSort.direction = 'asc';
-            }
-            applyFilters();
-        });
-    });
-    
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async (e) => {
@@ -913,13 +939,6 @@ function setupEventListeners() {
     }
 }
 
-// Expose global functions
-window.viewSubmission = viewSubmission;
-window.validateSubmission = validateSubmission;
-window.rejectSubmission = rejectSubmission;
-window.goToPage = goToPage;
-window.toggleView = toggleView;
 window.applyFilters = applyFilters;
 
-console.log('✅ Submissions page ready with "validated" status');
-console.log('📝 Status values: pending → validated (approved) or rejected');
+console.log('✅ Submissions page ready');
