@@ -1,6 +1,6 @@
 // ===========================================
-// QUALITY ALERTS - DIRECT SUPABASE INTEGRATION
-// Detects overlaps and shows them on map
+// QUALITY ALERTS - FIXED MAP DISPLAY
+// Shows both farms with zoom controls
 // ===========================================
 
 console.log('🚀 Quality Alerts page loading...');
@@ -123,7 +123,6 @@ async function loadFarmsDirectly() {
                 coordinates: farm.geometry?.coordinates
             }));
             
-            // Generate alerts from farms
             generateAlertsFromFarms();
             updateFilterOptions();
             applyFilters();
@@ -186,45 +185,39 @@ function convertToLeafletCoords(coords) {
 }
 
 // ===========================================
-// GENERATE ALERTS FROM FARMS - INCLUDING OVERLAPS
+// GENERATE ALERTS FROM FARMS
 // ===========================================
 
 function generateAlertsFromFarms() {
     console.log('🔍 Generating quality alerts from farms...');
     const alerts = [];
     
-    // Filter farms with valid geometry for overlap detection
     const farmsWithGeo = allFarms.filter(f => f.geometry && f.geometry.coordinates);
     console.log(`📐 Farms with geometry: ${farmsWithGeo.length}`);
     
-    // 1. DETECT OVERLAPS - This is the key part
+    // 1. DETECT OVERLAPS
     for (let i = 0; i < farmsWithGeo.length; i++) {
         for (let j = i + 1; j < farmsWithGeo.length; j++) {
             const farm1 = farmsWithGeo[i];
             const farm2 = farmsWithGeo[j];
             
             try {
-                // Create Turf polygons
                 const poly1 = turf.polygon(farm1.geometry.coordinates);
                 const poly2 = turf.polygon(farm2.geometry.coordinates);
                 
-                // Check if polygons intersect
                 if (turf.booleanIntersects(poly1, poly2)) {
                     const intersection = turf.intersect(poly1, poly2);
                     
                     if (intersection) {
-                        // Calculate overlap area in hectares (1 ha = 10,000 sq m)
                         const overlapAreaSqM = turf.area(intersection);
                         const overlapAreaHa = overlapAreaSqM / 10000;
                         
-                        // Only create alert for significant overlaps (> 0.01 ha)
                         if (overlapAreaHa > 0.01) {
                             const area1Ha = turf.area(poly1) / 10000;
                             const area2Ha = turf.area(poly2) / 10000;
                             const smallerArea = Math.min(area1Ha, area2Ha);
                             const overlapPercent = Math.round((overlapAreaHa / smallerArea) * 100);
                             
-                            // Determine severity based on overlap area
                             let severity = 'low';
                             if (overlapAreaHa > 5) severity = 'critical';
                             else if (overlapAreaHa >= 3) severity = 'high';
@@ -280,33 +273,9 @@ function generateAlertsFromFarms() {
         }
     });
     
-    // 3. CHECK FOR AREA ISSUES
-    allFarms.forEach(farm => {
-        if (farm.area === 0 && farm.geometry) {
-            alerts.push({
-                id: `zero_area_${farm.id}`,
-                farmId: farm.farmer_id,
-                farmerName: farm.farmer_name,
-                farmData: farm,
-                cooperative: farm.cooperative,
-                supplier: farm.supplier,
-                type: 'area',
-                severity: 'medium',
-                title: 'Zero Area',
-                description: `Farm area is 0. Please verify the farm boundaries.`,
-                status: 'new',
-                date: new Date().toISOString()
-            });
-        }
-    });
-    
     allAlerts = alerts;
     console.log(`✅ Generated ${alerts.length} alerts (${alerts.filter(a => a.type === 'overlap').length} overlaps)`);
 }
-
-// ===========================================
-// UPDATE FILTER DROPDOWNS
-// ===========================================
 
 function updateFilterOptions() {
     const suppliers = [...new Set(allAlerts.map(a => a.supplier || 'Unknown'))];
@@ -325,10 +294,6 @@ function updateFilterOptions() {
     }
 }
 
-// ===========================================
-// APPLY FILTERS AND RENDER
-// ===========================================
-
 function applyFilters() {
     const type = document.getElementById('alertTypeFilter')?.value || 'all';
     const severity = document.getElementById('alertSeverityFilter')?.value || 'all';
@@ -345,7 +310,6 @@ function applyFilters() {
         return true;
     });
     
-    // Sort by severity
     const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
     filteredAlerts.sort((a, b) => {
         if (severityOrder[a.severity] !== severityOrder[b.severity]) {
@@ -361,17 +325,11 @@ function applyFilters() {
 }
 
 function updateStats() {
-    const critical = filteredAlerts.filter(a => a.severity === 'critical').length;
-    const high = filteredAlerts.filter(a => a.severity === 'high').length;
-    const medium = filteredAlerts.filter(a => a.severity === 'medium').length;
-    const low = filteredAlerts.filter(a => a.severity === 'low').length;
-    const total = filteredAlerts.length;
-    
-    document.getElementById('criticalCount').textContent = critical;
-    document.getElementById('highCount').textContent = high;
-    document.getElementById('mediumCount').textContent = medium;
-    document.getElementById('lowCount').textContent = low;
-    document.getElementById('totalAlerts').textContent = total;
+    document.getElementById('criticalCount').textContent = filteredAlerts.filter(a => a.severity === 'critical').length;
+    document.getElementById('highCount').textContent = filteredAlerts.filter(a => a.severity === 'high').length;
+    document.getElementById('mediumCount').textContent = filteredAlerts.filter(a => a.severity === 'medium').length;
+    document.getElementById('lowCount').textContent = filteredAlerts.filter(a => a.severity === 'low').length;
+    document.getElementById('totalAlerts').textContent = filteredAlerts.length;
 }
 
 function renderAlerts() {
@@ -434,7 +392,7 @@ function updatePagination() {
 }
 
 // ===========================================
-// MAP VIEW FUNCTIONS - SHOW OVERLAPS
+// MAP VIEW FUNCTIONS - FIXED WITH ZOOM CONTROLS
 // ===========================================
 
 function viewAlertOnMap(alertId) {
@@ -466,35 +424,38 @@ function showOverlapMapModal(alert) {
             </div>
             <div class="modal-body">
                 <div class="modal-section">
-                    <div class="modal-grid">
-                        <div class="modal-row"><div class="modal-label">Severity:</div><div class="modal-value"><span class="alert-badge-large ${alert.severity}">${alert.severity.toUpperCase()}</span></div></div>
-                        <div class="modal-row"><div class="modal-label">Overlap Area:</div><div class="modal-value">${alert.overlapArea?.toFixed(2) || 'N/A'} hectares</div></div>
-                        <div class="modal-row"><div class="modal-label">Overlap %:</div><div class="modal-value">${alert.overlapPercent || 'N/A'}% of smaller farm</div></div>
+                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+                        <div style="display:flex;padding:4px 0;"><div style="width:120px;font-weight:600;">Severity:</div><div><span class="alert-badge-large ${alert.severity}">${alert.severity.toUpperCase()}</span></div></div>
+                        <div style="display:flex;padding:4px 0;"><div style="width:120px;font-weight:600;">Overlap Area:</div><div>${alert.overlapArea?.toFixed(2) || 'N/A'} ha</div></div>
+                        <div style="display:flex;padding:4px 0;"><div style="width:120px;font-weight:600;">Overlap %:</div><div>${alert.overlapPercent || 'N/A'}%</div></div>
                     </div>
                 </div>
                 
-                <div class="two-farm-layout">
-                    <div class="farm-card">
-                        <h4><i class="fas fa-tractor"></i> Farm 1: ${escapeHtml(alert.farmerName)}</h4>
-                        <div class="modal-row"><div class="modal-label">Cooperative:</div><div class="modal-value">${escapeHtml(alert.farmData?.cooperative || 'N/A')}</div></div>
-                        <div class="modal-row"><div class="modal-label">Supplier:</div><div class="modal-value">${escapeHtml(alert.farmData?.supplier || 'N/A')}</div></div>
-                        <div class="modal-row"><div class="modal-label">Area:</div><div class="modal-value">${alert.farmData?.area?.toFixed(2) || 'N/A'} ha</div></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+                    <div style="background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
+                        <h4 style="margin:0 0 12px 0;color:#2c6e49;"><i class="fas fa-tractor"></i> Farm 1: ${escapeHtml(alert.farmerName)}</h4>
+                        <div style="display:flex;padding:4px 0;"><div style="width:100px;font-weight:600;">Cooperative:</div><div>${escapeHtml(alert.farmData?.cooperative || 'N/A')}</div></div>
+                        <div style="display:flex;padding:4px 0;"><div style="width:100px;font-weight:600;">Supplier:</div><div>${escapeHtml(alert.farmData?.supplier || 'N/A')}</div></div>
+                        <div style="display:flex;padding:4px 0;"><div style="width:100px;font-weight:600;">Area:</div><div>${alert.farmData?.area?.toFixed(2) || 'N/A'} ha</div></div>
                     </div>
-                    <div class="farm-card">
-                        <h4><i class="fas fa-tractor"></i> Farm 2: ${escapeHtml(alert.affectedFarmName)}</h4>
-                        <div class="modal-row"><div class="modal-label">Cooperative:</div><div class="modal-value">${escapeHtml(alert.affectedFarmData?.cooperative || 'N/A')}</div></div>
-                        <div class="modal-row"><div class="modal-label">Supplier:</div><div class="modal-value">${escapeHtml(alert.affectedFarmData?.supplier || 'N/A')}</div></div>
-                        <div class="modal-row"><div class="modal-label">Area:</div><div class="modal-value">${alert.affectedFarmData?.area?.toFixed(2) || 'N/A'} ha</div></div>
+                    <div style="background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
+                        <h4 style="margin:0 0 12px 0;color:#2c6e49;"><i class="fas fa-tractor"></i> Farm 2: ${escapeHtml(alert.affectedFarmName)}</h4>
+                        <div style="display:flex;padding:4px 0;"><div style="width:100px;font-weight:600;">Cooperative:</div><div>${escapeHtml(alert.affectedFarmData?.cooperative || 'N/A')}</div></div>
+                        <div style="display:flex;padding:4px 0;"><div style="width:100px;font-weight:600;">Supplier:</div><div>${escapeHtml(alert.affectedFarmData?.supplier || 'N/A')}</div></div>
+                        <div style="display:flex;padding:4px 0;"><div style="width:100px;font-weight:600;">Area:</div><div>${alert.affectedFarmData?.area?.toFixed(2) || 'N/A'} ha</div></div>
                     </div>
                 </div>
                 
                 <div class="modal-section">
                     <div class="modal-section-title"><i class="fas fa-map-marked-alt"></i> Farm Location Map</div>
-                    <div id="alertMap"></div>
-                    <div class="map-info">
+                    <div id="alertMap" style="height:450px;border-radius:8px;border:1px solid #e2e8f0;"></div>
+                    <div class="map-info" style="margin-top:10px;padding:10px;background:#f0fdf4;border-radius:8px;font-size:12px;">
                         <i class="fas fa-info-circle"></i> 
-                        <strong>Decision Support:</strong> The <span style="color:#dc2626; font-weight:bold;">RED area</span> shows the conflicting overlap. 
-                        <span style="color:#22c55e;">Green</span> = Farm 1, <span style="color:#f97316;">Orange</span> = Farm 2.
+                        <strong>Legend:</strong> 
+                        <span style="color:#22c55e;">■ Green</span> = Farm 1, 
+                        <span style="color:#f97316;">■ Orange</span> = Farm 2, 
+                        <span style="color:#dc2626;">■ Red</span> = Conflict/Overlap Area
+                        <br><strong>Tip:</strong> Use + / - buttons to zoom in/out. Click and drag to pan.
                     </div>
                 </div>
                 
@@ -507,7 +468,7 @@ function showOverlapMapModal(alert) {
                             <i class="fas fa-check-double"></i> Resolve
                         </button>
                     ` : ''}
-                    <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">Close</button>
+                    <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">Close Map</button>
                 </div>
             </div>
         </div>
@@ -522,17 +483,26 @@ function initOverlapMap(alert) {
     const mapContainer = document.getElementById('alertMap');
     if (!mapContainer) return;
     
-    if (currentMap) currentMap.remove();
+    if (currentMap) {
+        currentMap.remove();
+    }
     
     const farm1Geo = alert.farmData?.geometry;
     const farm2Geo = alert.affectedFarmData?.geometry;
     let bounds = null;
     
-    currentMap = L.map('alertMap', { attributionControl: false }).setView([7.539989, -5.547080], 7);
+    // Create map with zoom controls enabled
+    currentMap = L.map('alertMap', {
+        attributionControl: false,
+        zoomControl: true
+    }).setView([7.539989, -5.547080], 14);
+    
+    // Add zoom control to top right
+    L.control.zoom({ position: 'topright' }).addTo(currentMap);
     
     // Google Satellite tiles
     L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
+        maxZoom: 22,
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(currentMap);
     
@@ -594,12 +564,15 @@ function initOverlapMap(alert) {
         }
     }
     
+    // Fit bounds to show all polygons with nice padding
     if (bounds && bounds.isValid()) {
         currentMap.fitBounds(bounds, { padding: [50, 50] });
     } else {
-        currentMap.setView([7.539989, -5.547080], 7);
+        // Default view if no bounds
+        currentMap.setView([7.539989, -5.547080], 14);
     }
     
+    // Add scale bar
     L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(currentMap);
 }
 
@@ -617,13 +590,13 @@ function showSingleFarmMapModal(alert) {
             </div>
             <div class="modal-body">
                 <div class="modal-section">
-                    <div class="modal-grid">
-                        <div class="modal-row"><div class="modal-label">Alert Type:</div><div class="modal-value">${alert.type.replace('-', ' ').toUpperCase()}</div></div>
-                        <div class="modal-row"><div class="modal-label">Severity:</div><div class="modal-value"><span class="alert-badge-large ${alert.severity}">${alert.severity.toUpperCase()}</span></div></div>
+                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+                        <div style="display:flex;padding:4px 0;"><div style="width:100px;font-weight:600;">Alert Type:</div><div>${alert.type.replace('-', ' ').toUpperCase()}</div></div>
+                        <div style="display:flex;padding:4px 0;"><div style="width:100px;font-weight:600;">Severity:</div><div><span class="alert-badge-large ${alert.severity}">${alert.severity.toUpperCase()}</span></div></div>
                     </div>
                 </div>
                 <div class="modal-section">
-                    <div id="alertMap"></div>
+                    <div id="alertMap" style="height:450px;border-radius:8px;border:1px solid #e2e8f0;"></div>
                 </div>
                 <div class="modal-actions">
                     <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">Close</button>
@@ -635,10 +608,19 @@ function showSingleFarmMapModal(alert) {
     document.body.appendChild(modal);
     setTimeout(() => {
         if (currentMap) currentMap.remove();
-        currentMap = L.map('alertMap', { attributionControl: false }).setView([7.539989, -5.547080], 7);
+        
+        currentMap = L.map('alertMap', {
+            attributionControl: false,
+            zoomControl: true
+        }).setView([7.539989, -5.547080], 14);
+        
+        L.control.zoom({ position: 'topright' }).addTo(currentMap);
+        
         L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-            maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+            maxZoom: 22,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
         }).addTo(currentMap);
+        
         if (alert.farmData?.geometry?.coordinates) {
             const coords = convertToLeafletCoords(alert.farmData.geometry.coordinates);
             const polygon = L.polygon(coords, {
@@ -647,16 +629,16 @@ function showSingleFarmMapModal(alert) {
                 fillColor: alert.severity === 'high' ? '#f97316' : '#eab308',
                 fillOpacity: 0.3
             }).addTo(currentMap);
+            
             if (polygon.getBounds && polygon.getBounds().isValid()) {
-                currentMap.fitBounds(polygon.getBounds());
+                currentMap.fitBounds(polygon.getBounds(), { padding: [50, 50] });
             }
+            polygon.bindPopup(`<b>${escapeHtml(alert.farmerName)}</b><br>⚠️ ${alert.title}`);
         }
+        
+        L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(currentMap);
     }, 100);
 }
-
-// ===========================================
-// ALERT ACTIONS
-// ===========================================
 
 function updateAlertStatus(alertId, newStatus) {
     const alert = allAlerts.find(a => a.id === alertId);
@@ -703,10 +685,6 @@ function showNotification(message, type = 'info') {
     setTimeout(() => notification.remove(), 3000);
 }
 
-// ===========================================
-// EVENT LISTENERS
-// ===========================================
-
 function setupEventListeners() {
     document.getElementById('applyFiltersBtn')?.addEventListener('click', () => applyFilters());
     document.getElementById('clearFiltersBtn')?.addEventListener('click', () => {
@@ -744,4 +722,4 @@ function setupEventListeners() {
 window.viewAlertOnMap = viewAlertOnMap;
 window.updateAlertStatus = updateAlertStatus;
 
-console.log('✅ Quality Alerts page ready - overlap detection enabled');
+console.log('✅ Quality Alerts page ready - overlap detection with zoom controls enabled');
