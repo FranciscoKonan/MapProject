@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Submissions | MappingTrace</title>
+    <title>Quality Alerts | MappingTrace</title>
     
     <!-- Fonts & Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -15,9 +15,6 @@
     <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
     
     <style>
-        /* ===========================================
-           SIDEBAR STYLES - Same as Dashboard
-           =========================================== */
         * {
             margin: 0;
             padding: 0;
@@ -84,7 +81,7 @@
             min-height: 100vh;
         }
 
-        /* SIDEBAR - Collapsed by default, expands on hover */
+        /* SIDEBAR */
         .sidebar {
             width: 80px;
             background: linear-gradient(180deg, #0f172a 0%, #0a0f1a 100%);
@@ -138,7 +135,6 @@
             opacity: 1;
         }
 
-        /* MENU */
         .menu {
             flex: 1;
             padding: var(--spacing-lg) 0;
@@ -196,10 +192,8 @@
             margin-left: 80px;
             width: calc(100% - 80px);
             min-height: 100vh;
-            transition: margin-left 0.3s ease;
         }
 
-        /* MAIN HEADER */
         .main-header {
             height: var(--header-height);
             background: white;
@@ -218,7 +212,6 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            margin: 0;
         }
 
         .header-title h1 i {
@@ -231,7 +224,6 @@
             margin-top: 2px;
         }
 
-        /* USER INFO */
         .user-info {
             display: flex;
             align-items: center;
@@ -248,20 +240,14 @@
             align-items: center;
             justify-content: center;
             font-weight: 600;
-            font-size: var(--font-size-sm);
         }
 
-        .user-details {
-            line-height: 1.3;
-        }
-
-        .user-name {
+        .user-details .user-name {
             font-weight: 600;
             font-size: var(--font-size-sm);
-            color: var(--dark-color);
         }
 
-        .user-role {
+        .user-details .user-role {
             font-size: var(--font-size-xs);
             color: var(--gray-600);
         }
@@ -277,7 +263,6 @@
             align-items: center;
             gap: 8px;
             font-size: var(--font-size-sm);
-            transition: all 0.3s ease;
         }
 
         .sync-btn:hover {
@@ -291,14 +276,13 @@
             color: var(--gray-700);
             font-size: var(--font-size-lg);
             cursor: pointer;
-            padding: var(--spacing-sm);
-            border-radius: var(--radius-md);
             width: 40px;
             height: 40px;
+            border-radius: var(--radius-md);
         }
 
         .notifications-btn:hover {
-            background-color: var(--gray-200);
+            background: var(--gray-200);
         }
 
         .notification-badge {
@@ -307,20 +291,17 @@
             right: 6px;
             width: 8px;
             height: 8px;
-            background-color: var(--danger-color);
+            background: var(--danger-color);
             border-radius: var(--radius-full);
             border: 2px solid white;
         }
 
-        /* ===========================================
-           KPI SECTION - Same as Dashboard
-           =========================================== */
+        /* KPIs */
         .kpis {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: var(--spacing-lg);
             padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-lg) var(--spacing-xl);
-            width: 100%;
         }
 
         .kpi {
@@ -331,7 +312,7 @@
             display: flex;
             align-items: center;
             gap: var(--spacing-lg);
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s;
         }
 
         .kpi:hover {
@@ -349,31 +330,16 @@
             font-size: 24px;
         }
 
-        .kpi-icon.pending {
-            background: #fef9c3;
-            color: #eab308;
-        }
-
-        .kpi-icon.validated {
-            background: #dcfce7;
-            color: #22c55e;
-        }
-
-        .kpi-icon.rejected {
-            background: #fee2e2;
-            color: #dc2626;
-        }
-
-        .kpi-icon.total {
-            background: #dbeafe;
-            color: var(--primary-color);
-        }
+        .kpi-icon.critical { background: #fee2e2; color: #dc2626; }
+        .kpi-icon.high { background: #ffedd5; color: #f97316; }
+        .kpi-icon.medium { background: #fef9c3; color: #eab308; }
+        .kpi-icon.low { background: #dcfce7; color: #22c55e; }
+        .kpi-icon.total { background: #dbeafe; color: var(--primary-color); }
 
         .kpi-content h4 {
             font-size: var(--font-size-sm);
             color: var(--gray-600);
             margin-bottom: 4px;
-            font-weight: 500;
         }
 
         .kpi-value {
@@ -382,94 +348,108 @@
             color: var(--dark-color);
         }
 
-        /* ===========================================
-           TABLE SECTION - Same as Dashboard
-           =========================================== */
-        .table-section {
-            padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl) var(--spacing-xl);
-            width: 100%;
+        /* Filters */
+        .alerts-filters {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin: 0 var(--spacing-xl) var(--spacing-lg) var(--spacing-xl);
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+            align-items: flex-end;
+            box-shadow: var(--shadow-sm);
         }
 
-        .table-header {
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+            min-width: 150px;
+        }
+
+        .filter-group label {
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+            color: var(--gray-600);
+            text-transform: uppercase;
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            background: white;
+            cursor: pointer;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-left: auto;
+        }
+
+        .btn-primary, .btn-secondary {
+            padding: 8px 16px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-300);
+        }
+
+        /* Alerts List */
+        .alerts-list-container {
+            background: white;
+            border-radius: var(--radius-lg);
+            margin: 0 var(--spacing-xl) var(--spacing-xl) var(--spacing-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+
+        .alerts-list-header {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--gray-300);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: var(--spacing-lg);
-            flex-wrap: wrap;
-            gap: var(--spacing-md);
+            background: var(--gray-100);
         }
 
-        .table-header h3 {
+        .alerts-list-header h3 {
             margin: 0;
             font-size: var(--font-size-lg);
             display: flex;
             align-items: center;
             gap: var(--spacing-sm);
-            color: var(--dark-color);
         }
 
-        .table-header h3 i {
+        .alerts-list-header h3 i {
             color: var(--primary-color);
         }
 
-        .table-actions {
-            display: flex;
-            gap: var(--spacing-sm);
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        /* Search Box */
-        .search-box {
-            display: flex;
-            align-items: center;
-            background: white;
-            border: 1px solid var(--gray-300);
-            border-radius: var(--radius-md);
-            overflow: hidden;
-            height: 36px;
-        }
-
-        .search-box input {
-            border: none;
-            padding: 0 12px;
-            width: 200px;
-            font-size: var(--font-size-sm);
-            outline: none;
-            height: 100%;
-        }
-
-        .search-box button {
-            background: none;
-            border: none;
-            padding: 0 12px;
-            cursor: pointer;
-            color: var(--gray-600);
-            height: 100%;
-        }
-
-        .search-box button:hover {
-            color: var(--primary-color);
-        }
-
-        /* Filter Select */
-        .filter-select {
-            padding: 0 12px;
-            height: 36px;
-            border: 1px solid var(--gray-300);
-            border-radius: var(--radius-md);
-            font-size: var(--font-size-sm);
-            background: white;
-            cursor: pointer;
-            min-width: 140px;
-        }
-
-        .filter-select:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-
-        /* Button Icon */
         .btn-icon {
             width: 36px;
             height: 36px;
@@ -481,170 +461,154 @@
             align-items: center;
             justify-content: center;
             color: var(--gray-700);
-            transition: all var(--transition-fast);
         }
 
         .btn-icon:hover {
             background: var(--primary-color);
             color: white;
-            border-color: var(--primary-color);
         }
 
-        /* Table Container */
-        .table-container {
-            background: white;
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-            box-shadow: var(--shadow-md);
+        .alerts-list {
+            max-height: 550px;
+            overflow-y: auto;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        thead tr {
-            background: var(--gray-100);
+        /* Alert Item */
+        .alert-item {
+            padding: var(--spacing-lg);
             border-bottom: 1px solid var(--gray-300);
+            cursor: pointer;
+            transition: background 0.2s;
         }
 
-        th {
-            padding: var(--spacing-md) var(--spacing-lg);
-            text-align: left;
+        .alert-item:hover {
+            background: var(--gray-100);
+        }
+
+        .alert-item.new {
+            background: #fef2f2;
+            border-left: 3px solid #dc2626;
+        }
+
+        .alert-item.acknowledged {
+            border-left: 3px solid #f97316;
+        }
+
+        .alert-item.resolved {
+            border-left: 3px solid #22c55e;
+            opacity: 0.7;
+        }
+
+        .alert-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+
+        .alert-severity {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .alert-severity.critical { background: #fee2e2; color: #dc2626; }
+        .alert-severity.high { background: #ffedd5; color: #f97316; }
+        .alert-severity.medium { background: #fef9c3; color: #eab308; }
+        .alert-severity.low { background: #dcfce7; color: #22c55e; }
+
+        .alert-title {
+            flex: 1;
             font-weight: 600;
             font-size: var(--font-size-sm);
-            color: var(--gray-700);
-            cursor: pointer;
-            user-select: none;
         }
 
-        th:hover {
-            background: var(--gray-200);
+        .alert-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+            margin-left: var(--spacing-sm);
         }
 
-        th i {
-            margin-left: var(--spacing-xs);
+        .alert-badge.new { background: #dc2626; color: white; }
+        .alert-badge.acknowledged { background: #f97316; color: white; }
+        .alert-badge.resolved { background: #22c55e; color: white; }
+
+        .alert-date {
             font-size: var(--font-size-xs);
             color: var(--gray-500);
         }
 
-        td {
-            padding: var(--spacing-md) var(--spacing-lg);
-            border-bottom: 1px solid var(--gray-300);
+        .alert-details {
+            margin-left: 48px;
+            margin-bottom: var(--spacing-sm);
             font-size: var(--font-size-sm);
+            color: var(--gray-700);
         }
 
-        tr:hover {
-            background: var(--gray-100);
+        .alert-details p {
+            margin: var(--spacing-xs) 0;
         }
 
-        /* Status Badge */
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: var(--radius-full);
-            font-size: var(--font-size-xs);
-            font-weight: 600;
-            text-transform: capitalize;
-        }
-
-        .status-badge.validated {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .status-badge.pending {
-            background: #fef9c3;
-            color: #854d0e;
-        }
-
-        .status-badge.rejected {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        /* Action Buttons */
-        .action-buttons {
+        .alert-actions {
+            margin-left: 48px;
             display: flex;
             gap: var(--spacing-sm);
+            flex-wrap: wrap;
         }
 
-        .action-btn {
-            padding: 6px 10px;
+        .alert-action-btn {
+            padding: 4px 12px;
             border: none;
             border-radius: var(--radius-md);
-            cursor: pointer;
             font-size: var(--font-size-xs);
-            transition: all var(--transition-fast);
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
+            font-weight: 500;
+            cursor: pointer;
         }
 
-        .action-btn.view {
+        .alert-action-btn.view-map {
             background: #3b82f6;
             color: white;
         }
 
-        .action-btn.view:hover {
-            background: #2563eb;
+        .alert-action-btn.acknowledge {
+            background: #f97316;
+            color: white;
         }
 
-        .action-btn.validate {
+        .alert-action-btn.resolve {
             background: #22c55e;
             color: white;
         }
 
-        .action-btn.validate:hover {
-            background: #16a34a;
-        }
-
-        .action-btn.reject {
-            background: #ef4444;
-            color: white;
-        }
-
-        .action-btn.reject:hover {
-            background: #dc2626;
-        }
-
-        /* Table Footer */
-        .table-footer {
+        /* Pagination */
+        .alerts-pagination {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
+            gap: var(--spacing-md);
             padding: var(--spacing-lg);
             border-top: 1px solid var(--gray-300);
-            background: white;
-        }
-
-        .table-stats {
-            font-size: var(--font-size-sm);
-            color: var(--gray-600);
-        }
-
-        .pagination {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
         }
 
         .pagination-btn {
-            padding: 6px 12px;
+            padding: 8px 12px;
             border: 1px solid var(--gray-300);
             background: white;
             border-radius: var(--radius-md);
             cursor: pointer;
-            transition: all var(--transition-fast);
-            display: flex;
-            align-items: center;
-            gap: 4px;
         }
 
         .pagination-btn:hover:not(:disabled) {
             background: var(--primary-color);
             color: white;
-            border-color: var(--primary-color);
         }
 
         .pagination-btn:disabled {
@@ -652,112 +616,12 @@
             cursor: not-allowed;
         }
 
-        .page-numbers {
-            display: flex;
-            gap: var(--spacing-xs);
-        }
-
-        .page-number {
-            min-width: 32px;
-            padding: 6px 10px;
-            border: 1px solid var(--gray-300);
-            background: white;
-            border-radius: var(--radius-md);
-            cursor: pointer;
+        #pageInfo {
             font-size: var(--font-size-sm);
-            text-align: center;
-            transition: all var(--transition-fast);
-        }
-
-        .page-number:hover {
-            background: var(--gray-100);
-            border-color: var(--primary-color);
-        }
-
-        .page-number.active {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        /* Group View */
-        .group-view {
-            background: white;
-            border-radius: var(--radius-lg);
-            padding: var(--spacing-lg);
-            box-shadow: var(--shadow-md);
-        }
-
-        .group-card {
-            background: var(--gray-100);
-            border-radius: var(--radius-lg);
-            padding: var(--spacing-lg);
-            margin-bottom: var(--spacing-lg);
-            border: 1px solid var(--gray-300);
-        }
-
-        .group-card:last-child {
-            margin-bottom: 0;
-        }
-
-        .group-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--spacing-md);
-            padding-bottom: var(--spacing-sm);
-            border-bottom: 2px solid var(--gray-300);
-        }
-
-        .group-title {
-            font-weight: 600;
-            font-size: var(--font-size-md);
-            color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-        }
-
-        .group-stats {
-            font-size: var(--font-size-xs);
             color: var(--gray-600);
         }
 
-        .group-items {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: var(--spacing-md);
-        }
-
-        .group-item {
-            background: white;
-            border-radius: var(--radius-md);
-            padding: var(--spacing-md);
-            cursor: pointer;
-            transition: all var(--transition-fast);
-            border: 1px solid var(--gray-300);
-        }
-
-        .group-item:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-            border-color: var(--primary-color);
-        }
-
-        .group-item-name {
-            font-weight: 600;
-            margin-bottom: var(--spacing-xs);
-            color: var(--dark-color);
-            font-size: var(--font-size-sm);
-        }
-
-        .group-item-details {
-            font-size: var(--font-size-xs);
-            color: var(--gray-600);
-            line-height: 1.5;
-        }
-
-        /* Modal Styles */
+        /* Modal */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -769,17 +633,15 @@
             align-items: center;
             justify-content: center;
             z-index: 10000;
-            animation: fadeIn 0.2s ease;
         }
 
         .modal-content {
             background: white;
             border-radius: var(--radius-xl);
-            max-width: 900px;
+            max-width: 1000px;
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
-            animation: slideUp 0.3s ease;
         }
 
         .modal-header {
@@ -794,13 +656,6 @@
             top: 0;
         }
 
-        .modal-header h3 {
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-        }
-
         .modal-close {
             background: rgba(255,255,255,0.2);
             border: none;
@@ -809,12 +664,6 @@
             height: 36px;
             border-radius: var(--radius-full);
             cursor: pointer;
-            transition: all var(--transition-fast);
-        }
-
-        .modal-close:hover {
-            background: rgba(255,255,255,0.3);
-            transform: rotate(90deg);
         }
 
         .modal-body {
@@ -832,48 +681,9 @@
         }
 
         .modal-section-title {
-            font-size: var(--font-size-md);
             font-weight: 600;
             margin-bottom: var(--spacing-md);
             color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-        }
-
-        .modal-row {
-            display: flex;
-            padding: var(--spacing-xs) 0;
-        }
-
-        .modal-label {
-            width: 130px;
-            font-weight: 600;
-            color: var(--gray-600);
-            font-size: var(--font-size-sm);
-        }
-
-        .modal-value {
-            flex: 1;
-            color: var(--dark-color);
-            font-size: var(--font-size-sm);
-        }
-
-        #submissionMap {
-            height: 350px;
-            border-radius: var(--radius-md);
-            margin-top: var(--spacing-sm);
-            border: 1px solid var(--gray-300);
-        }
-
-        .map-info {
-            margin-top: var(--spacing-sm);
-            padding: var(--spacing-md);
-            background: #f0fdf4;
-            border-radius: var(--radius-md);
-            font-size: var(--font-size-xs);
-            color: #166534;
-            border-left: 3px solid #4CAF50;
         }
 
         .modal-actions {
@@ -891,69 +701,30 @@
             border-radius: var(--radius-md);
             cursor: pointer;
             font-weight: 600;
-            font-size: var(--font-size-sm);
-            transition: all var(--transition-fast);
         }
 
-        .modal-btn.approve {
-            background: #22c55e;
-            color: white;
+        .modal-btn.acknowledge { background: #f97316; color: white; }
+        .modal-btn.resolve { background: #22c55e; color: white; }
+        .modal-btn.cancel { background: var(--gray-300); }
+
+        .alert-badge-large {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            font-weight: 600;
         }
 
-        .modal-btn.reject {
-            background: #ef4444;
-            color: white;
-        }
-
-        .modal-btn.cancel {
-            background: var(--gray-300);
-            color: var(--gray-700);
-        }
-
-        .modal-btn:hover {
-            transform: translateY(-1px);
-            opacity: 0.9;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Leaflet attribution removal */
-        .leaflet-control-attribution {
-            display: none !important;
-        }
+        .alert-badge-large.critical { background: #fee2e2; color: #dc2626; }
+        .alert-badge-large.high { background: #ffedd5; color: #f97316; }
+        .alert-badge-large.medium { background: #fef9c3; color: #eab308; }
+        .alert-badge-large.low { background: #dcfce7; color: #22c55e; }
 
         /* Responsive */
-        @media (max-width: 1024px) {
-            .kpis {
-                padding: var(--spacing-lg);
-            }
-            .table-section {
-                padding: var(--spacing-lg);
-            }
-        }
-
         @media (max-width: 768px) {
             .sidebar {
                 width: 0;
                 transform: translateX(-100%);
-            }
-            .sidebar:hover {
-                width: 250px;
-                transform: translateX(0);
             }
             .main {
                 margin-left: 0;
@@ -961,128 +732,73 @@
             }
             .kpis {
                 grid-template-columns: 1fr;
-                gap: var(--spacing-md);
                 padding: var(--spacing-md);
             }
-            .table-section {
-                padding: var(--spacing-md);
+            .alerts-filters {
+                margin: 0 var(--spacing-md) var(--spacing-md) var(--spacing-md);
+                flex-direction: column;
             }
-            .table-header {
+            .filter-group {
+                width: 100%;
+            }
+            .filter-actions {
+                margin-left: 0;
+                width: 100%;
+            }
+            .filter-actions button {
+                flex: 1;
+            }
+            .alerts-list-container {
+                margin: 0 var(--spacing-md) var(--spacing-md) var(--spacing-md);
+            }
+            .alert-header {
                 flex-direction: column;
                 align-items: flex-start;
             }
-            .table-actions {
-                width: 100%;
-                flex-wrap: wrap;
-            }
-            .search-box {
-                flex: 1;
-            }
-            .search-box input {
+            .alert-title {
                 width: 100%;
             }
-            .filter-select {
-                flex: 1;
-                min-width: auto;
+            .alert-details {
+                margin-left: 0;
             }
-            .table-footer {
-                flex-direction: column;
-                gap: var(--spacing-md);
-            }
-            .group-items {
-                grid-template-columns: 1fr;
-            }
-            .action-buttons {
-                flex-direction: column;
-                gap: var(--spacing-xs);
-            }
-            .action-btn {
-                width: 100%;
-                justify-content: center;
-            }
-            .modal-row {
-                flex-direction: column;
-            }
-            .modal-label {
-                width: 100%;
-                margin-bottom: var(--spacing-xs);
-            }
-            #submissionMap {
-                height: 250px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .user-details {
-                display: none;
-            }
-            .sync-btn span {
-                display: none;
-            }
-            .sync-btn {
-                padding: 8px 12px;
-            }
-            .table-actions {
-                flex-direction: column;
-            }
-            .search-box {
-                width: 100%;
-            }
-            .filter-select {
-                width: 100%;
-            }
-            .btn-icon {
-                width: 100%;
-            }
-            .pagination {
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-            .page-numbers {
-                order: -1;
-                width: 100%;
-                justify-content: center;
-                margin-bottom: var(--spacing-sm);
+            .alert-actions {
+                margin-left: 0;
             }
         }
     </style>
 </head>
 <body>
     <div class="layout">
-        <!-- SIDEBAR -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>
                     <i class="fas fa-map-marked-alt"></i>
                     <span>MappingTrace</span>
                 </h2>
-                <button class="sidebar-toggle" id="sidebarToggle">
-                    <i class="fas fa-bars"></i>
-                </button>
             </div>
             <nav class="menu">
-                <a href="../Dashboard.html" data-title="Dashboard">
+                <a href="../Dashboard.html">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="../LiveMapping/live-mapping.html" data-title="Live Mapping">
+                <a href="../LiveMapping/live-mapping.html">
                     <i class="fas fa-map"></i>
                     <span>Live Mapping</span>
                 </a>
-                <a href="#" class="active" data-title="Submissions">
+                <a href="../Submissions/submissions.html">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Submissions</span>
                 </a>
-                <a href="../QualityAlerts/quality-alerts.html" data-title="Quality Alerts">
+                <a href="#" class="active">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Quality Alerts</span>
                 </a>
-                <a href="../Exports/exports.html" data-title="Exports">
+                <a href="../Exports/exports.html">
                     <i class="fas fa-file-export"></i>
                     <span>Exports</span>
                 </a>
                 <div class="menu-bottom">
-                    <a href="#" id="logoutBtn" data-title="Logout">
+                    <a href="#" id="logoutBtn">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>Logout</span>
                     </a>
@@ -1090,12 +806,11 @@
             </nav>
         </aside>
 
-        <!-- MAIN CONTENT -->
         <main class="main">
             <header class="main-header">
                 <div class="header-title">
-                    <h1><i class="fas fa-clipboard-list"></i> Submissions</h1>
-                    <div class="breadcrumb">Home / Submissions</div>
+                    <h1><i class="fas fa-exclamation-triangle"></i> Quality Alerts</h1>
+                    <div class="breadcrumb">Home / Quality Alerts</div>
                 </div>
                 <div class="user-info">
                     <div class="user-avatar" id="userAvatar">FK</div>
@@ -1113,124 +828,116 @@
                 </div>
             </header>
 
-            <!-- KPI SECTION -->
             <div class="kpis">
                 <div class="kpi">
-                    <div class="kpi-icon pending">
-                        <i class="fas fa-clock"></i>
-                    </div>
+                    <div class="kpi-icon critical"><i class="fas fa-skull-crossbones"></i></div>
                     <div class="kpi-content">
-                        <h4>Pending</h4>
-                        <p class="kpi-value" id="pendingCount">0</p>
+                        <h4>Critical</h4>
+                        <p class="kpi-value" id="criticalCount">0</p>
                     </div>
                 </div>
                 <div class="kpi">
-                    <div class="kpi-icon validated">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
+                    <div class="kpi-icon high"><i class="fas fa-exclamation-triangle"></i></div>
                     <div class="kpi-content">
-                        <h4>Validated</h4>
-                        <p class="kpi-value" id="validatedCount">0</p>
+                        <h4>High</h4>
+                        <p class="kpi-value" id="highCount">0</p>
                     </div>
                 </div>
                 <div class="kpi">
-                    <div class="kpi-icon rejected">
-                        <i class="fas fa-times-circle"></i>
-                    </div>
+                    <div class="kpi-icon medium"><i class="fas fa-exclamation"></i></div>
                     <div class="kpi-content">
-                        <h4>Rejected</h4>
-                        <p class="kpi-value" id="rejectedCount">0</p>
+                        <h4>Medium</h4>
+                        <p class="kpi-value" id="mediumCount">0</p>
                     </div>
                 </div>
                 <div class="kpi">
-                    <div class="kpi-icon total">
-                        <i class="fas fa-tractor"></i>
-                    </div>
+                    <div class="kpi-icon low"><i class="fas fa-info-circle"></i></div>
                     <div class="kpi-content">
-                        <h4>Total Farms</h4>
-                        <p class="kpi-value" id="totalCount">0</p>
+                        <h4>Low</h4>
+                        <p class="kpi-value" id="lowCount">0</p>
+                    </div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-icon total"><i class="fas fa-bell"></i></div>
+                    <div class="kpi-content">
+                        <h4>Total Alerts</h4>
+                        <p class="kpi-value" id="totalAlerts">0</p>
                     </div>
                 </div>
             </div>
 
-            <!-- TABLE SECTION -->
-            <div class="table-section">
-                <div class="table-header">
-                    <h3><i class="fas fa-history"></i> Submissions</h3>
-                    <div class="table-actions">
-                        <div class="search-box">
-                            <input type="text" id="searchInput" placeholder="Search by ID, farmer..." onkeyup="if(event.key==='Enter') applyFilters()">
-                            <button onclick="applyFilters()"><i class="fas fa-search"></i></button>
-                        </div>
-                        <select id="supplierFilter" class="filter-select" onchange="applyFilters()">
-                            <option value="all">All Suppliers</option>
-                        </select>
-                        <select id="cooperativeFilter" class="filter-select" onchange="applyFilters()">
-                            <option value="all">All Cooperatives</option>
-                        </select>
-                        <select id="statusFilter" class="filter-select" onchange="applyFilters()">
-                            <option value="all">All Status</option>
-                            <option value="validated">Validated</option>
-                            <option value="pending">Pending</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
-                        <button id="toggleViewBtn" class="btn-icon" onclick="toggleView()" title="Toggle Group View">
-                            <i class="fas fa-layer-group"></i>
-                        </button>
-                        <button onclick="refreshData()" class="btn-icon" title="Refresh">
-                            <i class="fas fa-redo-alt"></i>
-                        </button>
-                    </div>
+            <div class="alerts-filters">
+                <div class="filter-group">
+                    <label>Alert Type</label>
+                    <select id="alertTypeFilter" class="filter-select">
+                        <option value="all">All Types</option>
+                        <option value="overlap">Overlap</option>
+                        <option value="data">Missing Data</option>
+                        <option value="area">Area Issue</option>
+                    </select>
                 </div>
-                
-                <!-- Table View -->
-                <div id="tableView">
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th onclick="sortTable('farmerId')">Farmer ID <i class="fas fa-sort"></i></th>
-                                    <th onclick="sortTable('farmerName')">Farmer Name <i class="fas fa-sort"></i></th>
-                                    <th onclick="sortTable('cooperative')">Cooperative <i class="fas fa-sort"></i></th>
-                                    <th onclick="sortTable('supplier')">Supplier <i class="fas fa-sort"></i></th>
-                                    <th onclick="sortTable('area')">Area (ha) <i class="fas fa-sort"></i></th>
-                                    <th onclick="sortTable('status')">Status <i class="fas fa-sort"></i></th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tableBody">
-                                <tr><td colspan="7" style="text-align:center;padding:60px;">
-                                    <i class="fas fa-spinner fa-spin" style="font-size:32px;color:var(--primary-color);"></i>
-                                    <p style="margin-top:15px;">Loading submissions...</p>
-                                </td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="table-footer">
-                        <div class="table-stats">Showing <span id="showingStart">0</span>-<span id="showingEnd">0</span> of <span id="totalRecords">0</span></div>
-                        <div class="pagination">
-                            <button class="pagination-btn" id="prevBtn" disabled onclick="prevPage()"><i class="fas fa-chevron-left"></i> Prev</button>
-                            <div class="page-numbers" id="pageNumbers"></div>
-                            <button class="pagination-btn" id="nextBtn" onclick="nextPage()">Next <i class="fas fa-chevron-right"></i></button>
-                        </div>
-                    </div>
+                <div class="filter-group">
+                    <label>Severity</label>
+                    <select id="alertSeverityFilter" class="filter-select">
+                        <option value="all">All Severities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
                 </div>
+                <div class="filter-group">
+                    <label>Supplier</label>
+                    <select id="alertSupplierFilter" class="filter-select">
+                        <option value="all">All Suppliers</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Cooperative</label>
+                    <select id="alertCoopFilter" class="filter-select">
+                        <option value="all">All Cooperatives</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Status</label>
+                    <select id="alertStatusFilter" class="filter-select">
+                        <option value="all">All Status</option>
+                        <option value="new">New</option>
+                        <option value="acknowledged">Acknowledged</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn-primary" id="applyFiltersBtn"><i class="fas fa-search"></i> Apply</button>
+                    <button class="btn-secondary" id="clearFiltersBtn"><i class="fas fa-times"></i> Clear</button>
+                </div>
+            </div>
 
-                <!-- Group View -->
-                <div id="groupView" style="display: none;">
-                    <div id="groupViewContent"></div>
+            <div class="alerts-list-container">
+                <div class="alerts-list-header">
+                    <h3><i class="fas fa-list"></i> Quality Alerts</h3>
+                    <button class="btn-icon" id="markAllReadBtn" title="Mark all as acknowledged">
+                        <i class="fas fa-check-double"></i>
+                    </button>
+                </div>
+                <div class="alerts-list" id="alertsList">
+                    <div style="text-align:center;padding:60px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size:48px;color:#2c6e49;"></i>
+                        <p style="margin-top:15px;">Loading alerts...</p>
+                    </div>
+                </div>
+                <div class="alerts-pagination">
+                    <button class="pagination-btn" id="prevPageBtn" disabled><i class="fas fa-chevron-left"></i></button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button class="pagination-btn" id="nextPageBtn" disabled><i class="fas fa-chevron-right"></i></button>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-    
-    <!-- Submissions JavaScript -->
-    <script src="submissions.js"></script>
+    <script src="quality-alerts.js"></script>
 </body>
 </html>
