@@ -12,14 +12,597 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    <!-- Quality Alerts CSS -->
-    <link rel="stylesheet" href="quality-alerts.css">
+    <!-- Dashboard CSS Files (same as Dashboard) -->
+    <link rel="stylesheet" href="../globalCSS.css">
+    <link rel="stylesheet" href="../layoutCSS.css">
+    <link rel="stylesheet" href="../alertCSS.css">
     
     <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+    
+    <style>
+        /* Quality Alerts specific styles - matching Dashboard */
+        
+        /* Alerts Dashboard Container */
+        .alerts-dashboard {
+            padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-xl) var(--spacing-xl);
+            width: 100%;
+        }
+        
+        /* Alert Stats Cards - matching Dashboard KPI style */
+        .alert-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .alert-stat-card {
+            background: var(--light-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-lg);
+            transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+            cursor: pointer;
+        }
+        
+        .alert-stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .alert-stat-card.critical { border-left: 4px solid #dc2626; }
+        .alert-stat-card.high { border-left: 4px solid #f97316; }
+        .alert-stat-card.medium { border-left: 4px solid #eab308; }
+        .alert-stat-card.low { border-left: 4px solid #22c55e; }
+        .alert-stat-card.total { border-left: 4px solid var(--primary-color); }
+        
+        .alert-stat-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .alert-stat-card.critical .alert-stat-icon { background: #fee2e2; color: #dc2626; }
+        .alert-stat-card.high .alert-stat-icon { background: #ffedd5; color: #f97316; }
+        .alert-stat-card.medium .alert-stat-icon { background: #fef9c3; color: #eab308; }
+        .alert-stat-card.low .alert-stat-icon { background: #dcfce7; color: #22c55e; }
+        .alert-stat-card.total .alert-stat-icon { background: #dbeafe; color: var(--primary-color); }
+        
+        .alert-stat-content {
+            flex: 1;
+        }
+        
+        .alert-stat-label {
+            display: block;
+            font-size: var(--font-size-sm);
+            color: var(--gray-600);
+            margin-bottom: var(--spacing-xs);
+            font-weight: 500;
+        }
+        
+        .alert-stat-value {
+            display: block;
+            font-size: var(--font-size-2xl);
+            font-weight: 700;
+            color: var(--dark-color);
+        }
+        
+        /* Filters Section - matching Dashboard table filters */
+        .alerts-filters {
+            background: var(--light-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+            align-items: flex-end;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+            min-width: 160px;
+        }
+        
+        .filter-group label {
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            background: var(--light-color);
+            cursor: pointer;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .filter-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-left: auto;
+        }
+        
+        /* Alerts List Container - matching Dashboard table section */
+        .alerts-list-container {
+            background: var(--light-color);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .alerts-list-header {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--gray-300);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--gray-100);
+        }
+        
+        .alerts-list-header h3 {
+            margin: 0;
+            font-size: var(--font-size-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .alerts-list-header h3 i {
+            color: var(--primary-color);
+        }
+        
+        .alerts-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        /* Alert Items - matching Dashboard table rows */
+        .alert-item {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--gray-300);
+            transition: background var(--transition-fast);
+            cursor: pointer;
+        }
+        
+        .alert-item:hover {
+            background: var(--gray-100);
+        }
+        
+        .alert-item.new {
+            background: #fef2f2;
+            border-left: 3px solid #dc2626;
+        }
+        
+        .alert-item.acknowledged {
+            border-left: 3px solid #f97316;
+        }
+        
+        .alert-item.resolved {
+            border-left: 3px solid #22c55e;
+            opacity: 0.7;
+        }
+        
+        .alert-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+        
+        .alert-severity {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        
+        .alert-severity.critical { background: #fee2e2; color: #dc2626; }
+        .alert-severity.high { background: #ffedd5; color: #f97316; }
+        .alert-severity.medium { background: #fef9c3; color: #eab308; }
+        .alert-severity.low { background: #dcfce7; color: #22c55e; }
+        
+        .alert-title {
+            flex: 1;
+            font-weight: 600;
+            font-size: var(--font-size-sm);
+            color: var(--dark-color);
+        }
+        
+        .alert-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+            margin-left: var(--spacing-sm);
+        }
+        
+        .alert-badge.new { background: #dc2626; color: white; }
+        .alert-badge.acknowledged { background: #f97316; color: white; }
+        .alert-badge.resolved { background: #22c55e; color: white; }
+        
+        .alert-date {
+            font-size: var(--font-size-xs);
+            color: var(--gray-500);
+        }
+        
+        .alert-details {
+            margin-left: 48px;
+            margin-bottom: var(--spacing-sm);
+            font-size: var(--font-size-sm);
+            color: var(--gray-700);
+        }
+        
+        .alert-details p {
+            margin: var(--spacing-xs) 0;
+        }
+        
+        .alert-actions {
+            margin-left: 48px;
+            display: flex;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+        
+        .alert-action-btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-xs);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .alert-action-btn.view-map {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .alert-action-btn.acknowledge {
+            background: #f97316;
+            color: white;
+        }
+        
+        .alert-action-btn.resolve {
+            background: #22c55e;
+            color: white;
+        }
+        
+        .alert-action-btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.9;
+        }
+        
+        /* Pagination - matching Dashboard */
+        .alerts-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-lg);
+            border-top: 1px solid var(--gray-300);
+            background: var(--light-color);
+        }
+        
+        .pagination-btn {
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            background: var(--light-color);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--primary-color);
+            color: var(--light-color);
+            border-color: var(--primary-color);
+        }
+        
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        #pageInfo {
+            font-size: var(--font-size-sm);
+            color: var(--gray-600);
+        }
+        
+        /* Modal Styles for Map */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .modal-content {
+            background: var(--light-color);
+            border-radius: var(--radius-xl);
+            max-width: 1100px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+        
+        .modal-header {
+            padding: var(--spacing-lg) var(--spacing-xl);
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            position: sticky;
+            top: 0;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .modal-close:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+        
+        .modal-body {
+            padding: var(--spacing-xl);
+        }
+        
+        .modal-section {
+            margin-bottom: var(--spacing-lg);
+            padding-bottom: var(--spacing-lg);
+            border-bottom: 1px solid var(--gray-300);
+        }
+        
+        .modal-section:last-child {
+            border-bottom: none;
+        }
+        
+        .modal-section-title {
+            font-size: var(--font-size-md);
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .modal-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+        }
+        
+        .modal-row {
+            display: flex;
+            padding: var(--spacing-xs) 0;
+        }
+        
+        .modal-label {
+            width: 120px;
+            font-weight: 600;
+            color: var(--gray-600);
+            font-size: var(--font-size-sm);
+        }
+        
+        .modal-value {
+            flex: 1;
+            color: var(--dark-color);
+            font-size: var(--font-size-sm);
+        }
+        
+        #alertMap {
+            height: 400px;
+            border-radius: var(--radius-md);
+            margin-top: var(--spacing-sm);
+            border: 1px solid var(--gray-300);
+        }
+        
+        .map-info {
+            margin-top: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background: #f0fdf4;
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-xs);
+            color: #166534;
+            border-left: 3px solid #4CAF50;
+        }
+        
+        .two-farm-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .farm-card {
+            background: var(--gray-100);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            border: 1px solid var(--gray-300);
+        }
+        
+        .farm-card h4 {
+            margin: 0 0 var(--spacing-sm) 0;
+            color: var(--primary-color);
+            font-size: var(--font-size-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--gray-300);
+        }
+        
+        .modal-btn {
+            flex: 1;
+            padding: var(--spacing-sm);
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all var(--transition-fast);
+            font-size: var(--font-size-sm);
+        }
+        
+        .modal-btn.acknowledge { background: #f97316; color: white; }
+        .modal-btn.resolve { background: #22c55e; color: white; }
+        .modal-btn.cancel { background: var(--gray-300); color: var(--gray-700); }
+        .modal-btn:hover { transform: translateY(-1px); opacity: 0.9; }
+        
+        .alert-badge-large {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+        }
+        
+        .alert-badge-large.critical { background: #fee2e2; color: #dc2626; }
+        .alert-badge-large.high { background: #ffedd5; color: #f97316; }
+        .alert-badge-large.medium { background: #fef9c3; color: #eab308; }
+        .alert-badge-large.low { background: #dcfce7; color: #22c55e; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Leaflet attribution removal */
+        .leaflet-control-attribution {
+            display: none !important;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .alerts-dashboard {
+                padding: var(--spacing-lg);
+            }
+            
+            .alert-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .alerts-dashboard {
+                padding: var(--spacing-md);
+            }
+            
+            .alert-stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .alerts-filters {
+                flex-direction: column;
+            }
+            
+            .filter-group {
+                width: 100%;
+            }
+            
+            .filter-actions {
+                margin-left: 0;
+                width: 100%;
+            }
+            
+            .filter-actions button {
+                flex: 1;
+            }
+            
+            .two-farm-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-row {
+                flex-direction: column;
+            }
+            
+            .modal-label {
+                width: 100%;
+                margin-bottom: var(--spacing-xs);
+            }
+            
+            #alertMap {
+                height: 300px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="layout">
-        <!-- SIDEBAR -->
+        <!-- SIDEBAR (same as Dashboard) -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>
@@ -62,7 +645,7 @@
 
         <!-- MAIN CONTENT -->
         <main class="main">
-            <!-- HEADER -->
+            <!-- HEADER (same as Dashboard) -->
             <header class="main-header">
                 <div class="header-title">
                     <h1><i class="fas fa-exclamation-triangle"></i> Quality Alerts</h1>
@@ -86,38 +669,48 @@
 
             <!-- ALERTS CONTENT -->
             <div class="alerts-dashboard">
-                <!-- Alert Stats Cards -->
+                <!-- Alert Stats Cards (matching Dashboard KPI style) -->
                 <div class="alert-stats-grid">
                     <div class="alert-stat-card critical">
-                        <div class="alert-stat-icon"><i class="fas fa-skull-crossbones"></i></div>
+                        <div class="alert-stat-icon">
+                            <i class="fas fa-skull-crossbones"></i>
+                        </div>
                         <div class="alert-stat-content">
                             <span class="alert-stat-label">Critical</span>
                             <span class="alert-stat-value" id="criticalCount">0</span>
                         </div>
                     </div>
                     <div class="alert-stat-card high">
-                        <div class="alert-stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="alert-stat-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
                         <div class="alert-stat-content">
                             <span class="alert-stat-label">High</span>
                             <span class="alert-stat-value" id="highCount">0</span>
                         </div>
                     </div>
                     <div class="alert-stat-card medium">
-                        <div class="alert-stat-icon"><i class="fas fa-exclamation"></i></div>
+                        <div class="alert-stat-icon">
+                            <i class="fas fa-exclamation"></i>
+                        </div>
                         <div class="alert-stat-content">
                             <span class="alert-stat-label">Medium</span>
                             <span class="alert-stat-value" id="mediumCount">0</span>
                         </div>
                     </div>
                     <div class="alert-stat-card low">
-                        <div class="alert-stat-icon"><i class="fas fa-info-circle"></i></div>
+                        <div class="alert-stat-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
                         <div class="alert-stat-content">
                             <span class="alert-stat-label">Low</span>
                             <span class="alert-stat-value" id="lowCount">0</span>
                         </div>
                     </div>
                     <div class="alert-stat-card total">
-                        <div class="alert-stat-icon"><i class="fas fa-bell"></i></div>
+                        <div class="alert-stat-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
                         <div class="alert-stat-content">
                             <span class="alert-stat-label">Total Alerts</span>
                             <span class="alert-stat-value" id="totalAlerts">0</span>
@@ -125,7 +718,7 @@
                     </div>
                 </div>
 
-                <!-- Filters Section -->
+                <!-- Filters Section (matching Dashboard table filters) -->
                 <div class="alerts-filters">
                     <div class="filter-group">
                         <label>Alert Type</label>
@@ -169,12 +762,16 @@
                         </select>
                     </div>
                     <div class="filter-actions">
-                        <button class="btn-primary" id="applyFiltersBtn"><i class="fas fa-search"></i> Apply</button>
-                        <button class="btn-secondary" id="clearFiltersBtn"><i class="fas fa-times"></i> Clear</button>
+                        <button class="btn-primary" id="applyFiltersBtn">
+                            <i class="fas fa-search"></i> Apply
+                        </button>
+                        <button class="btn-secondary" id="clearFiltersBtn">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
                     </div>
                 </div>
 
-                <!-- Alerts List -->
+                <!-- Alerts List Container (matching Dashboard table section) -->
                 <div class="alerts-list-container">
                     <div class="alerts-list-header">
                         <h3><i class="fas fa-list"></i> Quality Alerts</h3>
@@ -184,14 +781,18 @@
                     </div>
                     <div class="alerts-list" id="alertsList">
                         <div style="text-align:center;padding:60px;">
-                            <i class="fas fa-spinner fa-spin" style="font-size:48px;color:#2c6e49;"></i>
+                            <i class="fas fa-spinner fa-spin" style="font-size:48px;color:var(--primary-color);"></i>
                             <p style="margin-top:15px;">Loading alerts from database...</p>
                         </div>
                     </div>
                     <div class="alerts-pagination">
-                        <button class="pagination-btn" id="prevPageBtn" disabled><i class="fas fa-chevron-left"></i></button>
+                        <button class="pagination-btn" id="prevPageBtn" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
                         <span id="pageInfo">Page 1 of 1</span>
-                        <button class="pagination-btn" id="nextPageBtn" disabled><i class="fas fa-chevron-right"></i></button>
+                        <button class="pagination-btn" id="nextPageBtn" disabled>
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
                     </div>
                 </div>
             </div>
