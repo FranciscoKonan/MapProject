@@ -304,6 +304,17 @@
                 opacity: 1;
             }
         }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -411,7 +422,7 @@
     <!-- Supabase library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- Direct Supabase Configuration - This Works! -->
+    <!-- Direct Supabase Configuration -->
     <script>
         // Supabase credentials - direct embedding
         const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
@@ -604,19 +615,20 @@
                                 role: role,
                                 organization: organization || '',
                                 created_at: new Date().toISOString()
-                            },
-                            emailRedirectTo: window.location.origin + '/Dashboard.html'
+                            }
                         }
                     });
                     
                     if (error) throw error;
                     
-                    console.log('✅ Registration successful');
+                    console.log('✅ Registration successful', data);
                     
-                    if (data?.user && data?.session) {
-                        notification.success('Account created! Redirecting to dashboard...');
+                    // Check if user was created and session exists
+                    if (data?.user) {
+                        // Try to sign in automatically after registration
+                        notification.success('Account created! Redirecting to login...');
                         
-                        // Store user info
+                        // Store user info for quick access
                         const fullName = `${firstName} ${lastName}`;
                         const displayRole = role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
                         const initials = `${firstName[0]}${lastName[0]}`.toUpperCase();
@@ -628,11 +640,13 @@
                             email: email
                         }));
                         
+                        // Redirect to login page after 2 seconds
                         setTimeout(() => {
-                            window.location.href = 'Dashboard.html';
+                            window.location.href = 'login.html?registered=true&email=' + encodeURIComponent(email);
                         }, 2000);
                         
                     } else {
+                        // Email confirmation required
                         notification.success('Account created! Please check your email for verification.');
                         setTimeout(() => {
                             window.location.href = 'login.html?registered=true';
@@ -645,6 +659,9 @@
                     let errorMessage = error.message;
                     if (errorMessage.includes('User already registered')) {
                         errorMessage = 'Email already registered. Please login instead.';
+                        setTimeout(() => {
+                            window.location.href = 'login.html';
+                        }, 2000);
                     } else if (errorMessage.includes('Password should be at least')) {
                         errorMessage = 'Password must be at least 8 characters long';
                     }
