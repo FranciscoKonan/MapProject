@@ -1,6 +1,6 @@
 // ===========================================
-// QUALITY ALERTS - DIRECT SUPABASE INTEGRATION
-// Matches Dashboard layout and functionality
+// QUALITY ALERTS - WORKING VERSION
+// Loads farms from Supabase and detects overlaps
 // ===========================================
 
 console.log('🚀 Quality Alerts page loading...');
@@ -39,14 +39,16 @@ function loadUserData() {
 }
 
 function initSupabase(retryCount = 0) {
-    console.log('🔧 Initializing Supabase for Quality Alerts...');
+    console.log('🔧 Initializing Supabase...');
     
     if (typeof window.supabase === 'undefined') {
-        if (retryCount < 15) {
+        if (retryCount < 20) {
+            console.log(`⏳ Waiting for Supabase... (${retryCount + 1}/20)`);
             setTimeout(() => initSupabase(retryCount + 1), 500);
             return;
         }
         console.error('❌ Supabase library failed to load');
+        showNotification('Supabase library failed to load. Please refresh.', 'error');
         return;
     }
     
@@ -57,35 +59,46 @@ function initSupabase(retryCount = 0) {
         checkSessionAndLoad();
     } catch (error) {
         console.error('❌ Supabase init error:', error);
+        if (retryCount < 5) {
+            setTimeout(() => initSupabase(retryCount + 1), 1000);
+        }
     }
 }
 
 async function checkSessionAndLoad() {
     try {
+        console.log('🔐 Checking session...');
         const { data: { session }, error } = await supabaseClient.auth.getSession();
         
-        if (error) throw error;
+        if (error) {
+            console.error('Session error:', error);
+            return;
+        }
         
         if (!session) {
             console.log('⚠️ No active session, redirecting to login');
-            setTimeout(() => window.location.href = '../login.html', 2000);
+            showNotification('Please login to view alerts', 'warning');
+            setTimeout(() => {
+                window.location.href = '../login.html';
+            }, 2000);
             return;
         }
         
         console.log('👤 User logged in:', session.user.email);
-        await loadFarmsDirectly();
+        await loadFarmsFromSupabase();
         
     } catch (error) {
-        console.error('Session error:', error);
+        console.error('Session check error:', error);
     }
 }
 
 // ===========================================
-// LOAD FARMS DIRECTLY FROM SUPABASE
+// LOAD FARMS FROM SUPABASE
 // ===========================================
 
-async function loadFarmsDirectly() {
-    console.log('📡 Loading farms from Supabase...');
+async function loadFarmsFromSupabase() {
+    console.log('📡 Loading farms from Supabase farms table...');
+    showNotification('Loading farm data...', 'info');
     
     const alertsList = document.getElementById('alertsList');
     if (alertsList) {
@@ -103,10 +116,15 @@ async function loadFarmsDirectly() {
             .select('*')
             .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase error:', error);
+            throw error;
+        }
+        
+        console.log('Raw farms data:', farms);
         
         if (farms && farms.length > 0) {
-            console.log(`✅ Loaded ${farms.length} farms`);
+            console.log(`✅ Loaded ${farms.length} farms from database`);
             
             allFarms = farms.map(farm => ({
                 id: farm.id,
@@ -117,8 +135,11 @@ async function loadFarmsDirectly() {
                 supplier: farm.supplier || 'Unknown',
                 area: farm.area || 0,
                 status: farm.status || 'pending',
-                geometry: farm.geometry
+                geometry: farm.geometry,
+                coordinates: farm.geometry?.coordinates
             }));
+            
+            console.log(`📊 Processed ${allFarms.length} farms`);
             
             generateAlertsFromFarms();
             updateFilterOptions();
@@ -129,9 +150,13 @@ async function loadFarmsDirectly() {
                            alertCount > 0 ? 'warning' : 'success');
             
             const badge = document.getElementById('notificationBadge');
-            if (badge) badge.style.display = alertCount > 0 ? 'flex' : 'none';
+            if (badge) {
+                badge.style.display = alertCount > 0 ? 'block' : 'none';
+                if (badge.textContent) badge.textContent = alertCount;
+            }
             
         } else {
+            console.log('⚠️ No farms found in database');
             alertsList.innerHTML = `
                 <div style="text-align:center;padding:60px;">
                     <i class="fas fa-check-circle" style="font-size:48px;color:#22c55e;"></i>
@@ -143,31 +168,57 @@ async function loadFarmsDirectly() {
         
     } catch (error) {
         console.error('Error loading farms:', error);
-        alertsList.innerHTML = `
-            <div style="text-align:center;padding:60px;">
-                <i class="fas fa-exclamation-triangle" style="font-size:48px;color:#dc2626;"></i>
-                <h3>Error Loading Data</h3>
-                <p style="color:#64748b;">${error.message}</p>
-                <button onclick="location.reload()" style="margin-top:15px;padding:8px 16px;background:#2c6e49;color:white;border:none;border-radius:6px;cursor:pointer;">
-                    <i class="fas fa-redo"></i> Retry
-                </button>
-            </div>
-        `;
+        showNotification('Error loading farms: ' + error.message, 'error');
+        
+        if (alertsList) {
+            alertsList.innerHTML = `
+                <div style="text-align:center;padding:60px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size:48px;color:#dc2626;"></i>
+                    <h3>Error Loading Data</h3>
+                    <p style="color:#64748b;">${error.message}</p>
+                    <button onclick="location.reload()" style="margin-top:15px;padding:8px 16px;background:#2c6e49;color:white;border:none;border-radius:6px;cursor:pointer;">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                </div>
+            `;
+        }
     }
 }
 
 // ===========================================
-// GENERATE ALERTS
+// CONVERT COORDINATES FOR LEAFLET
+// ===========================================
+
+function convertToLeafletCoords(coords) {
+    if (!coords || !Array.isArray(coords)) return coords;
+    
+    if (coords.length === 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+        return [coords[1], coords[0]];
+    }
+    
+    if (Array.isArray(coords[0]) && Array.isArray(coords[0][0])) {
+        return coords.map(ring => ring.map(point => [point[1], point[0]]));
+    }
+    
+    if (Array.isArray(coords[0]) && typeof coords[0][0] === 'number') {
+        return coords.map(point => [point[1], point[0]]);
+    }
+    
+    return coords;
+}
+
+// ===========================================
+// GENERATE ALERTS FROM FARMS
 // ===========================================
 
 function generateAlertsFromFarms() {
-    console.log('🔍 Generating alerts...');
+    console.log('🔍 Generating quality alerts from farms...');
     const alerts = [];
     
     const farmsWithGeo = allFarms.filter(f => f.geometry && f.geometry.coordinates);
     console.log(`📐 Farms with geometry: ${farmsWithGeo.length}`);
     
-    // Detect overlaps
+    // DETECT OVERLAPS
     for (let i = 0; i < farmsWithGeo.length; i++) {
         for (let j = i + 1; j < farmsWithGeo.length; j++) {
             const farm1 = farmsWithGeo[i];
@@ -179,44 +230,54 @@ function generateAlertsFromFarms() {
                 
                 if (turf.booleanIntersects(poly1, poly2)) {
                     const intersection = turf.intersect(poly1, poly2);
+                    
                     if (intersection) {
-                        const overlapArea = turf.area(intersection) / 10000;
-                        if (overlapArea > 0.01) {
-                            const area1 = turf.area(poly1) / 10000;
-                            const area2 = turf.area(poly2) / 10000;
-                            const percent = Math.round((overlapArea / Math.min(area1, area2)) * 100);
+                        const overlapAreaSqM = turf.area(intersection);
+                        const overlapAreaHa = overlapAreaSqM / 10000;
+                        
+                        if (overlapAreaHa > 0.01) {
+                            const area1Ha = turf.area(poly1) / 10000;
+                            const area2Ha = turf.area(poly2) / 10000;
+                            const smallerArea = Math.min(area1Ha, area2Ha);
+                            const overlapPercent = Math.round((overlapAreaHa / smallerArea) * 100);
                             
                             let severity = 'low';
-                            if (overlapArea > 5) severity = 'critical';
-                            else if (overlapArea >= 3) severity = 'high';
-                            else if (overlapArea > 1) severity = 'medium';
+                            if (overlapAreaHa > 5) severity = 'critical';
+                            else if (overlapAreaHa >= 3) severity = 'high';
+                            else if (overlapAreaHa > 1) severity = 'medium';
                             
                             alerts.push({
                                 id: `overlap_${farm1.id}_${farm2.id}`,
                                 farmId: farm1.farmer_id,
                                 farmerName: farm1.farmer_name,
                                 farmData: farm1,
+                                affectedFarmId: farm2.farmer_id,
                                 affectedFarmName: farm2.farmer_name,
                                 affectedFarmData: farm2,
                                 cooperative: farm1.cooperative,
                                 supplier: farm1.supplier,
                                 type: 'overlap',
                                 severity: severity,
-                                title: `${severity.toUpperCase()} Overlap: ${overlapArea.toFixed(1)}ha`,
-                                description: `Farm "${farm1.farmer_name}" overlaps with "${farm2.farmer_name}". Overlap area: ${overlapArea.toFixed(2)} ha (${percent}% of smaller farm).`,
+                                title: `${severity.toUpperCase()} Overlap: ${overlapAreaHa.toFixed(1)}ha`,
+                                description: `Farm "${farm1.farmer_name}" overlaps with "${farm2.farmer_name}". Overlap area: ${overlapAreaHa.toFixed(2)} ha (${overlapPercent}% of smaller farm).`,
                                 status: 'new',
                                 date: new Date().toISOString(),
-                                overlapArea: overlapArea,
-                                overlapPercent: percent
+                                overlapArea: overlapAreaHa,
+                                overlapPercent: overlapPercent,
+                                intersectionGeo: intersection.geometry.coordinates
                             });
+                            
+                            console.log(`⚠️ Found overlap: ${farm1.farmer_name} ↔ ${farm2.farmer_name} (${overlapAreaHa.toFixed(2)} ha)`);
                         }
                     }
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.warn('Error checking overlap:', e.message);
+            }
         }
     }
     
-    // Check for missing geometry
+    // CHECK FOR MISSING GEOMETRY
     allFarms.forEach(farm => {
         if (!farm.geometry && farm.status !== 'rejected') {
             alerts.push({
@@ -229,7 +290,7 @@ function generateAlertsFromFarms() {
                 type: 'data',
                 severity: 'high',
                 title: 'Missing Geometry Data',
-                description: `Farm has no geometry data. Cannot display on map.`,
+                description: `Farm "${farm.farmer_name}" has no geometry data. Cannot display on map or calculate area.`,
                 status: 'new',
                 date: new Date().toISOString()
             });
@@ -237,8 +298,12 @@ function generateAlertsFromFarms() {
     });
     
     allAlerts = alerts;
-    console.log(`✅ Generated ${alerts.length} alerts`);
+    console.log(`✅ Generated ${alerts.length} alerts (${alerts.filter(a => a.type === 'overlap').length} overlaps)`);
 }
+
+// ===========================================
+// FILTER FUNCTIONS
+// ===========================================
 
 function updateFilterOptions() {
     const suppliers = [...new Set(allAlerts.map(a => a.supplier || 'Unknown'))];
@@ -355,7 +420,7 @@ function updatePagination() {
 }
 
 // ===========================================
-// MAP VIEW FUNCTIONS
+// MAP VIEW FUNCTIONS - WITH ZOOM AND OVERLAP
 // ===========================================
 
 function viewAlertOnMap(alertId) {
@@ -371,14 +436,6 @@ function viewAlertOnMap(alertId) {
     }
 }
 
-function convertToLeafletCoords(coords) {
-    if (!coords || !Array.isArray(coords)) return coords;
-    if (coords.length === 2 && typeof coords[0] === 'number') {
-        return [coords[1], coords[0]];
-    }
-    return coords.map(item => convertToLeafletCoords(item));
-}
-
 function showOverlapMapModal(alert) {
     const existing = document.querySelector('.modal-overlay');
     if (existing) existing.remove();
@@ -390,7 +447,7 @@ function showOverlapMapModal(alert) {
     modal.innerHTML = `
         <div class="modal-content">
             <div class="modal-header" style="background: linear-gradient(135deg, ${severityColors[alert.severity]}, #7f1d1d);">
-                <h3><i class="fas fa-exclamation-triangle"></i> Overlap Analysis</h3>
+                <h3><i class="fas fa-exclamation-triangle"></i> Overlap Analysis - ${alert.severity.toUpperCase()}</h3>
                 <button class="modal-close" onclick="this.closest('.modal-overlay').remove()"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
@@ -421,7 +478,11 @@ function showOverlapMapModal(alert) {
                     <div id="alertMap"></div>
                     <div class="map-info">
                         <i class="fas fa-info-circle"></i> 
-                        <strong>Decision Support:</strong> The red overlay shows the conflicting area. Use satellite imagery to verify boundaries.
+                        <strong>Legend:</strong> 
+                        <span style="color:#22c55e;">■ Green</span> = Farm 1, 
+                        <span style="color:#f97316;">■ Orange</span> = Farm 2, 
+                        <span style="color:#dc2626;">■ Red</span> = Conflict/Overlap Area
+                        <br><strong>Tip:</strong> Use + / - buttons to zoom, click and drag to pan.
                     </div>
                 </div>
                 
@@ -434,14 +495,14 @@ function showOverlapMapModal(alert) {
                             <i class="fas fa-check-double"></i> Resolve
                         </button>
                     ` : ''}
-                    <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">Close</button>
+                    <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">Close Map</button>
                 </div>
             </div>
         </div>
     `;
     
     document.body.appendChild(modal);
-    setTimeout(() => initOverlapMap(alert), 100);
+    setTimeout(() => initOverlapMap(alert), 150);
 }
 
 function initOverlapMap(alert) {
@@ -454,37 +515,77 @@ function initOverlapMap(alert) {
     const farm2Geo = alert.affectedFarmData?.geometry;
     let bounds = null;
     
-    currentMap = L.map('alertMap', { attributionControl: false }).setView([7.539989, -5.547080], 7);
-    L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-        maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    // Create map with zoom controls
+    currentMap = L.map('alertMap').setView([7.539989, -5.547080], 14);
+    L.control.zoom({ position: 'topright' }).addTo(currentMap);
+    
+    // Google Satellite tiles
+    L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 22,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(currentMap);
     
+    // Draw Farm 1 (Green)
     if (farm1Geo?.coordinates) {
-        const poly = L.polygon(convertToLeafletCoords(farm1Geo.coordinates), {
-            color: '#22c55e', weight: 3, fillColor: '#22c55e', fillOpacity: 0.3
-        }).addTo(currentMap);
-        if (poly.getBounds?.isValid()) bounds = bounds ? bounds.extend(poly.getBounds()) : poly.getBounds();
-    }
-    
-    if (farm2Geo?.coordinates) {
-        const poly = L.polygon(convertToLeafletCoords(farm2Geo.coordinates), {
-            color: '#f97316', weight: 3, fillColor: '#f97316', fillOpacity: 0.3
-        }).addTo(currentMap);
-        if (poly.getBounds?.isValid()) bounds = bounds ? bounds.extend(poly.getBounds()) : poly.getBounds();
-    }
-    
-    if (farm1Geo?.coordinates && farm2Geo?.coordinates) {
         try {
-            const intersection = turf.intersect(turf.polygon(farm1Geo.coordinates), turf.polygon(farm2Geo.coordinates));
-            if (intersection) {
-                L.polygon(convertToLeafletCoords(intersection.geometry.coordinates), {
-                    color: '#dc2626', weight: 4, fillColor: '#dc2626', fillOpacity: 0.5
-                }).addTo(currentMap);
+            const coords = convertToLeafletCoords(farm1Geo.coordinates);
+            const polygon = L.polygon(coords, {
+                color: '#22c55e',
+                weight: 3,
+                fillColor: '#22c55e',
+                fillOpacity: 0.3
+            }).addTo(currentMap);
+            polygon.bindPopup(`<b>${escapeHtml(alert.farmerName)}</b><br>Farm 1 | ${alert.farmData?.area?.toFixed(2)} ha`);
+            
+            if (polygon.getBounds && polygon.getBounds().isValid()) {
+                bounds = bounds ? bounds.extend(polygon.getBounds()) : polygon.getBounds();
             }
-        } catch(e) {}
+        } catch(e) { console.warn('Error drawing farm1:', e); }
     }
     
-    if (bounds?.isValid()) currentMap.fitBounds(bounds, { padding: [50, 50] });
+    // Draw Farm 2 (Orange)
+    if (farm2Geo?.coordinates) {
+        try {
+            const coords = convertToLeafletCoords(farm2Geo.coordinates);
+            const polygon = L.polygon(coords, {
+                color: '#f97316',
+                weight: 3,
+                fillColor: '#f97316',
+                fillOpacity: 0.3
+            }).addTo(currentMap);
+            polygon.bindPopup(`<b>${escapeHtml(alert.affectedFarmName)}</b><br>Farm 2 | ${alert.affectedFarmData?.area?.toFixed(2)} ha`);
+            
+            if (polygon.getBounds && polygon.getBounds().isValid()) {
+                bounds = bounds ? bounds.extend(polygon.getBounds()) : polygon.getBounds();
+            }
+        } catch(e) { console.warn('Error drawing farm2:', e); }
+    }
+    
+    // Draw overlap area (RED)
+    if (alert.intersectionGeo) {
+        try {
+            const overlapCoords = convertToLeafletCoords(alert.intersectionGeo);
+            const overlapPoly = L.polygon(overlapCoords, {
+                color: '#dc2626',
+                weight: 4,
+                fillColor: '#dc2626',
+                fillOpacity: 0.6
+            }).addTo(currentMap);
+            overlapPoly.bindPopup(`<b>⚠️ CONFLICT AREA</b><br>${alert.overlapArea?.toFixed(2)} hectares overlap`);
+            
+            if (overlapPoly.getBounds && overlapPoly.getBounds().isValid()) {
+                bounds = bounds ? bounds.extend(overlapPoly.getBounds()) : overlapPoly.getBounds();
+            }
+        } catch(e) { console.warn('Error drawing overlap:', e); }
+    }
+    
+    // Fit bounds to show everything
+    if (bounds && bounds.isValid()) {
+        currentMap.fitBounds(bounds, { padding: [50, 50] });
+    }
+    
+    // Add scale bar
+    L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(currentMap);
 }
 
 function showSingleFarmMapModal(alert) {
@@ -511,15 +612,30 @@ function showSingleFarmMapModal(alert) {
     document.body.appendChild(modal);
     setTimeout(() => {
         if (currentMap) currentMap.remove();
-        currentMap = L.map('alertMap', { attributionControl: false }).setView([7.539989, -5.547080], 7);
-        L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }).addTo(currentMap);
+        
+        currentMap = L.map('alertMap').setView([7.539989, -5.547080], 14);
+        L.control.zoom({ position: 'topright' }).addTo(currentMap);
+        L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            maxZoom: 22, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        }).addTo(currentMap);
+        
         if (alert.farmData?.geometry?.coordinates) {
-            const poly = L.polygon(convertToLeafletCoords(alert.farmData.geometry.coordinates), {
-                color: '#f97316', weight: 3, fillColor: '#f97316', fillOpacity: 0.3
+            const coords = convertToLeafletCoords(alert.farmData.geometry.coordinates);
+            const polygon = L.polygon(coords, {
+                color: alert.severity === 'high' ? '#f97316' : '#eab308',
+                weight: 3,
+                fillColor: alert.severity === 'high' ? '#f97316' : '#eab308',
+                fillOpacity: 0.3
             }).addTo(currentMap);
-            if (poly.getBounds?.isValid()) currentMap.fitBounds(poly.getBounds());
+            
+            if (polygon.getBounds && polygon.getBounds().isValid()) {
+                currentMap.fitBounds(polygon.getBounds(), { padding: [50, 50] });
+            }
+            polygon.bindPopup(`<b>${escapeHtml(alert.farmerName)}</b><br>⚠️ ${alert.title}`);
         }
-    }, 100);
+        
+        L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(currentMap);
+    }, 150);
 }
 
 function updateAlertStatus(alertId, newStatus) {
@@ -542,14 +658,21 @@ function getSeverityIcon(severity) {
 
 function formatDate(dateString) {
     const date = new Date(dateString);
-    const hours = Math.floor((new Date() - date) / 3600000);
-    if (hours < 24) return `${hours} hours ago`;
+    const now = new Date();
+    const diffHours = Math.floor((now - date) / 3600000);
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffHours < 48) return 'Yesterday';
     return date.toLocaleDateString();
 }
 
 function escapeHtml(str) {
     if (!str) return '';
-    return String(str).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
+    return String(str).replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
 }
 
 function showNotification(message, type = 'info') {
@@ -578,7 +701,7 @@ function setupEventListeners() {
     document.getElementById('alertStatusFilter')?.addEventListener('change', () => applyFilters());
     document.getElementById('prevPageBtn')?.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderAlerts(); updatePagination(); } });
     document.getElementById('nextPageBtn')?.addEventListener('click', () => { const total = Math.ceil(filteredAlerts.length / rowsPerPage); if (currentPage < total) { currentPage++; renderAlerts(); updatePagination(); } });
-    document.getElementById('refreshBtn')?.addEventListener('click', () => loadFarmsDirectly());
+    document.getElementById('refreshBtn')?.addEventListener('click', () => loadFarmsFromSupabase());
     document.getElementById('markAllReadBtn')?.addEventListener('click', () => {
         if (confirm('Mark all new alerts as acknowledged?')) {
             allAlerts.forEach(a => { if (a.status === 'new') a.status = 'acknowledged'; });
@@ -597,5 +720,6 @@ function setupEventListeners() {
 // Make functions global
 window.viewAlertOnMap = viewAlertOnMap;
 window.updateAlertStatus = updateAlertStatus;
+window.applyFilters = applyFilters;
 
-console.log('✅ Quality Alerts page ready');
+console.log('✅ Quality Alerts page ready - will load farms from Supabase and detect overlaps');
