@@ -12,42 +12,724 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="submissions.css">
+    <!-- Dashboard CSS Files (same as Dashboard) -->
+    <link rel="stylesheet" href="../globalCSS.css">
+    <link rel="stylesheet" href="../layoutCSS.css">
+    <link rel="stylesheet" href="../tableCSS.css">
+    
+    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+    
+    <style>
+        /* Submissions specific styles - matching Dashboard */
+        
+        /* Submissions Container */
+        .submissions-container {
+            padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-xl) var(--spacing-xl);
+            width: 100%;
+        }
+        
+        /* Stats Section - matching Dashboard KPI style */
+        .stats-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .stat-card {
+            background: var(--light-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-lg);
+            transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .stat-card i {
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .stat-card.pending i {
+            background: #fef9c3;
+            color: #eab308;
+        }
+        
+        .stat-card.validated i {
+            background: #dcfce7;
+            color: #22c55e;
+        }
+        
+        .stat-card.rejected i {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .stat-card.total i {
+            background: #dbeafe;
+            color: var(--primary-color);
+        }
+        
+        .stat-card .stat-number {
+            font-size: var(--font-size-2xl);
+            font-weight: 700;
+            color: var(--dark-color);
+        }
+        
+        .stat-card .stat-label {
+            font-size: var(--font-size-sm);
+            color: var(--gray-600);
+            font-weight: 500;
+        }
+        
+        /* Filters Section - matching Dashboard */
+        .filters-section {
+            background: var(--light-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+            align-items: flex-end;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+            min-width: 160px;
+        }
+        
+        .filter-group label {
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .filter-search-container {
+            position: relative;
+        }
+        
+        .filter-search {
+            width: 100%;
+            padding: 8px 12px 8px 32px;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            transition: all var(--transition-fast);
+        }
+        
+        .filter-search:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray-500);
+            font-size: 12px;
+        }
+        
+        .filter-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            background: var(--light-color);
+            cursor: pointer;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .search-box {
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            width: 200px;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .toggle-view-btn {
+            padding: 8px 16px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            transition: all var(--transition-fast);
+        }
+        
+        .toggle-view-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        
+        /* Table View - matching Dashboard table */
+        .table-view {
+            background: var(--light-color);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead tr {
+            background: var(--gray-100);
+            border-bottom: 1px solid var(--gray-300);
+        }
+        
+        th {
+            padding: var(--spacing-md) var(--spacing-lg);
+            text-align: left;
+            font-weight: 600;
+            font-size: var(--font-size-sm);
+            color: var(--gray-700);
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        th:hover {
+            background: var(--gray-200);
+        }
+        
+        th i {
+            margin-left: var(--spacing-xs);
+            font-size: var(--font-size-xs);
+            color: var(--gray-500);
+        }
+        
+        td {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid var(--gray-300);
+            font-size: var(--font-size-sm);
+        }
+        
+        tr:hover {
+            background: var(--gray-100);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+        }
+        
+        .status-badge.validated {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-badge.pending {
+            background: #fef9c3;
+            color: #854d0e;
+        }
+        
+        .status-badge.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+        
+        .action-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--font-size-xs);
+            transition: all var(--transition-fast);
+        }
+        
+        .action-btn.view {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .action-btn.view:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        
+        .action-btn.validate {
+            background: #22c55e;
+            color: white;
+        }
+        
+        .action-btn.validate:hover {
+            background: #16a34a;
+            transform: translateY(-1px);
+        }
+        
+        .action-btn.reject {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .action-btn.reject:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+        
+        /* Pagination - matching Dashboard */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-lg);
+            border-top: 1px solid var(--gray-300);
+            background: var(--light-color);
+        }
+        
+        .pagination-info {
+            font-size: var(--font-size-sm);
+            color: var(--gray-600);
+        }
+        
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+        
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            background: var(--light-color);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .page-btn:hover:not(:disabled) {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .page-numbers {
+            display: flex;
+            gap: var(--spacing-xs);
+        }
+        
+        .page-number {
+            padding: 6px 10px;
+            border: 1px solid var(--gray-300);
+            background: var(--light-color);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+            transition: all var(--transition-fast);
+        }
+        
+        .page-number:hover {
+            background: var(--gray-100);
+            border-color: var(--primary-color);
+        }
+        
+        .page-number.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        /* Group View */
+        .group-view {
+            background: var(--light-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .group-card {
+            background: var(--gray-100);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            border: 1px solid var(--gray-300);
+        }
+        
+        .group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--gray-300);
+        }
+        
+        .group-title {
+            font-weight: 600;
+            font-size: var(--font-size-md);
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .group-stats {
+            font-size: var(--font-size-xs);
+            color: var(--gray-600);
+        }
+        
+        .group-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--spacing-md);
+        }
+        
+        .group-item {
+            background: var(--light-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: 1px solid var(--gray-300);
+        }
+        
+        .group-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-color);
+        }
+        
+        .group-item-name {
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+            color: var(--dark-color);
+        }
+        
+        .group-item-details {
+            font-size: var(--font-size-xs);
+            color: var(--gray-600);
+        }
+        
+        /* Modal Styles for Map */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .modal-content {
+            background: var(--light-color);
+            border-radius: var(--radius-xl);
+            max-width: 900px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+        
+        .modal-header {
+            padding: var(--spacing-lg) var(--spacing-xl);
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            position: sticky;
+            top: 0;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .modal-close:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+        
+        .modal-body {
+            padding: var(--spacing-xl);
+        }
+        
+        .modal-section {
+            margin-bottom: var(--spacing-lg);
+            padding-bottom: var(--spacing-lg);
+            border-bottom: 1px solid var(--gray-300);
+        }
+        
+        .modal-section:last-child {
+            border-bottom: none;
+        }
+        
+        .modal-section-title {
+            font-size: var(--font-size-md);
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .modal-row {
+            display: flex;
+            padding: var(--spacing-xs) 0;
+        }
+        
+        .modal-label {
+            width: 130px;
+            font-weight: 600;
+            color: var(--gray-600);
+            font-size: var(--font-size-sm);
+        }
+        
+        .modal-value {
+            flex: 1;
+            color: var(--dark-color);
+            font-size: var(--font-size-sm);
+        }
+        
+        #submissionMap {
+            height: 350px;
+            border-radius: var(--radius-md);
+            margin-top: var(--spacing-sm);
+            border: 1px solid var(--gray-300);
+        }
+        
+        .map-info {
+            margin-top: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background: #f0fdf4;
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-xs);
+            color: #166534;
+            border-left: 3px solid #4CAF50;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--gray-300);
+        }
+        
+        .modal-btn {
+            flex: 1;
+            padding: var(--spacing-sm);
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all var(--transition-fast);
+            font-size: var(--font-size-sm);
+        }
+        
+        .modal-btn.approve {
+            background: #22c55e;
+            color: white;
+        }
+        
+        .modal-btn.reject {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .modal-btn.cancel {
+            background: var(--gray-300);
+            color: var(--gray-700);
+        }
+        
+        .modal-btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.9;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Leaflet attribution removal */
+        .leaflet-control-attribution {
+            display: none !important;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .submissions-container {
+                padding: var(--spacing-lg);
+            }
+            
+            .stats-section {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .submissions-container {
+                padding: var(--spacing-md);
+            }
+            
+            .stats-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters-section {
+                flex-direction: column;
+            }
+            
+            .filter-group {
+                width: 100%;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            .toggle-view-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .pagination-container {
+                flex-direction: column;
+                gap: var(--spacing-md);
+            }
+            
+            .group-items {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-row {
+                flex-direction: column;
+            }
+            
+            .modal-label {
+                width: 100%;
+                margin-bottom: var(--spacing-xs);
+            }
+            
+            #submissionMap {
+                height: 250px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="layout">
-        <!-- SIDEBAR -->
+        <!-- SIDEBAR (same as Dashboard) -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>
                     <i class="fas fa-map-marked-alt"></i>
                     <span>MappingTrace</span>
                 </h2>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
             </div>
             <nav class="menu">
-                <a href="../Dashboard.html">
+                <a href="../Dashboard.html" data-title="Dashboard">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="../LiveMapping/live-mapping.html">
+                <a href="../LiveMapping/live-mapping.html" data-title="Live Mapping">
                     <i class="fas fa-map"></i>
                     <span>Live Mapping</span>
                 </a>
-                <a href="#" class="active">
+                <a href="#" class="active" data-title="Submissions">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Submissions</span>
                 </a>
-                <a href="../QualityAlerts/quality-alerts.html">
+                <a href="../QualityAlerts/quality-alerts.html" data-title="Quality Alerts">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Quality Alerts</span>
                 </a>
-                <a href="../Exports/exports.html">
+                <a href="../Exports/exports.html" data-title="Exports">
                     <i class="fas fa-file-export"></i>
                     <span>Exports</span>
                 </a>
                 <div class="menu-bottom">
-                    <a href="#" id="logoutBtn">
+                    <a href="#" id="logoutBtn" data-title="Logout">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>Logout</span>
                     </a>
@@ -57,8 +739,8 @@
 
         <!-- MAIN CONTENT -->
         <main class="main">
-            <!-- HEADER -->
-            <div class="main-header">
+            <!-- HEADER (same as Dashboard) -->
+            <header class="main-header">
                 <div class="header-title">
                     <h1><i class="fas fa-clipboard-list"></i> Submissions</h1>
                     <div class="breadcrumb">Home / Submissions</div>
@@ -72,14 +754,51 @@
                     <button class="sync-btn" id="refreshBtn">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
+                    <button class="notifications-btn" id="notificationsBtn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notificationBadge">0</span>
+                    </button>
                 </div>
-            </div>
+            </header>
 
             <!-- SUBMISSIONS CONTENT -->
             <div class="submissions-container">
-                <!-- FILTERS SECTION -->
+                <!-- Stats Section (matching Dashboard KPI style) -->
+                <div class="stats-section">
+                    <div class="stat-card pending">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <div class="stat-number" id="pendingCount">0</div>
+                            <div class="stat-label">Pending</div>
+                        </div>
+                    </div>
+                    <div class="stat-card validated">
+                        <i class="fas fa-check-circle"></i>
+                        <div>
+                            <div class="stat-number" id="validatedCount">0</div>
+                            <div class="stat-label">Validated</div>
+                        </div>
+                    </div>
+                    <div class="stat-card rejected">
+                        <i class="fas fa-times-circle"></i>
+                        <div>
+                            <div class="stat-number" id="rejectedCount">0</div>
+                            <div class="stat-label">Rejected</div>
+                        </div>
+                    </div>
+                    <div class="stat-card total">
+                        <i class="fas fa-tractor"></i>
+                        <div>
+                            <div class="stat-number" id="totalCount">0</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters Section (matching Dashboard) -->
                 <div class="filters-section">
                     <div class="filter-group">
+                        <label>Supplier</label>
                         <div class="filter-search-container">
                             <i class="fas fa-search search-icon"></i>
                             <input type="text" id="supplierSearchInput" class="filter-search" placeholder="Search suppliers...">
@@ -90,6 +809,7 @@
                     </div>
                     
                     <div class="filter-group">
+                        <label>Cooperative</label>
                         <div class="filter-search-container">
                             <i class="fas fa-search search-icon"></i>
                             <input type="text" id="coopSearchInput" class="filter-search" placeholder="Search cooperatives...">
@@ -100,16 +820,18 @@
                     </div>
                     
                     <div class="filter-group">
+                        <label>Search</label>
                         <input type="text" id="searchInput" class="search-box" placeholder="Search by name or ID...">
                     </div>
                     
                     <div class="filter-group">
-                    <select id="statusFilter" class="filter-select">
-                        <option value="all">All Status</option>
-                        <option value="validated">Validated</option>
-                        <option value="pending">Pending</option>
-                        <option value="rejected">Rejected</option>
-                    </select>
+                        <label>Status</label>
+                        <select id="statusFilter" class="filter-select">
+                            <option value="all">All Status</option>
+                            <option value="validated">Validated</option>
+                            <option value="pending">Pending</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
                     </div>
                     
                     <button id="toggleViewBtn" class="toggle-view-btn">
@@ -117,31 +839,7 @@
                     </button>
                 </div>
 
-                <!-- STATS SECTION -->
-                <div class="stats-section">
-                    <div class="stat-card pending">
-                        <i class="fas fa-clock"></i>
-                        <span class="stat-number" id="pendingCount">0</span>
-                        <span class="stat-label">Pending</span>
-                    </div>
-                    <div class="stat-card validated">
-                        <i class="fas fa-check-circle"></i>
-                        <span class="stat-number" id="validatedCount">0</span>
-                        <span class="stat-label">Validated</span>
-                    </div>
-                    <div class="stat-card rejected">
-                        <i class="fas fa-times-circle"></i>
-                        <span class="stat-number" id="rejectedCount">0</span>
-                        <span class="stat-label">Rejected</span>
-                    </div>
-                    <div class="stat-card total">
-                        <i class="fas fa-tractor"></i>
-                        <span class="stat-number" id="totalCount">0</span>
-                        <span class="stat-label">Total</span>
-                    </div>
-                </div>
-
-                <!-- TABLE VIEW -->
+                <!-- Table View -->
                 <div id="tableView" class="table-view">
                     <div class="table-container">
                         <table>
@@ -158,7 +856,10 @@
                             </thead>
                             <tbody id="tableBody">
                                 <tr>
-                                    <td colspan="7" style="text-align: center; padding: 40px;">Loading submissions...</td>
+                                    <td colspan="7" style="text-align: center; padding: 60px;">
+                                        <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: var(--primary-color);"></i>
+                                        <p style="margin-top: 15px;">Loading submissions...</p>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -180,7 +881,7 @@
                     </div>
                 </div>
 
-                <!-- GROUP VIEW -->
+                <!-- Group View -->
                 <div id="groupView" class="group-view" style="display: none;">
                     <div id="groupViewContent"></div>
                 </div>
@@ -191,6 +892,9 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    
+    <!-- Submissions JavaScript -->
     <script src="submissions.js"></script>
 </body>
 </html>
