@@ -12,298 +12,17 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    <!-- Custom CSS -->
+    <!-- Dashboard CSS Files -->
+    <link rel="stylesheet" href="../globalCSS.css">
+    <link rel="stylesheet" href="../layoutCSS.css">
+    <link rel="stylesheet" href="../tableCSS.css">
+    
+    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+    
     <style>
-        /* ===========================================
-           GLOBAL VARIABLES - Same as Dashboard
-           =========================================== */
-        :root {
-            --primary-color: #2c6e49;
-            --primary-dark: #1e4f33;
-            --primary-light: #4CAF50;
-            --danger-color: #dc2626;
-            --warning-color: #f97316;
-            --success-color: #22c55e;
-            --dark-color: #1e293b;
-            --light-color: #ffffff;
-            --gray-100: #f8fafc;
-            --gray-200: #f1f5f9;
-            --gray-300: #e2e8f0;
-            --gray-400: #cbd5e1;
-            --gray-500: #94a3b8;
-            --gray-600: #64748b;
-            --gray-700: #475569;
-            
-            --spacing-xs: 4px;
-            --spacing-sm: 8px;
-            --spacing-md: 12px;
-            --spacing-lg: 20px;
-            --spacing-xl: 24px;
-            --spacing-2xl: 32px;
-            
-            --font-size-xs: 11px;
-            --font-size-sm: 13px;
-            --font-size-md: 14px;
-            --font-size-lg: 18px;
-            --font-size-xl: 24px;
-            --font-size-2xl: 32px;
-            
-            --radius-sm: 4px;
-            --radius-md: 8px;
-            --radius-lg: 12px;
-            --radius-xl: 16px;
-            --radius-full: 9999px;
-            
-            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-            --shadow-md: 0 1px 3px rgba(0,0,0,0.1);
-            --shadow-lg: 0 4px 6px rgba(0,0,0,0.1);
-            --shadow-xl: 0 10px 15px rgba(0,0,0,0.1);
-            
-            --transition-fast: 0.15s ease;
-            --transition-normal: 0.3s ease;
-            
-            --header-height: 64px;
-        }
+        /* Additional styles for Submissions page */
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #f1f5f9;
-            color: var(--dark-color);
-        }
-        
-        /* ===========================================
-           LAYOUT - Same as Dashboard
-           =========================================== */
-        .layout {
-            display: flex;
-            min-height: 100vh;
-        }
-        
-        /* SIDEBAR */
-        .sidebar {
-            width: 80px;
-            background: linear-gradient(180deg, #0f172a 0%, #0a0f1a 100%);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            transition: width 0.3s ease;
-            z-index: 1000;
-            box-shadow: var(--shadow-lg);
-            overflow: hidden;
-            white-space: nowrap;
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            height: 100vh;
-        }
-        
-        .sidebar:hover {
-            width: 250px;
-        }
-        
-        .sidebar-header {
-            padding: var(--spacing-lg);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            min-height: 70px;
-        }
-        
-        .sidebar-header h2 {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-            font-size: var(--font-size-xl);
-            color: white;
-            margin: 0;
-        }
-        
-        .sidebar-header h2 i {
-            color: var(--primary-color);
-        }
-        
-        .sidebar-header h2 span {
-            opacity: 0;
-            transition: opacity 0.2s ease 0.1s;
-        }
-        
-        .sidebar:hover .sidebar-header h2 span {
-            opacity: 1;
-        }
-        
-        /* MENU */
-        .menu {
-            flex: 1;
-            padding: var(--spacing-lg) 0;
-            overflow-y: auto;
-        }
-        
-        .menu a {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-md);
-            padding: var(--spacing-md) var(--spacing-lg);
-            color: rgba(255, 255, 255, 0.7);
-            text-decoration: none;
-            transition: all var(--transition-fast);
-            border-left: 3px solid transparent;
-        }
-        
-        .menu a span {
-            opacity: 0;
-            transition: opacity 0.2s ease 0.1s;
-        }
-        
-        .sidebar:hover .menu a span {
-            opacity: 1;
-        }
-        
-        .menu a:hover {
-            background: rgba(76, 175, 80, 0.2);
-            color: white;
-            border-left-color: var(--primary-color);
-        }
-        
-        .menu a.active {
-            background: rgba(76, 175, 80, 0.2);
-            color: white;
-            border-left-color: var(--primary-color);
-        }
-        
-        .menu a i {
-            width: 24px;
-            text-align: center;
-            font-size: var(--font-size-lg);
-        }
-        
-        .menu-bottom {
-            margin-top: auto;
-            padding-top: var(--spacing-lg);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        /* MAIN CONTENT */
-        .main {
-            flex: 1;
-            margin-left: 80px;
-            width: calc(100% - 80px);
-            min-height: 100vh;
-        }
-        
-        /* MAIN HEADER */
-        .main-header {
-            height: var(--header-height);
-            background: white;
-            border-bottom: 1px solid var(--gray-300);
-            padding: 0 var(--spacing-xl);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 99;
-        }
-        
-        .header-title h1 {
-            font-size: var(--font-size-xl);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .header-title h1 i {
-            color: var(--primary-color);
-        }
-        
-        .breadcrumb {
-            font-size: var(--font-size-xs);
-            color: var(--gray-600);
-            margin-top: 2px;
-        }
-        
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-lg);
-        }
-        
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: var(--radius-full);
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-        }
-        
-        .user-details .user-name {
-            font-weight: 600;
-            font-size: var(--font-size-sm);
-        }
-        
-        .user-details .user-role {
-            font-size: var(--font-size-xs);
-            color: var(--gray-600);
-        }
-        
-        .sync-btn {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: var(--font-size-sm);
-        }
-        
-        .sync-btn:hover {
-            background: var(--primary-dark);
-        }
-        
-        .notifications-btn {
-            position: relative;
-            background: none;
-            border: none;
-            color: var(--gray-700);
-            font-size: var(--font-size-lg);
-            cursor: pointer;
-            width: 40px;
-            height: 40px;
-            border-radius: var(--radius-md);
-        }
-        
-        .notifications-btn:hover {
-            background: var(--gray-200);
-        }
-        
-        .notification-badge {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            width: 8px;
-            height: 8px;
-            background: var(--danger-color);
-            border-radius: var(--radius-full);
-            border: 2px solid white;
-        }
-        
-        /* ===========================================
-           KPI SECTION - Exact same as Dashboard
-           =========================================== */
+        /* KPI Cards - matching Dashboard exactly */
         .kpis {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -313,14 +32,14 @@
         }
         
         .kpi {
-            background: white;
+            background: var(--light-color);
             border-radius: var(--radius-lg);
             padding: var(--spacing-xl);
             box-shadow: var(--shadow-md);
             display: flex;
             align-items: center;
             gap: var(--spacing-lg);
-            transition: transform 0.2s;
+            transition: transform var(--transition-normal), box-shadow var(--transition-normal);
         }
         
         .kpi:hover {
@@ -335,7 +54,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: var(--font-size-xl);
+            flex-shrink: 0;
         }
         
         .kpi-icon.pending {
@@ -361,7 +81,7 @@
         .kpi-content h4 {
             font-size: var(--font-size-sm);
             color: var(--gray-600);
-            margin-bottom: 4px;
+            margin-bottom: var(--spacing-xs);
             font-weight: 500;
         }
         
@@ -371,9 +91,7 @@
             color: var(--dark-color);
         }
         
-        /* ===========================================
-           TABLE SECTION - Same as Dashboard
-           =========================================== */
+        /* Table Section - matching Dashboard exactly */
         .table-section {
             padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl) var(--spacing-xl);
             width: 100%;
@@ -389,6 +107,7 @@
         }
         
         .table-header h3 {
+            margin: 0;
             font-size: var(--font-size-lg);
             display: flex;
             align-items: center;
@@ -405,6 +124,7 @@
             flex-wrap: wrap;
         }
         
+        /* Search Box */
         .search-box {
             display: flex;
             align-items: center;
@@ -430,6 +150,11 @@
             color: var(--gray-600);
         }
         
+        .search-box button:hover {
+            color: var(--primary-color);
+        }
+        
+        /* Filter Select */
         .filter-select {
             padding: 8px 12px;
             border: 1px solid var(--gray-300);
@@ -439,6 +164,7 @@
             cursor: pointer;
         }
         
+        /* Button Icon */
         .btn-icon {
             width: 36px;
             height: 36px;
@@ -450,6 +176,7 @@
             align-items: center;
             justify-content: center;
             color: var(--gray-700);
+            transition: all var(--transition-fast);
         }
         
         .btn-icon:hover {
@@ -458,6 +185,7 @@
             border-color: var(--primary-color);
         }
         
+        /* Table Container */
         .table-container {
             background: white;
             border-radius: var(--radius-lg);
@@ -498,6 +226,7 @@
             background: var(--gray-100);
         }
         
+        /* Status Badges */
         .status-badge {
             display: inline-block;
             padding: 4px 12px;
@@ -521,6 +250,7 @@
             color: #991b1b;
         }
         
+        /* Action Buttons */
         .action-buttons {
             display: flex;
             gap: var(--spacing-sm);
@@ -532,6 +262,7 @@
             border-radius: var(--radius-md);
             cursor: pointer;
             font-size: var(--font-size-xs);
+            transition: all var(--transition-fast);
         }
         
         .action-btn.view {
@@ -539,9 +270,17 @@
             color: white;
         }
         
+        .action-btn.view:hover {
+            background: #2563eb;
+        }
+        
         .action-btn.validate {
             background: #22c55e;
             color: white;
+        }
+        
+        .action-btn.validate:hover {
+            background: #16a34a;
         }
         
         .action-btn.reject {
@@ -549,6 +288,11 @@
             color: white;
         }
         
+        .action-btn.reject:hover {
+            background: #dc2626;
+        }
+        
+        /* Table Footer */
         .table-footer {
             display: flex;
             justify-content: space-between;
@@ -580,6 +324,7 @@
         .pagination-btn:hover:not(:disabled) {
             background: var(--primary-color);
             color: white;
+            border-color: var(--primary-color);
         }
         
         .pagination-btn:disabled {
@@ -601,6 +346,11 @@
             font-size: var(--font-size-sm);
         }
         
+        .page-number:hover {
+            background: var(--gray-100);
+            border-color: var(--primary-color);
+        }
+        
         .page-number.active {
             background: var(--primary-color);
             color: white;
@@ -612,6 +362,7 @@
             background: white;
             border-radius: var(--radius-lg);
             padding: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
         }
         
         .group-card {
@@ -633,6 +384,7 @@
         
         .group-title {
             font-weight: 600;
+            font-size: var(--font-size-md);
             color: var(--primary-color);
         }
         
@@ -661,183 +413,98 @@
             border-color: var(--primary-color);
         }
         
-        /* Modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.85);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-        }
-        
-        .modal-content {
-            background: white;
-            border-radius: var(--radius-xl);
-            max-width: 900px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        
-        .modal-header {
-            padding: var(--spacing-lg) var(--spacing-xl);
-            background: linear-gradient(135deg, #1e293b, #0f172a);
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .modal-close {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            width: 36px;
-            height: 36px;
-            border-radius: var(--radius-full);
-            cursor: pointer;
-        }
-        
-        .modal-body {
-            padding: var(--spacing-xl);
-        }
-        
-        .modal-section {
-            margin-bottom: var(--spacing-lg);
-            padding-bottom: var(--spacing-lg);
-            border-bottom: 1px solid var(--gray-300);
-        }
-        
-        .modal-section:last-child {
-            border-bottom: none;
-        }
-        
-        .modal-section-title {
+        .group-item-name {
             font-weight: 600;
-            margin-bottom: var(--spacing-md);
-            color: var(--primary-color);
+            margin-bottom: var(--spacing-xs);
         }
         
-        .modal-row {
-            display: flex;
-            padding: var(--spacing-xs) 0;
-        }
-        
-        .modal-label {
-            width: 130px;
-            font-weight: 600;
+        .group-item-details {
+            font-size: var(--font-size-xs);
             color: var(--gray-600);
         }
         
-        #submissionMap {
-            height: 350px;
-            border-radius: var(--radius-md);
-            margin-top: var(--spacing-sm);
-        }
-        
-        .modal-actions {
-            display: flex;
-            gap: var(--spacing-md);
-            margin-top: var(--spacing-lg);
-            padding-top: var(--spacing-lg);
-            border-top: 1px solid var(--gray-300);
-        }
-        
-        .modal-btn {
-            flex: 1;
-            padding: var(--spacing-sm);
-            border: none;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            font-weight: 600;
-        }
-        
-        .modal-btn.approve {
-            background: #22c55e;
-            color: white;
-        }
-        
-        .modal-btn.reject {
-            background: #ef4444;
-            color: white;
-        }
-        
-        .modal-btn.cancel {
-            background: var(--gray-300);
-        }
-        
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 0;
-                transform: translateX(-100%);
-            }
-            .main {
-                margin-left: 0;
-                width: 100%;
-            }
+        /* Responsive */
+        @media (max-width: 1024px) {
             .kpis {
-                grid-template-columns: 1fr;
                 padding: var(--spacing-lg);
             }
             .table-section {
                 padding: var(--spacing-lg);
             }
+        }
+        
+        @media (max-width: 768px) {
+            .kpis {
+                grid-template-columns: 1fr;
+                gap: var(--spacing-md);
+            }
             .table-header {
                 flex-direction: column;
                 align-items: flex-start;
+            }
+            .table-actions {
+                width: 100%;
+            }
+            .search-box {
+                flex: 1;
+            }
+            .search-box input {
+                width: 100%;
             }
             .table-footer {
                 flex-direction: column;
                 gap: var(--spacing-md);
             }
-            .modal-row {
-                flex-direction: column;
+            .group-items {
+                grid-template-columns: 1fr;
             }
-            .modal-label {
+            .action-buttons {
+                flex-direction: column;
+                gap: var(--spacing-xs);
+            }
+            .action-btn {
                 width: 100%;
-                margin-bottom: var(--spacing-xs);
+                text-align: center;
             }
         }
     </style>
 </head>
 <body>
     <div class="layout">
-        <!-- SIDEBAR -->
+        <!-- SIDEBAR (exactly matching Dashboard) -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>
                     <i class="fas fa-map-marked-alt"></i>
                     <span>MappingTrace</span>
                 </h2>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
             </div>
             <nav class="menu">
-                <a href="../Dashboard.html">
+                <a href="../Dashboard.html" data-title="Dashboard">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="../LiveMapping/live-mapping.html">
+                <a href="../LiveMapping/live-mapping.html" data-title="Live Mapping">
                     <i class="fas fa-map"></i>
                     <span>Live Mapping</span>
                 </a>
-                <a href="#" class="active">
+                <a href="#" class="active" data-title="Submissions">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Submissions</span>
                 </a>
-                <a href="../QualityAlerts/quality-alerts.html">
+                <a href="../QualityAlerts/quality-alerts.html" data-title="Quality Alerts">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Quality Alerts</span>
                 </a>
-                <a href="../Exports/exports.html">
+                <a href="../Exports/exports.html" data-title="Exports">
                     <i class="fas fa-file-export"></i>
                     <span>Exports</span>
                 </a>
                 <div class="menu-bottom">
-                    <a href="#" id="logoutBtn">
+                    <a href="#" id="logoutBtn" data-title="Logout">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>Logout</span>
                     </a>
@@ -847,6 +514,7 @@
 
         <!-- MAIN CONTENT -->
         <main class="main">
+            <!-- HEADER (exactly matching Dashboard) -->
             <header class="main-header">
                 <div class="header-title">
                     <h1><i class="fas fa-clipboard-list"></i> Submissions</h1>
@@ -868,7 +536,7 @@
                 </div>
             </header>
 
-            <!-- KPI SECTION -->
+            <!-- KPI SECTION (exactly matching Dashboard) -->
             <div class="kpis">
                 <div class="kpi">
                     <div class="kpi-icon pending">
@@ -908,7 +576,7 @@
                 </div>
             </div>
 
-            <!-- TABLE SECTION -->
+            <!-- TABLE SECTION (exactly matching Dashboard) -->
             <div class="table-section">
                 <div class="table-header">
                     <h3><i class="fas fa-history"></i> Submissions</h3>
@@ -929,12 +597,16 @@
                             <option value="pending">Pending</option>
                             <option value="rejected">Rejected</option>
                         </select>
-                        <button id="toggleViewBtn" class="btn-icon" onclick="toggleView()">
+                        <button id="toggleViewBtn" class="btn-icon" onclick="toggleView()" title="Toggle Group View">
                             <i class="fas fa-layer-group"></i>
+                        </button>
+                        <button onclick="refreshData()" class="btn-icon" title="Refresh">
+                            <i class="fas fa-redo-alt"></i>
                         </button>
                     </div>
                 </div>
                 
+                <!-- Table View -->
                 <div id="tableView">
                     <div class="table-container">
                         <table>
@@ -958,13 +630,14 @@
                     <div class="table-footer">
                         <div class="table-stats">Showing <span id="showingStart">0</span>-<span id="showingEnd">0</span> of <span id="totalRecords">0</span></div>
                         <div class="pagination">
-                            <button class="pagination-btn" id="prevBtn" disabled onclick="prevPage()"><i class="fas fa-chevron-left"></i></button>
+                            <button class="pagination-btn" id="prevBtn" disabled onclick="prevPage()"><i class="fas fa-chevron-left"></i> Prev</button>
                             <div class="page-numbers" id="pageNumbers"></div>
-                            <button class="pagination-btn" id="nextBtn" onclick="nextPage()"><i class="fas fa-chevron-right"></i></button>
+                            <button class="pagination-btn" id="nextBtn" onclick="nextPage()">Next <i class="fas fa-chevron-right"></i></button>
                         </div>
                     </div>
                 </div>
 
+                <!-- Group View -->
                 <div id="groupView" style="display: none;">
                     <div id="groupViewContent"></div>
                 </div>
@@ -976,6 +649,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    
+    <!-- Submissions JavaScript -->
     <script src="submissions.js"></script>
 </body>
 </html>
