@@ -1,52 +1,28 @@
 // ===========================================
-// SUBMISSIONS PAGE - COMPLETE WITH MAP INTEGRATION
-// Fixed pagination and responsive background
+// QUALITY ALERTS - DIRECT SUPABASE INTEGRATION
+// Detects overlaps and shows them on map
 // ===========================================
 
-console.log('🚀 Submissions page loading...');
+console.log('🚀 Quality Alerts page loading...');
 
-// ===========================================
-// GLOBAL VARIABLES
-// ===========================================
-let allSubmissions = [];
-let filteredSubmissions = [];
+// Global variables
+let allAlerts = [];
+let filteredAlerts = [];
 let currentPage = 1;
 let rowsPerPage = 10;
-let currentSort = { column: 'submissionDate', direction: 'desc' };
-let currentView = 'table';
-let uniqueSuppliers = [];
-let uniqueCooperatives = [];
-let supplierSearchTerm = '';
-let coopSearchTerm = '';
-let supabaseReady = false;
+let allFarms = [];
 let currentMap = null;
 let supabaseClient = null;
 
-// ===========================================
-// SUPABASE CONFIGURATION
-// ===========================================
 const SUPABASE_URL = 'https://vzrufmelftbqpsemnjbd.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cnVmbWVsZnRicXBzZW1uamJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzYwNTMsImV4cCI6MjA4NjY1MjA1M30.1NPN666Lt9WZHupvp_XIFu-SnsaextHH_JvXgQPtyV0';
 
 // ===========================================
-// COORDINATE CONVERSION FUNCTIONS
-// ===========================================
-
-function convertToLeafletCoords(coords) {
-    if (!coords || !Array.isArray(coords)) return coords;
-    
-    if (coords.length === 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
-        return [coords[1], coords[0]];
-    }
-    
-    return coords.map(item => convertToLeafletCoords(item));
-}
-
-// ===========================================
 // INITIALIZATION
 // ===========================================
+
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📌 DOM Content Loaded');
+    console.log('📌 Quality Alerts DOM loaded');
     loadUserData();
     initSupabase();
     setupEventListeners();
@@ -67,649 +43,655 @@ function initSupabase(retryCount = 0) {
     
     if (typeof window.supabase === 'undefined') {
         if (retryCount < 15) {
-            console.log(`⏳ Waiting for Supabase library... (${retryCount + 1}/15)`);
             setTimeout(() => initSupabase(retryCount + 1), 500);
             return;
         }
         console.error('❌ Supabase library failed to load');
         showNotification('Supabase library failed to load', 'error');
-        loadSampleData();
         return;
     }
     
     try {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        window._supabase = supabaseClient;
-        supabaseReady = true;
-        console.log('✅ Supabase initialized successfully');
-        loadSubmissions();
+        window.supabase = supabaseClient;
+        console.log('✅ Supabase client created');
+        checkSessionAndLoad();
     } catch (error) {
         console.error('❌ Supabase init error:', error);
-        loadSampleData();
+    }
+}
+
+async function checkSessionAndLoad() {
+    try {
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        
+        if (error) throw error;
+        
+        if (!session) {
+            console.log('⚠️ No active session');
+            showNotification('Please login to view alerts', 'warning');
+            setTimeout(() => window.location.href = '../login.html', 2000);
+            return;
+        }
+        
+        console.log('👤 User logged in:', session.user.email);
+        await loadFarmsDirectly();
+        
+    } catch (error) {
+        console.error('Session error:', error);
     }
 }
 
 // ===========================================
-// LOAD SUBMISSIONS FROM SUPABASE
+// LOAD FARMS FROM SUPABASE
 // ===========================================
-async function loadSubmissions() {
-    console.log('📡 Loading submissions from farms table...');
-    showNotification('Loading submissions...', 'info');
+
+async function loadFarmsDirectly() {
+    console.log('📡 Loading farms from Supabase...');
+    
+    const alertsList = document.getElementById('alertsList');
+    if (alertsList) {
+        alertsList.innerHTML = `
+            <div style="text-align:center;padding:60px;">
+                <i class="fas fa-spinner fa-spin" style="font-size:48px;color:#2c6e49;"></i>
+                <p style="margin-top:15px;">Loading farms from database...</p>
+            </div>
+        `;
+    }
     
     try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        
-        if (!session) {
-            console.log('⚠️ No active session');
-            showNotification('Please login to view submissions', 'warning');
-            setTimeout(() => {
-                window.location.href = '../login.html';
-            }, 2000);
-            return;
-        }
-        
         const { data: farms, error } = await supabaseClient
             .from('farms')
             .select('*')
             .order('created_at', { ascending: false });
         
-        if (error) {
-            console.error('Supabase select error:', error);
-            throw error;
-        }
+        if (error) throw error;
         
         if (farms && farms.length > 0) {
-            console.log(`✅ Loaded ${farms.length} farms from database`);
+            console.log(`✅ Loaded ${farms.length} farms`);
             
-            allSubmissions = farms.map(farm => {
-                let fixedGeometry = farm.geometry;
-                if (fixedGeometry && fixedGeometry.coordinates) {
-                    try {
-                        fixedGeometry = {
-                            type: fixedGeometry.type,
-                            coordinates: convertToLeafletCoords(fixedGeometry.coordinates)
-                        };
-                    } catch (e) {
-                        console.warn('Could not fix geometry:', e);
-                    }
-                }
-                
-                return {
-                    id: farm.id,
-                    farmerId: farm.farmer_id || farm.id,
-                    farmerName: farm.farmer_name || 'Unknown Farmer',
-                    cooperative: farm.cooperative_name || farm.cooperative || 'Unassigned',
-                    supplier: farm.supplier || 'Unknown',
-                    area: farm.area || 0,
-                    status: farm.status || 'pending',
-                    enumerator: farm.enumerator || 'N/A',
-                    updatedBy: farm.validated_by || farm.enumerator || 'System',
-                    submissionDate: farm.submission_date || farm.created_at || new Date().toISOString(),
-                    geometry: fixedGeometry
-                };
-            });
+            allFarms = farms.map(farm => ({
+                id: farm.id,
+                farmer_id: farm.farmer_id || farm.id,
+                farmer_name: farm.farmer_name || 'Unknown Farmer',
+                farmerName: farm.farmer_name || 'Unknown Farmer',
+                cooperative: farm.cooperative_name || farm.cooperative || 'Unassigned',
+                supplier: farm.supplier || 'Unknown',
+                area: farm.area || 0,
+                status: farm.status || 'pending',
+                geometry: farm.geometry,
+                coordinates: farm.geometry?.coordinates
+            }));
             
+            // Generate alerts from farms
+            generateAlertsFromFarms();
             updateFilterOptions();
             applyFilters();
-            showNotification(`Loaded ${allSubmissions.length} submissions`, 'success');
+            
+            const alertCount = allAlerts.length;
+            showNotification(`Loaded ${allFarms.length} farms, found ${alertCount} alerts`, 
+                           alertCount > 0 ? 'warning' : 'success');
+            
+            const badge = document.getElementById('notificationBadge');
+            if (badge) badge.style.display = alertCount > 0 ? 'block' : 'none';
+            
         } else {
-            console.log('⚠️ No farms found in database');
-            loadSampleData();
+            alertsList.innerHTML = `
+                <div style="text-align:center;padding:60px;">
+                    <i class="fas fa-check-circle" style="font-size:48px;color:#22c55e;"></i>
+                    <h3>No Farms Found</h3>
+                    <p style="color:#64748b;">No farms have been submitted yet.</p>
+                </div>
+            `;
         }
+        
     } catch (error) {
-        console.error('Error loading submissions:', error);
-        showNotification('Error loading submissions: ' + error.message, 'error');
-        loadSampleData();
+        console.error('Error loading farms:', error);
+        alertsList.innerHTML = `
+            <div style="text-align:center;padding:60px;">
+                <i class="fas fa-exclamation-triangle" style="font-size:48px;color:#dc2626;"></i>
+                <h3>Error Loading Data</h3>
+                <p style="color:#64748b;">${error.message}</p>
+                <button onclick="location.reload()" style="margin-top:15px;padding:8px 16px;background:#2c6e49;color:white;border:none;border-radius:6px;cursor:pointer;">
+                    <i class="fas fa-redo"></i> Retry
+                </button>
+            </div>
+        `;
     }
 }
 
 // ===========================================
-// SAMPLE DATA (Fallback)
+// CONVERT COORDINATES FOR LEAFLET
 // ===========================================
-function loadSampleData() {
-    console.log('📊 Loading sample submissions data');
+
+function convertToLeafletCoords(coords) {
+    if (!coords || !Array.isArray(coords)) return coords;
     
-    allSubmissions = [
-        { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 2.5, status: 'pending', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
-        { id: '2', farmerId: 'F12346', farmerName: 'Konan Marie', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.8, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
-        { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
-        { id: '4', farmerId: 'F12348', farmerName: 'Yao Michelle', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 5.1, status: 'validated', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
-        { id: '5', farmerId: 'F12349', farmerName: 'Traore Amadou', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 4.2, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), geometry: null }
-    ];
+    // Point [lon, lat] -> [lat, lon]
+    if (coords.length === 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+        return [coords[1], coords[0]];
+    }
     
-    updateFilterOptions();
-    applyFilters();
-    showNotification('Using sample data (demo mode) - Database not connected', 'warning');
+    // Polygon: array of rings
+    if (Array.isArray(coords[0]) && Array.isArray(coords[0][0])) {
+        return coords.map(ring => ring.map(point => [point[1], point[0]]));
+    }
+    
+    // LinearRing
+    if (Array.isArray(coords[0]) && typeof coords[0][0] === 'number') {
+        return coords.map(point => [point[1], point[0]]);
+    }
+    
+    return coords;
 }
 
 // ===========================================
-// FILTER FUNCTIONS
+// GENERATE ALERTS FROM FARMS - INCLUDING OVERLAPS
 // ===========================================
+
+function generateAlertsFromFarms() {
+    console.log('🔍 Generating quality alerts from farms...');
+    const alerts = [];
+    
+    // Filter farms with valid geometry for overlap detection
+    const farmsWithGeo = allFarms.filter(f => f.geometry && f.geometry.coordinates);
+    console.log(`📐 Farms with geometry: ${farmsWithGeo.length}`);
+    
+    // 1. DETECT OVERLAPS - This is the key part
+    for (let i = 0; i < farmsWithGeo.length; i++) {
+        for (let j = i + 1; j < farmsWithGeo.length; j++) {
+            const farm1 = farmsWithGeo[i];
+            const farm2 = farmsWithGeo[j];
+            
+            try {
+                // Create Turf polygons
+                const poly1 = turf.polygon(farm1.geometry.coordinates);
+                const poly2 = turf.polygon(farm2.geometry.coordinates);
+                
+                // Check if polygons intersect
+                if (turf.booleanIntersects(poly1, poly2)) {
+                    const intersection = turf.intersect(poly1, poly2);
+                    
+                    if (intersection) {
+                        // Calculate overlap area in hectares (1 ha = 10,000 sq m)
+                        const overlapAreaSqM = turf.area(intersection);
+                        const overlapAreaHa = overlapAreaSqM / 10000;
+                        
+                        // Only create alert for significant overlaps (> 0.01 ha)
+                        if (overlapAreaHa > 0.01) {
+                            const area1Ha = turf.area(poly1) / 10000;
+                            const area2Ha = turf.area(poly2) / 10000;
+                            const smallerArea = Math.min(area1Ha, area2Ha);
+                            const overlapPercent = Math.round((overlapAreaHa / smallerArea) * 100);
+                            
+                            // Determine severity based on overlap area
+                            let severity = 'low';
+                            if (overlapAreaHa > 5) severity = 'critical';
+                            else if (overlapAreaHa >= 3) severity = 'high';
+                            else if (overlapAreaHa > 1) severity = 'medium';
+                            
+                            alerts.push({
+                                id: `overlap_${farm1.id}_${farm2.id}`,
+                                farmId: farm1.farmer_id,
+                                farmerName: farm1.farmer_name,
+                                farmData: farm1,
+                                affectedFarmId: farm2.farmer_id,
+                                affectedFarmName: farm2.farmer_name,
+                                affectedFarmData: farm2,
+                                cooperative: farm1.cooperative,
+                                supplier: farm1.supplier,
+                                type: 'overlap',
+                                severity: severity,
+                                title: `${severity.toUpperCase()} Overlap: ${overlapAreaHa.toFixed(1)}ha`,
+                                description: `Farm "${farm1.farmer_name}" overlaps with "${farm2.farmer_name}". Overlap area: ${overlapAreaHa.toFixed(2)} ha (${overlapPercent}% of smaller farm).`,
+                                status: 'new',
+                                date: new Date().toISOString(),
+                                overlapArea: overlapAreaHa,
+                                overlapPercent: overlapPercent
+                            });
+                            
+                            console.log(`⚠️ Found overlap: ${farm1.farmer_name} ↔ ${farm2.farmer_name} (${overlapAreaHa.toFixed(2)} ha)`);
+                        }
+                    }
+                }
+            } catch(e) {
+                console.warn('Error checking overlap:', e.message);
+            }
+        }
+    }
+    
+    // 2. CHECK FOR MISSING GEOMETRY
+    allFarms.forEach(farm => {
+        if (!farm.geometry && farm.status !== 'rejected') {
+            alerts.push({
+                id: `missing_geom_${farm.id}`,
+                farmId: farm.farmer_id,
+                farmerName: farm.farmer_name,
+                farmData: farm,
+                cooperative: farm.cooperative,
+                supplier: farm.supplier,
+                type: 'data',
+                severity: 'high',
+                title: 'Missing Geometry Data',
+                description: `Farm has no geometry data. Cannot display on map.`,
+                status: 'new',
+                date: new Date().toISOString()
+            });
+        }
+    });
+    
+    // 3. CHECK FOR AREA ISSUES
+    allFarms.forEach(farm => {
+        if (farm.area === 0 && farm.geometry) {
+            alerts.push({
+                id: `zero_area_${farm.id}`,
+                farmId: farm.farmer_id,
+                farmerName: farm.farmer_name,
+                farmData: farm,
+                cooperative: farm.cooperative,
+                supplier: farm.supplier,
+                type: 'area',
+                severity: 'medium',
+                title: 'Zero Area',
+                description: `Farm area is 0. Please verify the farm boundaries.`,
+                status: 'new',
+                date: new Date().toISOString()
+            });
+        }
+    });
+    
+    allAlerts = alerts;
+    console.log(`✅ Generated ${alerts.length} alerts (${alerts.filter(a => a.type === 'overlap').length} overlaps)`);
+}
+
+// ===========================================
+// UPDATE FILTER DROPDOWNS
+// ===========================================
+
 function updateFilterOptions() {
-    uniqueSuppliers = [...new Set(allSubmissions.map(s => s.supplier))].sort();
-    uniqueCooperatives = [...new Set(allSubmissions.map(s => s.cooperative))].sort();
-    updateSupplierFilter();
-    updateCooperativeFilter();
+    const suppliers = [...new Set(allAlerts.map(a => a.supplier || 'Unknown'))];
+    const cooperatives = [...new Set(allAlerts.map(a => a.cooperative || 'Unknown'))];
+    
+    const supplierSelect = document.getElementById('alertSupplierFilter');
+    if (supplierSelect) {
+        supplierSelect.innerHTML = '<option value="all">All Suppliers</option>' + 
+            suppliers.map(s => `<option value="${s}">${escapeHtml(s)}</option>`).join('');
+    }
+    
+    const coopSelect = document.getElementById('alertCoopFilter');
+    if (coopSelect) {
+        coopSelect.innerHTML = '<option value="all">All Cooperatives</option>' + 
+            cooperatives.map(c => `<option value="${c}">${escapeHtml(c)}</option>`).join('');
+    }
 }
 
-function updateSupplierFilter() {
-    const select = document.getElementById('supplierFilter');
-    if (!select) return;
-    
-    const filtered = uniqueSuppliers.filter(s => 
-        s.toLowerCase().includes(supplierSearchTerm)
-    );
-    
-    let options = '<option value="all">All Suppliers</option>';
-    filtered.forEach(s => {
-        options += `<option value="${s}">${escapeHtml(s)}</option>`;
-    });
-    select.innerHTML = options;
-}
-
-function updateCooperativeFilter() {
-    const select = document.getElementById('cooperativeFilter');
-    if (!select) return;
-    
-    const filtered = uniqueCooperatives.filter(c => 
-        c.toLowerCase().includes(coopSearchTerm)
-    );
-    
-    let options = '<option value="all">All Cooperatives</option>';
-    filtered.forEach(c => {
-        options += `<option value="${c}">${escapeHtml(c)}</option>`;
-    });
-    select.innerHTML = options;
-}
+// ===========================================
+// APPLY FILTERS AND RENDER
+// ===========================================
 
 function applyFilters() {
-    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-    const supplier = document.getElementById('supplierFilter')?.value || 'all';
-    const cooperative = document.getElementById('cooperativeFilter')?.value || 'all';
-    const status = document.getElementById('statusFilter')?.value || 'all';
+    const type = document.getElementById('alertTypeFilter')?.value || 'all';
+    const severity = document.getElementById('alertSeverityFilter')?.value || 'all';
+    const supplier = document.getElementById('alertSupplierFilter')?.value || 'all';
+    const cooperative = document.getElementById('alertCoopFilter')?.value || 'all';
+    const status = document.getElementById('alertStatusFilter')?.value || 'all';
     
-    filteredSubmissions = allSubmissions.filter(sub => {
-        if (searchTerm) {
-            const matches = sub.farmerId.toLowerCase().includes(searchTerm) ||
-                           sub.farmerName.toLowerCase().includes(searchTerm);
-            if (!matches) return false;
-        }
-        if (supplier !== 'all' && sub.supplier !== supplier) return false;
-        if (cooperative !== 'all' && sub.cooperative !== cooperative) return false;
-        if (status !== 'all' && sub.status !== status) return false;
+    filteredAlerts = allAlerts.filter(alert => {
+        if (type !== 'all' && alert.type !== type) return false;
+        if (severity !== 'all' && alert.severity !== severity) return false;
+        if (supplier !== 'all' && (alert.supplier || 'Unknown') !== supplier) return false;
+        if (cooperative !== 'all' && (alert.cooperative || 'Unknown') !== cooperative) return false;
+        if (status !== 'all' && alert.status !== status) return false;
         return true;
     });
     
-    sortSubmissions();
+    // Sort by severity
+    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    filteredAlerts.sort((a, b) => {
+        if (severityOrder[a.severity] !== severityOrder[b.severity]) {
+            return severityOrder[a.severity] - severityOrder[b.severity];
+        }
+        return new Date(b.date) - new Date(a.date);
+    });
+    
     updateStats();
     currentPage = 1;
-    
-    if (currentView === 'table') {
-        renderTableView();
-        updatePagination();
-    } else {
-        renderGroupView();
-    }
+    renderAlerts();
+    updatePagination();
 }
-
-function sortSubmissions() {
-    filteredSubmissions.sort((a, b) => {
-        let aVal = a[currentSort.column];
-        let bVal = b[currentSort.column];
-        
-        if (currentSort.column === 'area') {
-            aVal = parseFloat(aVal) || 0;
-            bVal = parseFloat(bVal) || 0;
-        } else if (currentSort.column === 'submissionDate') {
-            aVal = new Date(aVal).getTime();
-            bVal = new Date(bVal).getTime();
-        } else {
-            aVal = String(aVal).toLowerCase();
-            bVal = String(bVal).toLowerCase();
-        }
-        
-        if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
-        return 0;
-    });
-}
-
-function sortTable(column) {
-    if (currentSort.column === column) {
-        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-    } else {
-        currentSort.column = column;
-        currentSort.direction = 'asc';
-    }
-    applyFilters();
-}
-
-window.sortTable = sortTable;
 
 function updateStats() {
-    const pending = filteredSubmissions.filter(s => s.status === 'pending').length;
-    const validated = filteredSubmissions.filter(s => s.status === 'validated').length;
-    const rejected = filteredSubmissions.filter(s => s.status === 'rejected').length;
-    const total = filteredSubmissions.length;
+    const critical = filteredAlerts.filter(a => a.severity === 'critical').length;
+    const high = filteredAlerts.filter(a => a.severity === 'high').length;
+    const medium = filteredAlerts.filter(a => a.severity === 'medium').length;
+    const low = filteredAlerts.filter(a => a.severity === 'low').length;
+    const total = filteredAlerts.length;
     
-    document.getElementById('pendingCount').textContent = pending;
-    document.getElementById('validatedCount').textContent = validated;
-    document.getElementById('rejectedCount').textContent = rejected;
-    document.getElementById('totalCount').textContent = total;
-    document.getElementById('totalRecords').textContent = total;
-    
-    const badge = document.getElementById('notificationBadge');
-    if (badge) {
-        const newAlerts = filteredSubmissions.filter(s => s.status === 'pending').length;
-        badge.style.display = newAlerts > 0 ? 'block' : 'none';
-    }
+    document.getElementById('criticalCount').textContent = critical;
+    document.getElementById('highCount').textContent = high;
+    document.getElementById('mediumCount').textContent = medium;
+    document.getElementById('lowCount').textContent = low;
+    document.getElementById('totalAlerts').textContent = total;
 }
 
-// ===========================================
-// RENDER FUNCTIONS
-// ===========================================
-function renderTableView() {
-    const tbody = document.getElementById('tableBody');
-    if (!tbody) return;
-    
-    const start = (currentPage - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    const pageData = filteredSubmissions.slice(start, end);
-    
-    if (pageData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:60px;">No submissions found</td></tr>';
-        document.getElementById('showingStart').textContent = '0';
-        document.getElementById('showingEnd').textContent = '0';
-        return;
-    }
-    
-    tbody.innerHTML = pageData.map(sub => `
-        <tr>
-            <td>${escapeHtml(sub.farmerId)}</td>
-            <td>${escapeHtml(sub.farmerName)}</td>
-            <td>${escapeHtml(sub.cooperative)}</td>
-            <td>${escapeHtml(sub.supplier)}</td>
-            <td>${sub.area.toFixed(2)}</td>
-            <td><span class="status-badge ${sub.status}">${sub.status}</span></td>
-            <td>
-                <div class="action-buttons">
-                    <button class="action-btn view" onclick="viewSubmission('${sub.id}')">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    ${sub.status === 'pending' ? `
-                        <button class="action-btn validate" onclick="validateSubmission('${sub.id}')">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button class="action-btn reject" onclick="rejectSubmission('${sub.id}')">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    ` : ''}
-                </div>
-            </td>
-        </tr>
-    `).join('');
-    
-    // Update showing stats
-    const showingStart = filteredSubmissions.length === 0 ? 0 : start + 1;
-    const showingEnd = Math.min(end, filteredSubmissions.length);
-    document.getElementById('showingStart').textContent = showingStart;
-    document.getElementById('showingEnd').textContent = showingEnd;
-    document.getElementById('totalRecords').textContent = filteredSubmissions.length;
-}
-
-function renderGroupView() {
-    const container = document.getElementById('groupViewContent');
+function renderAlerts() {
+    const container = document.getElementById('alertsList');
     if (!container) return;
     
-    const groups = {};
-    filteredSubmissions.forEach(sub => {
-        if (!groups[sub.supplier]) {
-            groups[sub.supplier] = [];
-        }
-        groups[sub.supplier].push(sub);
-    });
+    const start = (currentPage - 1) * rowsPerPage;
+    const pageData = filteredAlerts.slice(start, start + rowsPerPage);
     
-    if (Object.keys(groups).length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;">No submissions found</div>';
+    if (pageData.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:60px;">
+                <i class="fas fa-check-circle" style="font-size:48px;color:#22c55e;"></i>
+                <h3>No Quality Alerts</h3>
+                <p style="color:#64748b;">All farms meet quality standards.</p>
+            </div>
+        `;
         return;
     }
     
-    container.innerHTML = Object.entries(groups).map(([supplier, submissions]) => `
-        <div class="group-card">
-            <div class="group-header">
-                <div class="group-title">
-                    <i class="fas fa-building"></i> ${escapeHtml(supplier)}
+    container.innerHTML = pageData.map(alert => `
+        <div class="alert-item ${alert.status}" onclick="viewAlertOnMap('${alert.id}')">
+            <div class="alert-header">
+                <div class="alert-severity ${alert.severity}">
+                    <i class="fas ${getSeverityIcon(alert.severity)}"></i>
                 </div>
-                <div class="group-stats">
-                    ${submissions.length} farms • 
-                    ${submissions.filter(s => s.status === 'validated').length} validated • 
-                    ${submissions.filter(s => s.status === 'pending').length} pending • 
-                    ${submissions.filter(s => s.status === 'rejected').length} rejected
+                <div class="alert-title">
+                    ${escapeHtml(alert.title)}
+                    <span class="alert-badge ${alert.status}">${alert.status}</span>
                 </div>
+                <div class="alert-date">${formatDate(alert.date)}</div>
             </div>
-            <div class="group-items">
-                ${submissions.map(sub => `
-                    <div class="group-item" onclick="viewSubmission('${sub.id}')">
-                        <div class="group-item-name">${escapeHtml(sub.farmerName)}</div>
-                        <div class="group-item-details">
-                            ID: ${escapeHtml(sub.farmerId)}<br>
-                            Area: ${sub.area.toFixed(2)} ha<br>
-                            Status: <span class="status-badge ${sub.status}">${sub.status}</span>
-                        </div>
-                    </div>
-                `).join('')}
+            <div class="alert-details">
+                <p><strong>Farm:</strong> ${escapeHtml(alert.farmerName)}${alert.affectedFarmName ? ` ↔ ${escapeHtml(alert.affectedFarmName)}` : ''}</p>
+                <p><strong>Supplier:</strong> ${escapeHtml(alert.supplier || 'N/A')} • <strong>Cooperative:</strong> ${escapeHtml(alert.cooperative || 'N/A')}</p>
+                <p>${escapeHtml(alert.description.substring(0, 150))}${alert.description.length > 150 ? '...' : ''}</p>
+            </div>
+            <div class="alert-actions">
+                <button class="alert-action-btn view-map" onclick="event.stopPropagation(); viewAlertOnMap('${alert.id}')">
+                    <i class="fas fa-map-marker-alt"></i> View on Map
+                </button>
+                ${alert.status === 'new' ? `
+                    <button class="alert-action-btn acknowledge" onclick="event.stopPropagation(); updateAlertStatus('${alert.id}', 'acknowledged')">
+                        <i class="fas fa-check"></i> Acknowledge
+                    </button>
+                    <button class="alert-action-btn resolve" onclick="event.stopPropagation(); updateAlertStatus('${alert.id}', 'resolved')">
+                        <i class="fas fa-check-double"></i> Resolve
+                    </button>
+                ` : ''}
             </div>
         </div>
     `).join('');
 }
 
-// ===========================================
-// PAGINATION FUNCTIONS - FIXED
-// ===========================================
 function updatePagination() {
-    const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
-    
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    
-    if (prevBtn) {
-        prevBtn.disabled = currentPage === 1;
-    }
-    if (nextBtn) {
-        nextBtn.disabled = currentPage === totalPages || totalPages === 0;
-    }
-    
-    const pageNumbers = document.getElementById('pageNumbers');
-    if (!pageNumbers) return;
-    
-    if (totalPages <= 1) {
-        pageNumbers.innerHTML = '<span class="page-number active">1</span>';
-        return;
-    }
-    
-    let html = '';
-    const maxVisible = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-    
-    if (startPage > 1) {
-        html += `<span class="page-number" onclick="goToPage(1)">1</span>`;
-        if (startPage > 2) html += `<span class="page-dots">...</span>`;
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-        html += `<span class="page-number ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</span>`;
-    }
-    
-    if (endPage < totalPages) {
-        if (endPage < totalPages - 1) html += `<span class="page-dots">...</span>`;
-        html += `<span class="page-number" onclick="goToPage(${totalPages})">${totalPages}</span>`;
-    }
-    
-    pageNumbers.innerHTML = html;
+    const totalPages = Math.ceil(filteredAlerts.length / rowsPerPage);
+    document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages || 1}`;
+    document.getElementById('prevPageBtn').disabled = currentPage === 1;
+    document.getElementById('nextPageBtn').disabled = currentPage === totalPages || totalPages === 0;
 }
 
-function goToPage(page) {
-    const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
-    if (page < 1 || page > totalPages) return;
-    currentPage = page;
+// ===========================================
+// MAP VIEW FUNCTIONS - SHOW OVERLAPS
+// ===========================================
+
+function viewAlertOnMap(alertId) {
+    const alert = allAlerts.find(a => a.id === alertId);
+    if (!alert) return;
     
-    if (currentView === 'table') {
-        renderTableView();
-        updatePagination();
-    }
-}
-
-function prevPage() {
-    if (currentPage > 1) {
-        currentPage--;
-        if (currentView === 'table') {
-            renderTableView();
-            updatePagination();
-        }
-    }
-}
-
-function nextPage() {
-    const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
-    if (currentPage < totalPages) {
-        currentPage++;
-        if (currentView === 'table') {
-            renderTableView();
-            updatePagination();
-        }
-    }
-}
-
-window.prevPage = prevPage;
-window.nextPage = nextPage;
-window.goToPage = goToPage;
-
-function toggleView() {
-    const tableView = document.getElementById('tableView');
-    const groupView = document.getElementById('groupView');
-    const toggleBtn = document.getElementById('toggleViewBtn');
-    
-    if (currentView === 'table') {
-        tableView.style.display = 'none';
-        groupView.style.display = 'block';
-        currentView = 'group';
-        if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-table"></i>';
-        renderGroupView();
+    if (alert.type === 'overlap' && alert.farmData && alert.affectedFarmData) {
+        showOverlapMapModal(alert);
+    } else if (alert.farmData && alert.farmData.geometry) {
+        showSingleFarmMapModal(alert);
     } else {
-        tableView.style.display = 'block';
-        groupView.style.display = 'none';
-        currentView = 'table';
-        if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-layer-group"></i>';
-        renderTableView();
-        updatePagination();
+        showNotification('No geometry data available for this alert', 'warning');
     }
 }
 
-window.toggleView = toggleView;
-
-function refreshData() {
-    currentPage = 1;
-    loadSubmissions();
-}
-
-window.refreshData = refreshData;
-
-// ===========================================
-// MAP INTEGRATION FOR SUBMISSION REVIEW
-// ===========================================
-
-function viewSubmission(id) {
-    const submission = allSubmissions.find(s => s.id == id);
-    if (!submission) return;
-    showModalWithMap(submission);
-}
-
-window.viewSubmission = viewSubmission;
-
-function showModalWithMap(submission) {
+function showOverlapMapModal(alert) {
     const existing = document.querySelector('.modal-overlay');
     if (existing) existing.remove();
     
-    const hasGeometry = submission.geometry && submission.geometry.coordinates;
-    let mapHtml = '';
-    
-    if (hasGeometry) {
-        mapHtml = `
-            <div class="modal-section">
-                <div class="modal-section-title">
-                    <i class="fas fa-map-marker-alt"></i> Farm Location Map (Satellite View)
-                </div>
-                <div id="submissionMap" style="height: 350px; border-radius: 8px; margin-top: 10px;"></div>
-                <div class="map-info" style="margin-top: 10px; padding: 10px; background: #f0fdf4; border-radius: 8px; font-size: 12px;">
-                    <i class="fas fa-info-circle"></i> 
-                    <strong>Decision Support:</strong> Use satellite imagery to verify farm boundaries.
-                </div>
-            </div>
-        `;
-    } else {
-        mapHtml = `
-            <div class="modal-section">
-                <div class="modal-section-title">
-                    <i class="fas fa-map-marker-alt"></i> Farm Location
-                </div>
-                <div style="padding: 20px; background: #f5f5f5; border-radius: 8px; text-align: center; color: #999;">
-                    <i class="fas fa-draw-polygon" style="font-size: 48px; margin-bottom: 10px;"></i>
-                    <p>No location data available for this submission.</p>
-                </div>
-            </div>
-        `;
-    }
+    const severityColors = { critical: '#dc2626', high: '#f97316', medium: '#eab308', low: '#22c55e' };
     
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
-    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10000;';
     modal.innerHTML = `
-        <div style="background:white;border-radius:16px;max-width:900px;width:90%;max-height:90vh;overflow-y:auto;">
-            <div style="padding:20px;background:linear-gradient(135deg,#1e293b,#0f172a);color:white;display:flex;justify-content:space-between;align-items:center;border-radius:16px 16px 0 0;">
-                <h3 style="margin:0;"><i class="fas fa-file-alt"></i> Submission Review</h3>
-                <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:36px;height:36px;border-radius:50%;cursor:pointer;">✕</button>
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, ${severityColors[alert.severity]}, #7f1d1d);">
+                <h3><i class="fas fa-exclamation-triangle"></i> Overlap Analysis</h3>
+                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()"><i class="fas fa-times"></i></button>
             </div>
-            <div style="padding:24px;">
-                <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #e2e8f0;">
-                    <div style="font-weight:600;margin-bottom:15px;color:#2c6e49;"><i class="fas fa-user-farmer"></i> Farmer Information</div>
-                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Farmer ID:</div><div>${escapeHtml(submission.farmerId)}</div></div>
-                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Farmer Name:</div><div>${escapeHtml(submission.farmerName)}</div></div>
-                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Cooperative:</div><div>${escapeHtml(submission.cooperative)}</div></div>
-                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Supplier:</div><div>${escapeHtml(submission.supplier)}</div></div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <div class="modal-grid">
+                        <div class="modal-row"><div class="modal-label">Severity:</div><div class="modal-value"><span class="alert-badge-large ${alert.severity}">${alert.severity.toUpperCase()}</span></div></div>
+                        <div class="modal-row"><div class="modal-label">Overlap Area:</div><div class="modal-value">${alert.overlapArea?.toFixed(2) || 'N/A'} hectares</div></div>
+                        <div class="modal-row"><div class="modal-label">Overlap %:</div><div class="modal-value">${alert.overlapPercent || 'N/A'}% of smaller farm</div></div>
+                    </div>
                 </div>
                 
-                <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #e2e8f0;">
-                    <div style="font-weight:600;margin-bottom:15px;color:#2c6e49;"><i class="fas fa-chart-line"></i> Farm Data</div>
-                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Declared Area:</div><div><strong>${submission.area.toFixed(2)} hectares</strong></div></div>
-                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Current Status:</div><div><span class="status-badge ${submission.status}">${submission.status}</span></div></div>
+                <div class="two-farm-layout">
+                    <div class="farm-card">
+                        <h4><i class="fas fa-tractor"></i> Farm 1: ${escapeHtml(alert.farmerName)}</h4>
+                        <div class="modal-row"><div class="modal-label">Cooperative:</div><div class="modal-value">${escapeHtml(alert.farmData?.cooperative || 'N/A')}</div></div>
+                        <div class="modal-row"><div class="modal-label">Supplier:</div><div class="modal-value">${escapeHtml(alert.farmData?.supplier || 'N/A')}</div></div>
+                        <div class="modal-row"><div class="modal-label">Area:</div><div class="modal-value">${alert.farmData?.area?.toFixed(2) || 'N/A'} ha</div></div>
+                    </div>
+                    <div class="farm-card">
+                        <h4><i class="fas fa-tractor"></i> Farm 2: ${escapeHtml(alert.affectedFarmName)}</h4>
+                        <div class="modal-row"><div class="modal-label">Cooperative:</div><div class="modal-value">${escapeHtml(alert.affectedFarmData?.cooperative || 'N/A')}</div></div>
+                        <div class="modal-row"><div class="modal-label">Supplier:</div><div class="modal-value">${escapeHtml(alert.affectedFarmData?.supplier || 'N/A')}</div></div>
+                        <div class="modal-row"><div class="modal-label">Area:</div><div class="modal-value">${alert.affectedFarmData?.area?.toFixed(2) || 'N/A'} ha</div></div>
+                    </div>
                 </div>
                 
-                ${mapHtml}
+                <div class="modal-section">
+                    <div class="modal-section-title"><i class="fas fa-map-marked-alt"></i> Farm Location Map</div>
+                    <div id="alertMap"></div>
+                    <div class="map-info">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Decision Support:</strong> The <span style="color:#dc2626; font-weight:bold;">RED area</span> shows the conflicting overlap. 
+                        <span style="color:#22c55e;">Green</span> = Farm 1, <span style="color:#f97316;">Orange</span> = Farm 2.
+                    </div>
+                </div>
                 
-                ${submission.status === 'pending' ? `
-                    <div style="display:flex;gap:12px;margin-top:20px;padding-top:20px;border-top:1px solid #e2e8f0;">
-                        <button onclick="validateSubmission('${submission.id}')" style="flex:1;padding:10px;background:#22c55e;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">✓ Validate</button>
-                        <button onclick="rejectSubmission('${submission.id}')" style="flex:1;padding:10px;background:#ef4444;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">✗ Reject</button>
-                        <button onclick="this.closest('.modal-overlay').remove()" style="flex:1;padding:10px;background:#e2e8f0;border:none;border-radius:8px;cursor:pointer;">Cancel</button>
-                    </div>
-                ` : `
-                    <div style="display:flex;gap:12px;margin-top:20px;padding-top:20px;border-top:1px solid #e2e8f0;">
-                        <button onclick="this.closest('.modal-overlay').remove()" style="flex:1;padding:10px;background:#e2e8f0;border:none;border-radius:8px;cursor:pointer;">Close</button>
-                    </div>
-                `}
+                <div class="modal-actions">
+                    ${alert.status === 'new' ? `
+                        <button class="modal-btn acknowledge" onclick="updateAlertStatus('${alert.id}', 'acknowledged'); document.querySelector('.modal-overlay').remove()">
+                            <i class="fas fa-check"></i> Acknowledge
+                        </button>
+                        <button class="modal-btn resolve" onclick="updateAlertStatus('${alert.id}', 'resolved'); document.querySelector('.modal-overlay').remove()">
+                            <i class="fas fa-check-double"></i> Resolve
+                        </button>
+                    ` : ''}
+                    <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">Close</button>
+                </div>
             </div>
         </div>
     `;
     
     document.body.appendChild(modal);
-    
-    if (hasGeometry && submission.geometry.coordinates) {
-        setTimeout(() => {
-            initSubmissionMap(submission.geometry.coordinates, submission);
-        }, 100);
-    }
+    setTimeout(() => initOverlapMap(alert), 100);
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
 }
 
-function initSubmissionMap(coordinates, submission) {
-    const mapContainer = document.querySelector('#submissionMap');
+function initOverlapMap(alert) {
+    const mapContainer = document.getElementById('alertMap');
     if (!mapContainer) return;
     
-    if (currentMap) {
-        currentMap.remove();
-    }
+    if (currentMap) currentMap.remove();
     
-    let center;
-    if (coordinates[0] && Array.isArray(coordinates[0][0])) {
-        let allLats = [], allLons = [];
-        coordinates[0].forEach(coord => { allLons.push(coord[0]); allLats.push(coord[1]); });
-        center = [(Math.min(...allLats) + Math.max(...allLats)) / 2, (Math.min(...allLons) + Math.max(...allLons)) / 2];
-    } else if (coordinates[0] && Array.isArray(coordinates[0])) {
-        center = [coordinates[0][1], coordinates[0][0]];
-    } else {
-        center = [coordinates[1], coordinates[0]];
-    }
+    const farm1Geo = alert.farmData?.geometry;
+    const farm2Geo = alert.affectedFarmData?.geometry;
+    let bounds = null;
     
-    currentMap = L.map('submissionMap').setView(center, 18);
+    currentMap = L.map('alertMap', { attributionControl: false }).setView([7.539989, -5.547080], 7);
+    
+    // Google Satellite tiles
     L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-        maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(currentMap);
     
-    if (coordinates[0] && Array.isArray(coordinates[0][0])) {
-        const polygon = L.polygon(coordinates, { color: '#FF9800', weight: 3, fillColor: '#FF9800', fillOpacity: 0.35 }).addTo(currentMap);
-        polygon.bindPopup(`<b>${escapeHtml(submission.farmerName)}</b><br>Area: ${submission.area.toFixed(2)} ha`);
-        currentMap.fitBounds(polygon.getBounds());
-    } else if (coordinates[0] && Array.isArray(coordinates[0])) {
-        const polyline = L.polyline(coordinates, { color: '#FF9800', weight: 3 }).addTo(currentMap);
-        currentMap.fitBounds(polyline.getBounds());
+    // Draw Farm 1 (Green)
+    if (farm1Geo?.coordinates) {
+        const coords = convertToLeafletCoords(farm1Geo.coordinates);
+        const polygon = L.polygon(coords, {
+            color: '#22c55e',
+            weight: 3,
+            fillColor: '#22c55e',
+            fillOpacity: 0.3
+        }).addTo(currentMap);
+        polygon.bindPopup(`<b>${escapeHtml(alert.farmerName)}</b><br>Farm 1 | ${alert.farmData?.area?.toFixed(2)} ha`);
+        
+        if (polygon.getBounds && polygon.getBounds().isValid()) {
+            bounds = bounds ? bounds.extend(polygon.getBounds()) : polygon.getBounds();
+        }
+    }
+    
+    // Draw Farm 2 (Orange)
+    if (farm2Geo?.coordinates) {
+        const coords = convertToLeafletCoords(farm2Geo.coordinates);
+        const polygon = L.polygon(coords, {
+            color: '#f97316',
+            weight: 3,
+            fillColor: '#f97316',
+            fillOpacity: 0.3
+        }).addTo(currentMap);
+        polygon.bindPopup(`<b>${escapeHtml(alert.affectedFarmName)}</b><br>Farm 2 | ${alert.affectedFarmData?.area?.toFixed(2)} ha`);
+        
+        if (polygon.getBounds && polygon.getBounds().isValid()) {
+            bounds = bounds ? bounds.extend(polygon.getBounds()) : polygon.getBounds();
+        }
+    }
+    
+    // Calculate and draw overlap area (RED)
+    if (farm1Geo?.coordinates && farm2Geo?.coordinates) {
+        try {
+            const poly1 = turf.polygon(farm1Geo.coordinates);
+            const poly2 = turf.polygon(farm2Geo.coordinates);
+            const intersection = turf.intersect(poly1, poly2);
+            
+            if (intersection) {
+                const overlapCoords = convertToLeafletCoords(intersection.geometry.coordinates);
+                const overlapPoly = L.polygon(overlapCoords, {
+                    color: '#dc2626',
+                    weight: 4,
+                    fillColor: '#dc2626',
+                    fillOpacity: 0.5
+                }).addTo(currentMap);
+                overlapPoly.bindPopup(`<b>⚠️ Conflict Area</b><br>${alert.overlapArea?.toFixed(2)} hectares overlap`);
+                
+                if (overlapPoly.getBounds && overlapPoly.getBounds().isValid()) {
+                    bounds = bounds ? bounds.extend(overlapPoly.getBounds()) : overlapPoly.getBounds();
+                }
+            }
+        } catch(e) {
+            console.warn('Error calculating overlap:', e);
+        }
+    }
+    
+    if (bounds && bounds.isValid()) {
+        currentMap.fitBounds(bounds, { padding: [50, 50] });
     } else {
-        L.marker([coordinates[1], coordinates[0]]).addTo(currentMap).bindPopup(`<b>${escapeHtml(submission.farmerName)}</b>`).openPopup();
+        currentMap.setView([7.539989, -5.547080], 7);
     }
+    
+    L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(currentMap);
+}
+
+function showSingleFarmMapModal(alert) {
+    const existing = document.querySelector('.modal-overlay');
+    if (existing) existing.remove();
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-map-marker-alt"></i> Farm Location - ${escapeHtml(alert.farmerName)}</h3>
+                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <div class="modal-grid">
+                        <div class="modal-row"><div class="modal-label">Alert Type:</div><div class="modal-value">${alert.type.replace('-', ' ').toUpperCase()}</div></div>
+                        <div class="modal-row"><div class="modal-label">Severity:</div><div class="modal-value"><span class="alert-badge-large ${alert.severity}">${alert.severity.toUpperCase()}</span></div></div>
+                    </div>
+                </div>
+                <div class="modal-section">
+                    <div id="alertMap"></div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    setTimeout(() => {
+        if (currentMap) currentMap.remove();
+        currentMap = L.map('alertMap', { attributionControl: false }).setView([7.539989, -5.547080], 7);
+        L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        }).addTo(currentMap);
+        if (alert.farmData?.geometry?.coordinates) {
+            const coords = convertToLeafletCoords(alert.farmData.geometry.coordinates);
+            const polygon = L.polygon(coords, {
+                color: alert.severity === 'high' ? '#f97316' : '#eab308',
+                weight: 3,
+                fillColor: alert.severity === 'high' ? '#f97316' : '#eab308',
+                fillOpacity: 0.3
+            }).addTo(currentMap);
+            if (polygon.getBounds && polygon.getBounds().isValid()) {
+                currentMap.fitBounds(polygon.getBounds());
+            }
+        }
+    }, 100);
 }
 
 // ===========================================
-// VALIDATE/REJECT FUNCTIONS
+// ALERT ACTIONS
 // ===========================================
 
-async function validateSubmission(id) {
-    if (!confirm('Are you sure you want to VALIDATE this submission?')) return;
-    
-    const submission = allSubmissions.find(s => s.id == id);
-    if (!submission) return;
-    
-    document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
-    
-    if (!supabaseReady || !supabaseClient) {
-        showNotification('Database not connected', 'error');
-        return;
-    }
-    
-    try {
-        showNotification('Updating database...', 'info');
-        await supabaseClient.from('farms').update({ status: 'validated' }).eq('id', id);
-        submission.status = 'validated';
+function updateAlertStatus(alertId, newStatus) {
+    const alert = allAlerts.find(a => a.id === alertId);
+    if (alert) {
+        alert.status = newStatus;
         applyFilters();
-        showNotification('Submission validated successfully!', 'success');
-    } catch (error) {
-        showNotification('Error: ' + error.message, 'error');
+        showNotification(`Alert marked as ${newStatus}`, 'success');
     }
 }
 
-async function rejectSubmission(id) {
-    const reason = prompt('Please enter rejection reason:', 'Invalid or incomplete data');
-    if (!reason) return;
-    
-    const submission = allSubmissions.find(s => s.id == id);
-    if (!submission) return;
-    
-    document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
-    
-    if (!supabaseReady || !supabaseClient) {
-        showNotification('Database not connected', 'error');
-        return;
-    }
-    
-    try {
-        showNotification('Updating database...', 'info');
-        await supabaseClient.from('farms').update({ status: 'rejected' }).eq('id', id);
-        submission.status = 'rejected';
-        applyFilters();
-        showNotification('Submission rejected!', 'info');
-    } catch (error) {
-        showNotification('Error: ' + error.message, 'error');
-    }
+// ===========================================
+// UTILITY FUNCTIONS
+// ===========================================
+
+function getSeverityIcon(severity) {
+    const icons = { critical: 'fa-skull-crossbones', high: 'fa-exclamation-triangle', medium: 'fa-exclamation', low: 'fa-info-circle' };
+    return icons[severity] || 'fa-bell';
 }
 
-window.validateSubmission = validateSubmission;
-window.rejectSubmission = rejectSubmission;
-
-// ===========================================
-// HELPER FUNCTIONS
-// ===========================================
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffHours = Math.floor((now - date) / 3600000);
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    return date.toLocaleDateString();
+}
 
 function escapeHtml(str) {
     if (!str) return '';
-    return String(str).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
+    return String(str).replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
 }
 
 function showNotification(message, type = 'info') {
@@ -721,13 +703,35 @@ function showNotification(message, type = 'info') {
     setTimeout(() => notification.remove(), 3000);
 }
 
+// ===========================================
+// EVENT LISTENERS
+// ===========================================
+
 function setupEventListeners() {
-    document.getElementById('refreshBtn')?.addEventListener('click', () => loadSubmissions());
-    document.getElementById('searchInput')?.addEventListener('input', () => applyFilters());
-    document.getElementById('supplierFilter')?.addEventListener('change', () => applyFilters());
-    document.getElementById('cooperativeFilter')?.addEventListener('change', () => applyFilters());
-    document.getElementById('statusFilter')?.addEventListener('change', () => applyFilters());
-    
+    document.getElementById('applyFiltersBtn')?.addEventListener('click', () => applyFilters());
+    document.getElementById('clearFiltersBtn')?.addEventListener('click', () => {
+        document.getElementById('alertTypeFilter').value = 'all';
+        document.getElementById('alertSeverityFilter').value = 'all';
+        document.getElementById('alertSupplierFilter').value = 'all';
+        document.getElementById('alertCoopFilter').value = 'all';
+        document.getElementById('alertStatusFilter').value = 'all';
+        applyFilters();
+    });
+    document.getElementById('alertTypeFilter')?.addEventListener('change', () => applyFilters());
+    document.getElementById('alertSeverityFilter')?.addEventListener('change', () => applyFilters());
+    document.getElementById('alertSupplierFilter')?.addEventListener('change', () => applyFilters());
+    document.getElementById('alertCoopFilter')?.addEventListener('change', () => applyFilters());
+    document.getElementById('alertStatusFilter')?.addEventListener('change', () => applyFilters());
+    document.getElementById('prevPageBtn')?.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderAlerts(); updatePagination(); } });
+    document.getElementById('nextPageBtn')?.addEventListener('click', () => { const total = Math.ceil(filteredAlerts.length / rowsPerPage); if (currentPage < total) { currentPage++; renderAlerts(); updatePagination(); } });
+    document.getElementById('refreshBtn')?.addEventListener('click', () => loadFarmsDirectly());
+    document.getElementById('markAllReadBtn')?.addEventListener('click', () => {
+        if (confirm('Mark all new alerts as acknowledged?')) {
+            allAlerts.forEach(a => { if (a.status === 'new') a.status = 'acknowledged'; });
+            applyFilters();
+            showNotification('All alerts marked as acknowledged', 'success');
+        }
+    });
     document.getElementById('logoutBtn')?.addEventListener('click', async (e) => {
         e.preventDefault();
         if (supabaseClient) await supabaseClient.auth.signOut();
@@ -736,6 +740,8 @@ function setupEventListeners() {
     });
 }
 
-window.applyFilters = applyFilters;
+// Make functions global
+window.viewAlertOnMap = viewAlertOnMap;
+window.updateAlertStatus = updateAlertStatus;
 
-console.log('✅ Submissions page ready');
+console.log('✅ Quality Alerts page ready - overlap detection enabled');
