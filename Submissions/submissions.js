@@ -1,6 +1,6 @@
 // ===========================================
 // SUBMISSIONS PAGE - COMPLETE WITH MAP INTEGRATION
-// Matches Dashboard layout and functionality
+// Fixed pagination and responsive background
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -97,7 +97,6 @@ async function loadSubmissions() {
     showNotification('Loading submissions...', 'info');
     
     try {
-        // Check session
         const { data: { session } } = await supabaseClient.auth.getSession();
         
         if (!session) {
@@ -118,8 +117,6 @@ async function loadSubmissions() {
             console.error('Supabase select error:', error);
             throw error;
         }
-        
-        console.log('Raw farms data from Supabase:', farms);
         
         if (farms && farms.length > 0) {
             console.log(`✅ Loaded ${farms.length} farms from database`);
@@ -148,12 +145,9 @@ async function loadSubmissions() {
                     enumerator: farm.enumerator || 'N/A',
                     updatedBy: farm.validated_by || farm.enumerator || 'System',
                     submissionDate: farm.submission_date || farm.created_at || new Date().toISOString(),
-                    geometry: fixedGeometry,
-                    submission_data: farm.submission_data
+                    geometry: fixedGeometry
                 };
             });
-            
-            console.log('Processed submissions:', allSubmissions.length);
             
             updateFilterOptions();
             applyFilters();
@@ -179,7 +173,8 @@ function loadSampleData() {
         { id: '1', farmerId: 'F12345', farmerName: 'Koffi Jean', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 2.5, status: 'pending', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
         { id: '2', farmerId: 'F12346', farmerName: 'Konan Marie', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 1.8, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
         { id: '3', farmerId: 'F12347', farmerName: 'N\'Guessan Paul', cooperative: 'COOP-CI', supplier: 'Other', area: 3.2, status: 'rejected', enumerator: 'EN003', updatedBy: 'Validator', submissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
-        { id: '4', farmerId: 'F12348', farmerName: 'Yao Michelle', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 5.1, status: 'validated', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), geometry: null }
+        { id: '4', farmerId: 'F12348', farmerName: 'Yao Michelle', cooperative: 'GCC Cooperative', supplier: 'GCC', area: 5.1, status: 'validated', enumerator: 'EN001', updatedBy: 'Admin', submissionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), geometry: null },
+        { id: '5', farmerId: 'F12349', farmerName: 'Traore Amadou', cooperative: 'SITAPA Cooperative', supplier: 'SITAPA', area: 4.2, status: 'pending', enumerator: 'EN002', updatedBy: 'Field Officer', submissionDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), geometry: null }
     ];
     
     updateFilterOptions();
@@ -289,7 +284,6 @@ function sortTable(column) {
     applyFilters();
 }
 
-// Make sortTable global
 window.sortTable = sortTable;
 
 function updateStats() {
@@ -304,7 +298,6 @@ function updateStats() {
     document.getElementById('totalCount').textContent = total;
     document.getElementById('totalRecords').textContent = total;
     
-    // Update notification badge
     const badge = document.getElementById('notificationBadge');
     if (badge) {
         const newAlerts = filteredSubmissions.filter(s => s.status === 'pending').length;
@@ -320,10 +313,13 @@ function renderTableView() {
     if (!tbody) return;
     
     const start = (currentPage - 1) * rowsPerPage;
-    const pageData = filteredSubmissions.slice(start, start + rowsPerPage);
+    const end = start + rowsPerPage;
+    const pageData = filteredSubmissions.slice(start, end);
     
     if (pageData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:60px;">No submissions found</td></tr>';
+        document.getElementById('showingStart').textContent = '0';
+        document.getElementById('showingEnd').textContent = '0';
         return;
     }
     
@@ -354,9 +350,11 @@ function renderTableView() {
     `).join('');
     
     // Update showing stats
-    const showingEnd = Math.min(start + rowsPerPage, filteredSubmissions.length);
-    document.getElementById('showingStart').textContent = start + 1;
+    const showingStart = filteredSubmissions.length === 0 ? 0 : start + 1;
+    const showingEnd = Math.min(end, filteredSubmissions.length);
+    document.getElementById('showingStart').textContent = showingStart;
     document.getElementById('showingEnd').textContent = showingEnd;
+    document.getElementById('totalRecords').textContent = filteredSubmissions.length;
 }
 
 function renderGroupView() {
@@ -406,7 +404,7 @@ function renderGroupView() {
 }
 
 // ===========================================
-// PAGINATION FUNCTIONS
+// PAGINATION FUNCTIONS - FIXED
 // ===========================================
 function updatePagination() {
     const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
@@ -414,11 +412,20 @@ function updatePagination() {
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     
-    if (prevBtn) prevBtn.disabled = currentPage === 1;
-    if (nextBtn) nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+    if (prevBtn) {
+        prevBtn.disabled = currentPage === 1;
+    }
+    if (nextBtn) {
+        nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+    }
     
     const pageNumbers = document.getElementById('pageNumbers');
     if (!pageNumbers) return;
+    
+    if (totalPages <= 1) {
+        pageNumbers.innerHTML = '<span class="page-number active">1</span>';
+        return;
+    }
     
     let html = '';
     const maxVisible = 5;
@@ -439,22 +446,27 @@ function updatePagination() {
         html += `<span class="page-number" onclick="goToPage(${totalPages})">${totalPages}</span>`;
     }
     
-    pageNumbers.innerHTML = html || '<span class="page-number active">1</span>';
+    pageNumbers.innerHTML = html;
 }
 
 function goToPage(page) {
     const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
     if (page < 1 || page > totalPages) return;
     currentPage = page;
-    renderTableView();
-    updatePagination();
+    
+    if (currentView === 'table') {
+        renderTableView();
+        updatePagination();
+    }
 }
 
 function prevPage() {
     if (currentPage > 1) {
         currentPage--;
-        renderTableView();
-        updatePagination();
+        if (currentView === 'table') {
+            renderTableView();
+            updatePagination();
+        }
     }
 }
 
@@ -462,8 +474,10 @@ function nextPage() {
     const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
     if (currentPage < totalPages) {
         currentPage++;
-        renderTableView();
-        updatePagination();
+        if (currentView === 'table') {
+            renderTableView();
+            updatePagination();
+        }
     }
 }
 
@@ -495,6 +509,7 @@ function toggleView() {
 window.toggleView = toggleView;
 
 function refreshData() {
+    currentPage = 1;
     loadSubmissions();
 }
 
@@ -518,21 +533,17 @@ function showModalWithMap(submission) {
     
     const hasGeometry = submission.geometry && submission.geometry.coordinates;
     let mapHtml = '';
-    let leafletCoords = null;
     
     if (hasGeometry) {
-        leafletCoords = submission.geometry.coordinates;
-        
         mapHtml = `
             <div class="modal-section">
                 <div class="modal-section-title">
                     <i class="fas fa-map-marker-alt"></i> Farm Location Map (Satellite View)
                 </div>
-                <div id="submissionMap"></div>
-                <div class="map-info">
+                <div id="submissionMap" style="height: 350px; border-radius: 8px; margin-top: 10px;"></div>
+                <div class="map-info" style="margin-top: 10px; padding: 10px; background: #f0fdf4; border-radius: 8px; font-size: 12px;">
                     <i class="fas fa-info-circle"></i> 
-                    <strong>Decision Support:</strong> Use satellite imagery to verify farm boundaries, 
-                    check vegetation, crop health, and assess accessibility before validating or rejecting.
+                    <strong>Decision Support:</strong> Use satellite imagery to verify farm boundaries.
                 </div>
             </div>
         `;
@@ -545,7 +556,6 @@ function showModalWithMap(submission) {
                 <div style="padding: 20px; background: #f5f5f5; border-radius: 8px; text-align: center; color: #999;">
                     <i class="fas fa-draw-polygon" style="font-size: 48px; margin-bottom: 10px;"></i>
                     <p>No location data available for this submission.</p>
-                    <p style="font-size: 12px;">The farm polygon or point coordinates are missing.</p>
                 </div>
             </div>
         `;
@@ -553,80 +563,39 @@ function showModalWithMap(submission) {
     
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10000;';
     modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-file-alt"></i> Submission Review - Decision Making</h3>
-                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
-                    <i class="fas fa-times"></i>
-                </button>
+        <div style="background:white;border-radius:16px;max-width:900px;width:90%;max-height:90vh;overflow-y:auto;">
+            <div style="padding:20px;background:linear-gradient(135deg,#1e293b,#0f172a);color:white;display:flex;justify-content:space-between;align-items:center;border-radius:16px 16px 0 0;">
+                <h3 style="margin:0;"><i class="fas fa-file-alt"></i> Submission Review</h3>
+                <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:36px;height:36px;border-radius:50%;cursor:pointer;">✕</button>
             </div>
-            <div class="modal-body">
-                <div class="modal-section">
-                    <div class="modal-section-title">
-                        <i class="fas fa-user-farmer"></i> Farmer Information
-                    </div>
-                    <div class="modal-row">
-                        <div class="modal-label">Farmer ID:</div>
-                        <div class="modal-value">${escapeHtml(submission.farmerId)}</div>
-                    </div>
-                    <div class="modal-row">
-                        <div class="modal-label">Farmer Name:</div>
-                        <div class="modal-value">${escapeHtml(submission.farmerName)}</div>
-                    </div>
-                    <div class="modal-row">
-                        <div class="modal-label">Cooperative:</div>
-                        <div class="modal-value">${escapeHtml(submission.cooperative)}</div>
-                    </div>
-                    <div class="modal-row">
-                        <div class="modal-label">Supplier:</div>
-                        <div class="modal-value">${escapeHtml(submission.supplier)}</div>
-                    </div>
-                    <div class="modal-row">
-                        <div class="modal-label">Enumerator:</div>
-                        <div class="modal-value">${escapeHtml(submission.enumerator)}</div>
-                    </div>
+            <div style="padding:24px;">
+                <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #e2e8f0;">
+                    <div style="font-weight:600;margin-bottom:15px;color:#2c6e49;"><i class="fas fa-user-farmer"></i> Farmer Information</div>
+                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Farmer ID:</div><div>${escapeHtml(submission.farmerId)}</div></div>
+                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Farmer Name:</div><div>${escapeHtml(submission.farmerName)}</div></div>
+                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Cooperative:</div><div>${escapeHtml(submission.cooperative)}</div></div>
+                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Supplier:</div><div>${escapeHtml(submission.supplier)}</div></div>
                 </div>
                 
-                <div class="modal-section">
-                    <div class="modal-section-title">
-                        <i class="fas fa-chart-line"></i> Farm Data
-                    </div>
-                    <div class="modal-row">
-                        <div class="modal-label">Declared Area:</div>
-                        <div class="modal-value"><strong>${submission.area.toFixed(2)} hectares</strong></div>
-                    </div>
-                    <div class="modal-row">
-                        <div class="modal-label">Current Status:</div>
-                        <div class="modal-value">
-                            <span class="status-badge ${submission.status}">${submission.status}</span>
-                        </div>
-                    </div>
-                    <div class="modal-row">
-                        <div class="modal-label">Submission Date:</div>
-                        <div class="modal-value">${new Date(submission.submissionDate).toLocaleString()}</div>
-                    </div>
+                <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #e2e8f0;">
+                    <div style="font-weight:600;margin-bottom:15px;color:#2c6e49;"><i class="fas fa-chart-line"></i> Farm Data</div>
+                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Declared Area:</div><div><strong>${submission.area.toFixed(2)} hectares</strong></div></div>
+                    <div style="display:flex;padding:4px 0;"><div style="width:130px;font-weight:600;">Current Status:</div><div><span class="status-badge ${submission.status}">${submission.status}</span></div></div>
                 </div>
                 
                 ${mapHtml}
                 
                 ${submission.status === 'pending' ? `
-                    <div class="modal-actions">
-                        <button class="modal-btn approve" onclick="validateSubmission('${submission.id}')">
-                            <i class="fas fa-check"></i> Validate Submission
-                        </button>
-                        <button class="modal-btn reject" onclick="rejectSubmission('${submission.id}')">
-                            <i class="fas fa-times"></i> Reject Submission
-                        </button>
-                        <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">
-                            Cancel
-                        </button>
+                    <div style="display:flex;gap:12px;margin-top:20px;padding-top:20px;border-top:1px solid #e2e8f0;">
+                        <button onclick="validateSubmission('${submission.id}')" style="flex:1;padding:10px;background:#22c55e;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">✓ Validate</button>
+                        <button onclick="rejectSubmission('${submission.id}')" style="flex:1;padding:10px;background:#ef4444;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">✗ Reject</button>
+                        <button onclick="this.closest('.modal-overlay').remove()" style="flex:1;padding:10px;background:#e2e8f0;border:none;border-radius:8px;cursor:pointer;">Cancel</button>
                     </div>
                 ` : `
-                    <div class="modal-actions">
-                        <button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">
-                            Close
-                        </button>
+                    <div style="display:flex;gap:12px;margin-top:20px;padding-top:20px;border-top:1px solid #e2e8f0;">
+                        <button onclick="this.closest('.modal-overlay').remove()" style="flex:1;padding:10px;background:#e2e8f0;border:none;border-radius:8px;cursor:pointer;">Close</button>
                     </div>
                 `}
             </div>
@@ -635,21 +604,15 @@ function showModalWithMap(submission) {
     
     document.body.appendChild(modal);
     
-    if (hasGeometry && leafletCoords) {
+    if (hasGeometry && submission.geometry.coordinates) {
         setTimeout(() => {
-            initSubmissionMap(leafletCoords, submission);
+            initSubmissionMap(submission.geometry.coordinates, submission);
         }, 100);
     }
-    
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
 }
 
 function initSubmissionMap(coordinates, submission) {
-    const mapContainer = document.getElementById('submissionMap');
+    const mapContainer = document.querySelector('#submissionMap');
     if (!mapContainer) return;
     
     if (currentMap) {
@@ -657,74 +620,31 @@ function initSubmissionMap(coordinates, submission) {
     }
     
     let center;
-    
     if (coordinates[0] && Array.isArray(coordinates[0][0])) {
-        let allLons = [];
-        let allLats = [];
-        coordinates[0].forEach(coord => {
-            allLons.push(coord[0]);
-            allLats.push(coord[1]);
-        });
-        center = [(Math.min(...allLats) + Math.max(...allLats)) / 2, 
-                   (Math.min(...allLons) + Math.max(...allLons)) / 2];
+        let allLats = [], allLons = [];
+        coordinates[0].forEach(coord => { allLons.push(coord[0]); allLats.push(coord[1]); });
+        center = [(Math.min(...allLats) + Math.max(...allLats)) / 2, (Math.min(...allLons) + Math.max(...allLons)) / 2];
     } else if (coordinates[0] && Array.isArray(coordinates[0])) {
         center = [coordinates[0][1], coordinates[0][0]];
     } else {
         center = [coordinates[1], coordinates[0]];
     }
     
-    currentMap = L.map('submissionMap', {
-        attributionControl: false
-    }).setView(center, 18);
-    
+    currentMap = L.map('submissionMap').setView(center, 18);
     L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        attribution: '',
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(currentMap);
     
     if (coordinates[0] && Array.isArray(coordinates[0][0])) {
-        const polygon = L.polygon(coordinates, {
-            color: '#FF9800',
-            weight: 3,
-            fillColor: '#FF9800',
-            fillOpacity: 0.35
-        }).addTo(currentMap);
-        
-        polygon.bindPopup(`
-            <b>${escapeHtml(submission.farmerName)}</b><br>
-            <b>Farm ID:</b> ${escapeHtml(submission.farmerId)}<br>
-            <b>Area:</b> ${submission.area.toFixed(2)} ha<br>
-            <b>Status:</b> ${submission.status}
-        `);
-        
-        const bounds = polygon.getBounds();
-        if (bounds.isValid()) {
-            currentMap.fitBounds(bounds);
-        }
+        const polygon = L.polygon(coordinates, { color: '#FF9800', weight: 3, fillColor: '#FF9800', fillOpacity: 0.35 }).addTo(currentMap);
+        polygon.bindPopup(`<b>${escapeHtml(submission.farmerName)}</b><br>Area: ${submission.area.toFixed(2)} ha`);
+        currentMap.fitBounds(polygon.getBounds());
     } else if (coordinates[0] && Array.isArray(coordinates[0])) {
-        const polyline = L.polyline(coordinates, {
-            color: '#FF9800',
-            weight: 3
-        }).addTo(currentMap);
-        
-        const bounds = polyline.getBounds();
-        if (bounds.isValid()) {
-            currentMap.fitBounds(bounds);
-        }
+        const polyline = L.polyline(coordinates, { color: '#FF9800', weight: 3 }).addTo(currentMap);
+        currentMap.fitBounds(polyline.getBounds());
     } else {
-        const marker = L.marker([coordinates[1], coordinates[0]]).addTo(currentMap);
-        marker.bindPopup(`
-            <b>${escapeHtml(submission.farmerName)}</b><br>
-            <b>Farm ID:</b> ${escapeHtml(submission.farmerId)}<br>
-            <b>Area:</b> ${submission.area.toFixed(2)} ha<br>
-            <b>Status:</b> ${submission.status}
-        `);
-        marker.openPopup();
+        L.marker([coordinates[1], coordinates[0]]).addTo(currentMap).bindPopup(`<b>${escapeHtml(submission.farmerName)}</b>`).openPopup();
     }
-    
-    L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(currentMap);
-    L.control.zoom({ position: 'topright' }).addTo(currentMap);
 }
 
 // ===========================================
@@ -732,114 +652,55 @@ function initSubmissionMap(coordinates, submission) {
 // ===========================================
 
 async function validateSubmission(id) {
-    console.log(`========== VALIDATE SUBMISSION ==========`);
-    console.log(`Submission ID: ${id}`);
-    
-    if (!confirm('Are you sure you want to VALIDATE this submission?')) {
-        console.log('User cancelled validation');
-        return;
-    }
+    if (!confirm('Are you sure you want to VALIDATE this submission?')) return;
     
     const submission = allSubmissions.find(s => s.id == id);
-    if (!submission) {
-        console.error('❌ Submission not found:', id);
-        showNotification('Submission not found!', 'error');
-        return;
-    }
+    if (!submission) return;
     
-    const modal = document.querySelector('.modal-overlay');
-    if (modal) modal.remove();
+    document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
     
     if (!supabaseReady || !supabaseClient) {
-        console.error('❌ Supabase not ready!');
-        showNotification('Database not connected. Please refresh the page.', 'error');
+        showNotification('Database not connected', 'error');
         return;
     }
     
     try {
         showNotification('Updating database...', 'info');
-        console.log('📡 Sending update to Supabase...');
-        
-        const { data, error } = await supabaseClient
-            .from('farms')
-            .update({ status: 'validated' })
-            .eq('id', id)
-            .select();
-        
-        if (error) {
-            console.error('❌ Supabase error:', error);
-            throw error;
-        }
-        
-        console.log('✅ Supabase update successful!');
-        
+        await supabaseClient.from('farms').update({ status: 'validated' }).eq('id', id);
         submission.status = 'validated';
         applyFilters();
         showNotification('Submission validated successfully!', 'success');
-        
     } catch (error) {
-        console.error('❌ Error during validation:', error);
-        showNotification('Error updating database: ' + error.message, 'error');
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+async function rejectSubmission(id) {
+    const reason = prompt('Please enter rejection reason:', 'Invalid or incomplete data');
+    if (!reason) return;
+    
+    const submission = allSubmissions.find(s => s.id == id);
+    if (!submission) return;
+    
+    document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
+    
+    if (!supabaseReady || !supabaseClient) {
+        showNotification('Database not connected', 'error');
+        return;
+    }
+    
+    try {
+        showNotification('Updating database...', 'info');
+        await supabaseClient.from('farms').update({ status: 'rejected' }).eq('id', id);
+        submission.status = 'rejected';
+        applyFilters();
+        showNotification('Submission rejected!', 'info');
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
     }
 }
 
 window.validateSubmission = validateSubmission;
-
-async function rejectSubmission(id) {
-    console.log(`========== REJECT SUBMISSION ==========`);
-    console.log(`Submission ID: ${id}`);
-    
-    const reason = prompt('Please enter rejection reason:', 'Invalid or incomplete data');
-    if (!reason) {
-        console.log('User cancelled rejection');
-        return;
-    }
-    
-    console.log(`Rejection reason: ${reason}`);
-    
-    const submission = allSubmissions.find(s => s.id == id);
-    if (!submission) {
-        console.error('❌ Submission not found:', id);
-        showNotification('Submission not found!', 'error');
-        return;
-    }
-    
-    const modal = document.querySelector('.modal-overlay');
-    if (modal) modal.remove();
-    
-    if (!supabaseReady || !supabaseClient) {
-        console.error('❌ Supabase not ready!');
-        showNotification('Database not connected. Please refresh the page.', 'error');
-        return;
-    }
-    
-    try {
-        showNotification('Updating database...', 'info');
-        console.log('📡 Sending update to Supabase...');
-        
-        const { data, error } = await supabaseClient
-            .from('farms')
-            .update({ status: 'rejected' })
-            .eq('id', id)
-            .select();
-        
-        if (error) {
-            console.error('❌ Supabase error:', error);
-            throw error;
-        }
-        
-        console.log('✅ Supabase update successful!');
-        
-        submission.status = 'rejected';
-        applyFilters();
-        showNotification('Submission rejected!', 'info');
-        
-    } catch (error) {
-        console.error('❌ Error during rejection:', error);
-        showNotification('Error updating database: ' + error.message, 'error');
-    }
-}
-
 window.rejectSubmission = rejectSubmission;
 
 // ===========================================
@@ -848,95 +709,31 @@ window.rejectSubmission = rejectSubmission;
 
 function escapeHtml(str) {
     if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    return String(str).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
 }
 
 function showNotification(message, type = 'info') {
-    console.log(`[${type.toUpperCase()}] ${message}`);
-    
-    const colors = {
-        success: '#4CAF50',
-        error: '#F44336',
-        warning: '#FFC107',
-        info: '#2196F3'
-    };
-    
+    const colors = { success: '#4CAF50', error: '#F44336', warning: '#FFC107', info: '#2196F3' };
     const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        padding: 12px 24px;
-        background: ${colors[type] || colors.info};
-        color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10001;
-        font-size: 14px;
-        font-weight: 500;
-    `;
+    notification.style.cssText = `position:fixed;bottom:20px;right:20px;padding:12px 24px;background:${colors[type]};color:white;border-radius:8px;z-index:10001;font-size:14px;font-weight:500;`;
     notification.textContent = message;
-    
     document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transition = 'opacity 0.3s';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    setTimeout(() => notification.remove(), 3000);
 }
 
 function setupEventListeners() {
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) refreshBtn.addEventListener('click', () => loadSubmissions());
+    document.getElementById('refreshBtn')?.addEventListener('click', () => loadSubmissions());
+    document.getElementById('searchInput')?.addEventListener('input', () => applyFilters());
+    document.getElementById('supplierFilter')?.addEventListener('change', () => applyFilters());
+    document.getElementById('cooperativeFilter')?.addEventListener('change', () => applyFilters());
+    document.getElementById('statusFilter')?.addEventListener('change', () => applyFilters());
     
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') applyFilters();
+    document.getElementById('logoutBtn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (supabaseClient) await supabaseClient.auth.signOut();
+        localStorage.clear();
+        window.location.href = '../login.html';
     });
-    if (searchInput) searchInput.addEventListener('input', () => applyFilters());
-    
-    const supplierSearch = document.getElementById('supplierSearchInput');
-    if (supplierSearch) {
-        supplierSearch.addEventListener('input', (e) => {
-            supplierSearchTerm = e.target.value.toLowerCase();
-            updateSupplierFilter();
-            applyFilters();
-        });
-    }
-    
-    const coopSearch = document.getElementById('coopSearchInput');
-    if (coopSearch) {
-        coopSearch.addEventListener('input', (e) => {
-            coopSearchTerm = e.target.value.toLowerCase();
-            updateCooperativeFilter();
-            applyFilters();
-        });
-    }
-    
-    const supplierFilter = document.getElementById('supplierFilter');
-    if (supplierFilter) supplierFilter.addEventListener('change', () => applyFilters());
-    
-    const cooperativeFilter = document.getElementById('cooperativeFilter');
-    if (cooperativeFilter) cooperativeFilter.addEventListener('change', () => applyFilters());
-    
-    const statusFilter = document.getElementById('statusFilter');
-    if (statusFilter) statusFilter.addEventListener('change', () => applyFilters());
-    
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            if (supabaseClient) await supabaseClient.auth.signOut();
-            localStorage.clear();
-            window.location.href = '../login.html';
-        });
-    }
 }
 
 window.applyFilters = applyFilters;
