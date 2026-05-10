@@ -12,12 +12,7 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    <!-- Root CSS files -->
-    <link rel="stylesheet" href="../globalCSS.css">
-    <link rel="stylesheet" href="../layoutCSS.css">
-    <link rel="stylesheet" href="../alertCSS.css">
-    
-    <!-- Quality Alerts CSS -->
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="quality-alerts.css">
     
     <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
@@ -79,10 +74,6 @@
                     <button class="sync-btn" id="refreshBtn">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
-                    <button class="notifications-btn" id="notificationsBtn">
-                        <i class="fas fa-bell"></i>
-                        <span class="notification-badge" id="notificationBadge">0</span>
-                    </button>
                 </div>
             </div>
 
@@ -91,49 +82,35 @@
                 <!-- Alert Stats Cards -->
                 <div class="alert-stats-grid">
                     <div class="alert-stat-card critical">
-                        <div class="alert-stat-icon">
-                            <i class="fas fa-exclamation-circle"></i>
-                        </div>
+                        <div class="alert-stat-icon"><i class="fas fa-exclamation-circle"></i></div>
                         <div class="alert-stat-content">
                             <span class="alert-stat-label">Critical</span>
                             <span class="alert-stat-value" id="criticalCount">0</span>
                         </div>
                     </div>
-                    
                     <div class="alert-stat-card high">
-                        <div class="alert-stat-icon">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
+                        <div class="alert-stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
                         <div class="alert-stat-content">
                             <span class="alert-stat-label">High</span>
                             <span class="alert-stat-value" id="highCount">0</span>
                         </div>
                     </div>
-                    
                     <div class="alert-stat-card medium">
-                        <div class="alert-stat-icon">
-                            <i class="fas fa-exclamation"></i>
-                        </div>
+                        <div class="alert-stat-icon"><i class="fas fa-exclamation"></i></div>
                         <div class="alert-stat-content">
                             <span class="alert-stat-label">Medium</span>
                             <span class="alert-stat-value" id="mediumCount">0</span>
                         </div>
                     </div>
-                    
                     <div class="alert-stat-card low">
-                        <div class="alert-stat-icon">
-                            <i class="fas fa-info-circle"></i>
-                        </div>
+                        <div class="alert-stat-icon"><i class="fas fa-info-circle"></i></div>
                         <div class="alert-stat-content">
                             <span class="alert-stat-label">Low</span>
                             <span class="alert-stat-value" id="lowCount">0</span>
                         </div>
                     </div>
-                    
                     <div class="alert-stat-card total">
-                        <div class="alert-stat-icon">
-                            <i class="fas fa-bell"></i>
-                        </div>
+                        <div class="alert-stat-icon"><i class="fas fa-bell"></i></div>
                         <div class="alert-stat-content">
                             <span class="alert-stat-label">Total Alerts</span>
                             <span class="alert-stat-value" id="totalAlerts">0</span>
@@ -153,7 +130,6 @@
                             <option value="area">Area Issue</option>
                         </select>
                     </div>
-                    
                     <div class="filter-group">
                         <label>Severity</label>
                         <select id="alertSeverityFilter" class="filter-select">
@@ -164,29 +140,18 @@
                             <option value="low">Low</option>
                         </select>
                     </div>
-                    
                     <div class="filter-group">
                         <label>Supplier</label>
-                        <div class="filter-search-container">
-                            <i class="fas fa-search search-icon"></i>
-                            <input type="text" id="supplierSearch" class="filter-search" placeholder="Search suppliers...">
-                        </div>
                         <select id="alertSupplierFilter" class="filter-select">
                             <option value="all">All Suppliers</option>
                         </select>
                     </div>
-                    
                     <div class="filter-group">
                         <label>Cooperative</label>
-                        <div class="filter-search-container">
-                            <i class="fas fa-search search-icon"></i>
-                            <input type="text" id="coopSearch" class="filter-search" placeholder="Search cooperatives...">
-                        </div>
                         <select id="alertCoopFilter" class="filter-select">
                             <option value="all">All Cooperatives</option>
                         </select>
                     </div>
-                    
                     <div class="filter-group">
                         <label>Status</label>
                         <select id="alertStatusFilter" class="filter-select">
@@ -197,48 +162,27 @@
                             <option value="ignored">Ignored</option>
                         </select>
                     </div>
-                    
                     <div class="filter-actions">
-                        <button class="btn-primary" id="applyFiltersBtn">
-                            <i class="fas fa-search"></i> Apply
-                        </button>
-                        <button class="btn-secondary" id="clearFiltersBtn">
-                            <i class="fas fa-times"></i> Clear
-                        </button>
+                        <button class="btn-primary" id="applyFiltersBtn"><i class="fas fa-search"></i> Apply</button>
+                        <button class="btn-secondary" id="clearFiltersBtn"><i class="fas fa-times"></i> Clear</button>
                     </div>
-                </div>
-                
-                <!-- Export Options -->
-                <div class="export-options-bar">
-                    <span class="export-label"><i class="fas fa-download"></i> Export:</span>
-                    <button class="export-btn" id="exportCSV">CSV</button>
-                    <button class="export-btn" id="exportJSON">JSON</button>
-                    <span class="export-count" id="exportCount">0 alerts</span>
                 </div>
 
                 <!-- Alerts List -->
                 <div class="alerts-list-container">
                     <div class="alerts-list-header">
                         <h3><i class="fas fa-list"></i> Quality Alerts</h3>
-                        <div class="alerts-bulk-actions">
-                            <button class="btn-icon" id="markAllReadBtn" title="Mark all as acknowledged">
-                                <i class="fas fa-check-double"></i>
-                            </button>
-                        </div>
+                        <button class="btn-icon" id="markAllReadBtn" title="Mark all as acknowledged">
+                            <i class="fas fa-check-double"></i>
+                        </button>
                     </div>
-                    
                     <div class="alerts-list" id="alertsList">
-                        <div style="text-align:center;padding:40px;">Loading alerts from dashboard...</div>
+                        <div style="text-align:center;padding:40px;">Loading alerts...</div>
                     </div>
-                    
                     <div class="alerts-pagination">
-                        <button class="pagination-btn" id="prevPageBtn" disabled>
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
+                        <button class="pagination-btn" id="prevPageBtn" disabled><i class="fas fa-chevron-left"></i></button>
                         <span id="pageInfo">Page 1 of 1</span>
-                        <button class="pagination-btn" id="nextPageBtn" disabled>
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
+                        <button class="pagination-btn" id="nextPageBtn" disabled><i class="fas fa-chevron-right"></i></button>
                     </div>
                 </div>
             </div>
