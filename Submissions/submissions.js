@@ -1,5 +1,6 @@
 // ===========================================
-// SUBMISSIONS PAGE - MAPPINGTRACE (FIXED)
+// SUBMISSIONS - WORKING VERSION
+// Loads farms from Supabase with CRUD operations
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -23,7 +24,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📌 Submissions DOM loaded');
     loadUserData();
-    initSupabaseAndLoad();
+    initSupabase();
     setupEventListeners();
 });
 
@@ -41,17 +42,17 @@ function loadUserData() {
     }
 }
 
-function initSupabaseAndLoad(retryCount = 0) {
+function initSupabase(retryCount = 0) {
     console.log('🔧 Initializing Supabase...');
     
     if (typeof window.supabase === 'undefined') {
         if (retryCount < 20) {
             console.log(`⏳ Waiting for Supabase... (${retryCount + 1}/20)`);
-            setTimeout(() => initSupabaseAndLoad(retryCount + 1), 500);
+            setTimeout(() => initSupabase(retryCount + 1), 500);
             return;
         }
         console.error('❌ Supabase library failed to load');
-        showNotification('Database connection issue. Please refresh.', 'error');
+        showNotification('Supabase library failed to load. Please refresh.', 'error');
         return;
     }
     
@@ -59,18 +60,16 @@ function initSupabaseAndLoad(retryCount = 0) {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         window.supabase = supabaseClient;
         console.log('✅ Supabase client created');
-        
-        checkSessionAndLoadSubmissions();
-        
+        checkSessionAndLoad();
     } catch (error) {
         console.error('❌ Supabase init error:', error);
         if (retryCount < 5) {
-            setTimeout(() => initSupabaseAndLoad(retryCount + 1), 1000);
+            setTimeout(() => initSupabase(retryCount + 1), 1000);
         }
     }
 }
 
-async function checkSessionAndLoadSubmissions() {
+async function checkSessionAndLoad() {
     try {
         console.log('🔐 Checking session...');
         const { data: { session }, error } = await supabaseClient.auth.getSession();
@@ -98,7 +97,7 @@ async function checkSessionAndLoadSubmissions() {
 }
 
 // ===========================================
-// LOAD SUBMISSIONS
+// LOAD SUBMISSIONS FROM SUPABASE
 // ===========================================
 
 async function loadSubmissionsFromSupabase() {
@@ -110,7 +109,7 @@ async function loadSubmissionsFromSupabase() {
         tableBody.innerHTML = `
             <tr><td colspan="8" style="text-align:center;padding:60px;">
                 <i class="fas fa-spinner fa-spin" style="font-size:48px;color:#2c6e49;"></i>
-                <p style="margin-top:15px;">Loading submissions from database...</p>
+                <p style="margin-top:15px;">Loading farms from database...</p>
             </td></tr>
         `;
     }
@@ -147,23 +146,29 @@ async function loadSubmissionsFromSupabase() {
             
             console.log(`📊 Processed ${allSubmissions.length} submissions`);
             
-            updateSupplierFilter();
-            applyFiltersAndRender();
+            updateFilterOptions();
+            applyFilters();
             
-            showNotification(`Loaded ${allSubmissions.length} submissions`, 'success');
+            const pendingCount = allSubmissions.filter(s => s.status === 'pending').length;
+            showNotification(`Loaded ${allSubmissions.length} submissions (${pendingCount} pending)`, 'success');
+            
+            const badge = document.getElementById('notificationBadge');
+            if (badge && pendingCount > 0) {
+                badge.style.display = 'block';
+                badge.textContent = pendingCount;
+            } else if (badge) {
+                badge.style.display = 'none';
+            }
             
         } else {
             console.log('⚠️ No farms found in database');
-            if (tableBody) {
-                tableBody.innerHTML = `
-                    <tr><td colspan="8" style="text-align:center;padding:60px;">
-                        <i class="fas fa-check-circle" style="font-size:48px;color:#22c55e;"></i>
-                        <h3>No Submissions Found</h3>
-                        <p style="color:#64748b;">No farms have been submitted yet.</p>
-                    </td></tr>
-                `;
-            }
-            // Still update stats to zeros
+            tableBody.innerHTML = `
+                <tr><td colspan="8" style="text-align:center;padding:60px;">
+                    <i class="fas fa-check-circle" style="font-size:48px;color:#22c55e;"></i>
+                    <h3>No Submissions Found</h3>
+                    <p style="color:#64748b;">No farms have been submitted yet.</p>
+                </td></tr>
+            `;
             updateStats();
         }
         
@@ -171,7 +176,6 @@ async function loadSubmissionsFromSupabase() {
         console.error('Error loading submissions:', error);
         showNotification('Error loading submissions: ' + error.message, 'error');
         
-        const tableBody = document.getElementById('tableBody');
         if (tableBody) {
             tableBody.innerHTML = `
                 <tr><td colspan="8" style="text-align:center;padding:60px;">
@@ -188,11 +192,12 @@ async function loadSubmissionsFromSupabase() {
 }
 
 // ===========================================
-// FILTER AND SORT FUNCTIONS
+// FILTER FUNCTIONS
 // ===========================================
 
-function updateSupplierFilter() {
-    const suppliers = [...new Set(allSubmissions.map(s => s.supplier))];
+function updateFilterOptions() {
+    const suppliers = [...new Set(allSubmissions.map(s => s.supplier || 'Unknown'))];
+    
     const supplierSelect = document.getElementById('supplierFilter');
     if (supplierSelect) {
         supplierSelect.innerHTML = '<option value="all">All Suppliers</option>' + 
@@ -200,7 +205,7 @@ function updateSupplierFilter() {
     }
 }
 
-function applyFiltersAndRender() {
+function applyFilters() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const supplier = document.getElementById('supplierFilter')?.value || 'all';
     const status = document.getElementById('statusFilter')?.value || 'all';
@@ -244,30 +249,20 @@ function applyFiltersAndRender() {
 }
 
 function updateStats() {
-    // Safe update with null checks
-    const totalSubmissionsEl = document.getElementById('totalSubmissions');
-    const validatedCountEl = document.getElementById('validatedCount');
-    const pendingCountEl = document.getElementById('pendingCount');
-    const rejectedCountEl = document.getElementById('rejectedCount');
-    
+    const total = filteredSubmissions.length;
     const validated = filteredSubmissions.filter(s => s.status === 'validated').length;
     const pending = filteredSubmissions.filter(s => s.status === 'pending').length;
     const rejected = filteredSubmissions.filter(s => s.status === 'rejected').length;
     
-    if (totalSubmissionsEl) totalSubmissionsEl.textContent = filteredSubmissions.length;
-    if (validatedCountEl) validatedCountEl.textContent = validated;
-    if (pendingCountEl) pendingCountEl.textContent = pending;
-    if (rejectedCountEl) rejectedCountEl.textContent = rejected;
-}
-
-function sortTable(column) {
-    if (sortColumn === column) {
-        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-        sortColumn = column;
-        sortDirection = 'asc';
-    }
-    applyFiltersAndRender();
+    const totalEl = document.getElementById('totalSubmissions');
+    const validatedEl = document.getElementById('validatedCount');
+    const pendingEl = document.getElementById('pendingCount');
+    const rejectedEl = document.getElementById('rejectedCount');
+    
+    if (totalEl) totalEl.textContent = total;
+    if (validatedEl) validatedEl.textContent = validated;
+    if (pendingEl) pendingEl.textContent = pending;
+    if (rejectedEl) rejectedEl.textContent = rejected;
 }
 
 function renderTable() {
@@ -284,10 +279,6 @@ function renderTable() {
                 <p style="margin-top:15px;color:#64748b;">No submissions found</p>
             </td></tr>
         `;
-        const showingCountEl = document.getElementById('showingCount');
-        const totalCountEl = document.getElementById('totalCount');
-        if (showingCountEl) showingCountEl.textContent = '0';
-        if (totalCountEl) totalCountEl.textContent = filteredSubmissions.length;
         return;
     }
     
@@ -315,38 +306,27 @@ function renderTable() {
             </td>
         </tr>
     `).join('');
-    
-    const showingCountEl = document.getElementById('showingCount');
-    const totalCountEl = document.getElementById('totalCount');
-    if (showingCountEl) showingCountEl.textContent = `${start + 1}-${Math.min(start + rowsPerPage, filteredSubmissions.length)}`;
-    if (totalCountEl) totalCountEl.textContent = filteredSubmissions.length;
 }
 
 function updatePagination() {
     const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
-    const pageNumbers = document.getElementById('pageNumbers');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
+    const pageInfo = document.getElementById('pageInfo');
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
     
-    if (!pageNumbers) return;
-    
-    let pagesHtml = '';
-    const maxVisible = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-    
-    if (endPage - startPage + 1 < maxVisible) {
-        startPage = Math.max(1, endPage - maxVisible + 1);
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-        pagesHtml += `<button class="page-number ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
-    }
-    
-    pageNumbers.innerHTML = pagesHtml;
-    
+    if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages || 1}`;
     if (prevBtn) prevBtn.disabled = currentPage === 1;
     if (nextBtn) nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+}
+
+function sortTable(column) {
+    if (sortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortColumn = column;
+        sortDirection = 'asc';
+    }
+    applyFilters();
 }
 
 // ===========================================
@@ -369,9 +349,9 @@ async function updateStatus(submissionId, newStatus) {
         if (submission) submission.status = newStatus;
         
         showNotification(`Submission ${newStatus} successfully`, 'success');
-        applyFiltersAndRender();
+        applyFilters();
         
-        // Also update any open modals
+        // Close any open modal
         const modal = document.querySelector('.modal-overlay');
         if (modal) modal.remove();
         
@@ -394,28 +374,28 @@ function viewSubmission(submissionId) {
         <div class="modal-content">
             <div class="modal-header">
                 <h3><i class="fas fa-tractor"></i> Submission Details</h3>
-                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
                 <div class="modal-section">
-                    <div class="modal-section-title">Farm Information</div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                        <div><strong>Farmer Name:</strong><br>${escapeHtml(submission.farmer_name)}</div>
-                        <div><strong>Farmer ID:</strong><br>${escapeHtml(submission.farmer_id)}</div>
-                        <div><strong>Cooperative:</strong><br>${escapeHtml(submission.cooperative)}</div>
-                        <div><strong>Supplier:</strong><br>${escapeHtml(submission.supplier)}</div>
-                        <div><strong>Area:</strong><br>${submission.area.toFixed(2)} ha</div>
-                        <div><strong>Status:</strong><br><span class="status-badge ${submission.status}">${submission.status}</span></div>
-                        <div><strong>Enumerator:</strong><br>${escapeHtml(submission.enumerator)}</div>
-                        <div><strong>Submission Date:</strong><br>${formatDate(submission.submission_date)}</div>
+                    <div class="modal-section-title"><i class="fas fa-info-circle"></i> Farm Information</div>
+                    <div class="modal-grid">
+                        <div class="modal-row"><div class="modal-label">Farmer Name:</div><div class="modal-value">${escapeHtml(submission.farmer_name)}</div></div>
+                        <div class="modal-row"><div class="modal-label">Farmer ID:</div><div class="modal-value">${escapeHtml(submission.farmer_id)}</div></div>
+                        <div class="modal-row"><div class="modal-label">Cooperative:</div><div class="modal-value">${escapeHtml(submission.cooperative)}</div></div>
+                        <div class="modal-row"><div class="modal-label">Supplier:</div><div class="modal-value">${escapeHtml(submission.supplier)}</div></div>
+                        <div class="modal-row"><div class="modal-label">Area:</div><div class="modal-value">${submission.area.toFixed(2)} ha</div></div>
+                        <div class="modal-row"><div class="modal-label">Status:</div><div class="modal-value"><span class="status-badge ${submission.status}">${submission.status}</span></div></div>
+                        <div class="modal-row"><div class="modal-label">Enumerator:</div><div class="modal-value">${escapeHtml(submission.enumerator)}</div></div>
+                        <div class="modal-row"><div class="modal-label">Submission Date:</div><div class="modal-value">${new Date(submission.submission_date).toLocaleString()}</div></div>
                     </div>
                 </div>
                 <div class="modal-actions">
                     ${submission.status === 'pending' ? `
-                        <button class="modal-btn primary" onclick="updateStatus('${submission.id}', 'validated'); document.querySelector('.modal-overlay')?.remove()">
+                        <button class="modal-btn primary" onclick="updateStatus('${submission.id}', 'validated')">
                             <i class="fas fa-check"></i> Validate
                         </button>
-                        <button class="modal-btn danger" onclick="updateStatus('${submission.id}', 'rejected'); document.querySelector('.modal-overlay')?.remove()">
+                        <button class="modal-btn danger" onclick="updateStatus('${submission.id}', 'rejected')">
                             <i class="fas fa-times"></i> Reject
                         </button>
                     ` : ''}
@@ -426,41 +406,6 @@ function viewSubmission(submissionId) {
     `;
     
     document.body.appendChild(modal);
-}
-
-// ===========================================
-// PAGINATION
-// ===========================================
-
-function goToPage(page) {
-    currentPage = page;
-    renderTable();
-    updatePagination();
-}
-
-function prevPage() {
-    if (currentPage > 1) {
-        currentPage--;
-        renderTable();
-        updatePagination();
-    }
-}
-
-function nextPage() {
-    const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
-    if (currentPage < totalPages) {
-        currentPage++;
-        renderTable();
-        updatePagination();
-    }
-}
-
-function filterSubmissions() {
-    applyFiltersAndRender();
-}
-
-function refreshTable() {
-    loadSubmissionsFromSupabase();
 }
 
 // ===========================================
@@ -485,8 +430,11 @@ function exportToCSV() {
         new Date(sub.submission_date).toLocaleDateString()
     ]);
     
-    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = [headers, ...rows].map(row => 
+        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.href = url;
@@ -507,13 +455,9 @@ function formatDate(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     const now = new Date();
-    const diffTime = Math.abs(now - date);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    
+    const diffHours = Math.floor((now - date) / 3600000);
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffHours < 48) return 'Yesterday';
     return date.toLocaleDateString();
 }
 
@@ -531,27 +475,51 @@ function showNotification(message, type = 'info') {
     const colors = { success: '#4CAF50', error: '#F44336', warning: '#FFC107', info: '#2196F3' };
     const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
     const notification = document.createElement('div');
-    notification.style.cssText = `position:fixed;bottom:20px;right:20px;padding:12px 24px;background:${colors[type]};color:white;border-radius:8px;z-index:10001;font-size:14px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:8px;`;
+    notification.style.cssText = `position:fixed;bottom:20px;right:20px;padding:12px 24px;background:${colors[type]};color:white;border-radius:8px;z-index:10001;font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;`;
     notification.innerHTML = `<i class="fas ${icons[type]}"></i> ${message}`;
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 3000);
 }
 
-function setupEventListeners() {
+function clearFilters() {
     const searchInput = document.getElementById('searchInput');
     const supplierFilter = document.getElementById('supplierFilter');
     const statusFilter = document.getElementById('statusFilter');
+    
+    if (searchInput) searchInput.value = '';
+    if (supplierFilter) supplierFilter.value = 'all';
+    if (statusFilter) statusFilter.value = 'all';
+    
+    applyFilters();
+}
+
+function refreshData() {
+    loadSubmissionsFromSupabase();
+}
+
+function setupEventListeners() {
+    const applyBtn = document.getElementById('applyFiltersBtn');
+    const clearBtn = document.getElementById('clearFiltersBtn');
+    const exportBtn = document.getElementById('exportBtn');
     const refreshBtn = document.getElementById('refreshBtn');
+    const refreshTableBtn = document.getElementById('refreshTableBtn');
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    const searchInput = document.getElementById('searchInput');
+    const supplierFilter = document.getElementById('supplierFilter');
+    const statusFilter = document.getElementById('statusFilter');
     const logoutBtn = document.getElementById('logoutBtn');
     
-    if (searchInput) {
-        searchInput.addEventListener('keyup', function(e) {
-            if (e.key === 'Enter') filterSubmissions();
-        });
-    }
-    if (supplierFilter) supplierFilter.addEventListener('change', () => applyFiltersAndRender());
-    if (statusFilter) statusFilter.addEventListener('change', () => applyFiltersAndRender());
-    if (refreshBtn) refreshBtn.addEventListener('click', () => refreshTable());
+    if (applyBtn) applyBtn.addEventListener('click', () => applyFilters());
+    if (clearBtn) clearBtn.addEventListener('click', () => clearFilters());
+    if (exportBtn) exportBtn.addEventListener('click', () => exportToCSV());
+    if (refreshBtn) refreshBtn.addEventListener('click', () => refreshData());
+    if (refreshTableBtn) refreshTableBtn.addEventListener('click', () => refreshData());
+    if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTable(); updatePagination(); } });
+    if (nextBtn) nextBtn.addEventListener('click', () => { const total = Math.ceil(filteredSubmissions.length / rowsPerPage); if (currentPage < total) { currentPage++; renderTable(); updatePagination(); } });
+    if (searchInput) searchInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') applyFilters(); });
+    if (supplierFilter) supplierFilter.addEventListener('change', () => applyFilters());
+    if (statusFilter) statusFilter.addEventListener('change', () => applyFilters());
     
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async (e) => {
@@ -564,14 +532,12 @@ function setupEventListeners() {
 }
 
 // Make functions global
-window.filterSubmissions = filterSubmissions;
 window.sortTable = sortTable;
 window.viewSubmission = viewSubmission;
 window.updateStatus = updateStatus;
-window.goToPage = goToPage;
-window.prevPage = prevPage;
-window.nextPage = nextPage;
-window.refreshTable = refreshTable;
+window.applyFilters = applyFilters;
+window.clearFilters = clearFilters;
 window.exportToCSV = exportToCSV;
+window.refreshData = refreshData;
 
-console.log('✅ Submissions page ready');
+console.log('✅ Submissions page ready - will load farms from Supabase');
