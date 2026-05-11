@@ -12,321 +12,20 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
+    <!-- Your CSS files (same as Quality Alerts) -->
+    <link rel="stylesheet" href="../globalCSS.css">
+    <link rel="stylesheet" href="../layoutCSS.css">
+    
     <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
     
     <style>
-        /* ===========================================
-           SUBMISSIONS PAGE STYLES - Matching Quality Alerts EXACTLY
-           =========================================== */
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #f1f5f9;
-            color: #1e293b;
-        }
-
-        /* VARIABLES */
-        :root {
-            --primary-color: #2c6e49;
-            --primary-dark: #1e4f33;
-            --primary-light: #4CAF50;
-            --danger-color: #dc2626;
-            --warning-color: #f97316;
-            --success-color: #22c55e;
-            --dark-color: #1e293b;
-            --light-color: #ffffff;
-            --gray-100: #f8fafc;
-            --gray-200: #f1f5f9;
-            --gray-300: #e2e8f0;
-            --gray-400: #cbd5e1;
-            --gray-500: #94a3b8;
-            --gray-600: #64748b;
-            --gray-700: #475569;
-            
-            --spacing-xs: 4px;
-            --spacing-sm: 8px;
-            --spacing-md: 12px;
-            --spacing-lg: 20px;
-            --spacing-xl: 24px;
-            --spacing-2xl: 32px;
-            
-            --font-size-xs: 11px;
-            --font-size-sm: 13px;
-            --font-size-md: 14px;
-            --font-size-lg: 18px;
-            --font-size-xl: 24px;
-            --font-size-2xl: 32px;
-            
-            --radius-sm: 4px;
-            --radius-md: 8px;
-            --radius-lg: 12px;
-            --radius-xl: 16px;
-            --radius-full: 9999px;
-            
-            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-            --shadow-md: 0 1px 3px rgba(0,0,0,0.1);
-            --shadow-lg: 0 4px 6px rgba(0,0,0,0.1);
-            --shadow-xl: 0 10px 15px rgba(0,0,0,0.1);
-            
-            --transition-fast: 0.15s ease;
-            --transition-normal: 0.3s ease;
-            
-            --header-height: 64px;
-        }
-
-        /* LAYOUT */
-        .layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* SIDEBAR */
-        .sidebar {
-            width: 80px;
-            background: linear-gradient(180deg, #0f172a 0%, #0a0f1a 100%);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            transition: width 0.3s ease;
-            z-index: 1000;
-            box-shadow: var(--shadow-lg);
-            overflow: hidden;
-            white-space: nowrap;
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            height: 100vh;
-        }
-
-        .sidebar:hover {
-            width: 250px;
-        }
-
-        .sidebar-header {
-            padding: var(--spacing-lg);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            min-height: 70px;
-        }
-
-        .sidebar-header h2 {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-            font-size: var(--font-size-xl);
-            color: white;
-            margin: 0;
-        }
-
-        .sidebar-header h2 i {
-            color: var(--primary-color);
-        }
-
-        .sidebar-header h2 span {
-            opacity: 0;
-            transition: opacity 0.2s ease 0.1s;
-        }
-
-        .sidebar:hover .sidebar-header h2 span {
-            opacity: 1;
-        }
-
-        .sidebar-toggle {
-            display: none;
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: var(--font-size-lg);
-        }
-
-        .menu {
-            flex: 1;
-            padding: var(--spacing-lg) 0;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        .menu a {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-md);
-            padding: var(--spacing-md) var(--spacing-lg);
-            color: rgba(255, 255, 255, 0.7);
-            text-decoration: none;
-            transition: all var(--transition-fast);
-            border-left: 3px solid transparent;
-        }
-
-        .menu a span {
-            opacity: 0;
-            transition: opacity 0.2s ease 0.1s;
-        }
-
-        .sidebar:hover .menu a span {
-            opacity: 1;
-        }
-
-        .menu a:hover {
-            background: rgba(76, 175, 80, 0.2);
-            color: white;
-            border-left-color: var(--primary-color);
-        }
-
-        .menu a.active {
-            background: rgba(76, 175, 80, 0.2);
-            color: white;
-            border-left-color: var(--primary-color);
-        }
-
-        .menu a i {
-            width: 24px;
-            text-align: center;
-            font-size: var(--font-size-lg);
-        }
-
-        .menu-bottom {
-            margin-top: auto;
-            padding-top: var(--spacing-lg);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        /* MAIN CONTENT */
-        .main {
-            flex: 1;
-            margin-left: 80px;
-            width: calc(100% - 80px);
-            min-height: 100vh;
-        }
-
-        /* MAIN HEADER */
-        .main-header {
-            height: var(--header-height);
-            background: white;
-            border-bottom: 1px solid var(--gray-300);
-            padding: 0 var(--spacing-xl);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 99;
-        }
-
-        .header-title h1 {
-            font-size: var(--font-size-xl);
-            margin-bottom: 2px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .header-title h1 i {
-            color: var(--primary-color);
-        }
-
-        .breadcrumb {
-            font-size: var(--font-size-xs);
-            color: var(--gray-600);
-        }
-
-        /* USER INFO */
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-lg);
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: var(--radius-full);
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: var(--font-size-sm);
-        }
-
-        .user-details {
-            line-height: 1.3;
-        }
-
-        .user-name {
-            font-weight: 600;
-            color: var(--dark-color);
-            font-size: var(--font-size-sm);
-        }
-
-        .user-role {
-            font-size: var(--font-size-xs);
-            color: var(--gray-600);
-        }
-
-        .sync-btn {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: var(--font-size-sm);
-            transition: all 0.3s ease;
-        }
-
-        .sync-btn:hover {
-            background: var(--primary-dark);
-            transform: translateY(-1px);
-        }
-
-        .notifications-btn {
-            position: relative;
-            background: none;
-            border: none;
-            color: var(--gray-700);
-            font-size: var(--font-size-lg);
-            cursor: pointer;
-            padding: var(--spacing-sm);
-            border-radius: var(--radius-md);
-            width: 40px;
-            height: 40px;
-        }
-
-        .notifications-btn:hover {
-            background-color: var(--gray-200);
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            width: 8px;
-            height: 8px;
-            background-color: var(--danger-color);
-            border-radius: var(--radius-full);
-            border: 2px solid white;
-        }
-
-        /* SUBMISSIONS DASHBOARD */
+        /* Submissions specific styles - matching Quality Alerts pattern */
         .submissions-dashboard {
             padding: var(--spacing-2xl) var(--spacing-xl);
+            width: 100%;
         }
 
-        /* STATS CARDS */
+        /* Stats Cards - matching Quality Alerts */
         .submission-stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -385,7 +84,7 @@
             color: var(--dark-color);
         }
 
-        /* FILTERS SECTION */
+        /* Filters Section - matching Quality Alerts */
         .submissions-filters {
             background: white;
             border-radius: var(--radius-lg);
@@ -468,7 +167,7 @@
             background: var(--gray-300);
         }
 
-        /* TABLE CONTAINER */
+        /* Table Container - matching Quality Alerts */
         .submissions-table-container {
             background: white;
             border-radius: var(--radius-lg);
@@ -630,7 +329,7 @@
             background: #dc2626;
         }
 
-        /* PAGINATION */
+        /* Pagination - matching Quality Alerts */
         .submissions-pagination {
             display: flex;
             justify-content: center;
@@ -666,7 +365,7 @@
             color: var(--gray-600);
         }
 
-        /* MODAL STYLES */
+        /* Modal Styles for Map - matching Quality Alerts */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -837,7 +536,7 @@
             background: var(--gray-400);
         }
 
-        /* ANIMATIONS */
+        /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -854,12 +553,12 @@
             }
         }
 
-        /* LEAFPINT OVERRIDES */
+        /* Leaflet overrides */
         .leaflet-control-attribution {
             display: none !important;
         }
 
-        /* RESPONSIVE */
+        /* Responsive - matching Quality Alerts */
         @media (max-width: 1024px) {
             .submissions-dashboard {
                 padding: var(--spacing-lg);
@@ -924,6 +623,9 @@
         }
 
         @media (max-width: 480px) {
+            .submission-stats-grid {
+                grid-template-columns: 1fr;
+            }
             .stat-card {
                 padding: var(--spacing-lg);
             }
@@ -940,7 +642,7 @@
 </head>
 <body>
     <div class="layout">
-        <!-- SIDEBAR -->
+        <!-- SIDEBAR (same as Quality Alerts) -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>
@@ -980,6 +682,7 @@
 
         <!-- MAIN CONTENT -->
         <main class="main">
+            <!-- HEADER (same as Quality Alerts) -->
             <header class="main-header">
                 <div class="header-title">
                     <h1><i class="fas fa-clipboard-list"></i> Submissions</h1>
@@ -1059,7 +762,7 @@
                     <div class="filter-actions">
                         <button class="btn-primary" id="applyFiltersBtn"><i class="fas fa-search"></i> Apply</button>
                         <button class="btn-secondary" id="clearFiltersBtn"><i class="fas fa-times"></i> Clear</button>
-                        <button class="btn-secondary" id="exportBtn"><i class="fas fa-download"></i> Export</button>
+                        <button class="btn-secondary" id="exportBtn"><i class="fas fa-download"></i> Export CSV</button>
                     </div>
                 </div>
 
@@ -1105,6 +808,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="submissions.js"></script>
 </body>
 </html>
