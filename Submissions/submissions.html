@@ -16,7 +16,7 @@
     
     <style>
         /* ===========================================
-           SUBMISSIONS PAGE STYLES - Matching Quality Alerts
+           SUBMISSIONS PAGE STYLES - Matching Quality Alerts EXACTLY
            =========================================== */
         
         * {
@@ -107,7 +107,6 @@
 
         .sidebar:hover {
             width: 250px;
-            box-shadow: var(--shadow-xl);
         }
 
         .sidebar-header {
@@ -139,6 +138,15 @@
 
         .sidebar:hover .sidebar-header h2 span {
             opacity: 1;
+        }
+
+        .sidebar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: var(--font-size-lg);
         }
 
         .menu {
@@ -318,7 +326,7 @@
             padding: var(--spacing-2xl) var(--spacing-xl);
         }
 
-        /* STATS CARDS - Matching Quality Alerts */
+        /* STATS CARDS */
         .submission-stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -377,7 +385,7 @@
             color: var(--dark-color);
         }
 
-        /* FILTERS SECTION - Matching Quality Alerts */
+        /* FILTERS SECTION */
         .submissions-filters {
             background: white;
             border-radius: var(--radius-lg);
@@ -460,7 +468,7 @@
             background: var(--gray-300);
         }
 
-        /* TABLE CONTAINER - Matching Quality Alerts */
+        /* TABLE CONTAINER */
         .submissions-table-container {
             background: white;
             border-radius: var(--radius-lg);
@@ -595,12 +603,12 @@
             gap: 4px;
         }
 
-        .action-btn.view {
+        .action-btn.view-map {
             background: #3b82f6;
             color: white;
         }
 
-        .action-btn.view:hover {
+        .action-btn.view-map:hover {
             background: #2563eb;
         }
 
@@ -622,7 +630,7 @@
             background: #dc2626;
         }
 
-        /* PAGINATION - Matching Quality Alerts */
+        /* PAGINATION */
         .submissions-pagination {
             display: flex;
             justify-content: center;
@@ -658,7 +666,7 @@
             color: var(--gray-600);
         }
 
-        /* MODAL STYLES FOR MAP - Matching Quality Alerts */
+        /* MODAL STYLES */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -853,14 +861,14 @@
 
         /* RESPONSIVE */
         @media (max-width: 1024px) {
+            .submissions-dashboard {
+                padding: var(--spacing-lg);
+            }
             .submission-stats-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
             .modal-grid {
                 grid-template-columns: 1fr;
-            }
-            .submissions-dashboard {
-                padding: var(--spacing-lg);
             }
         }
 
@@ -877,11 +885,11 @@
                 margin-left: 0;
                 width: 100%;
             }
+            .submissions-dashboard {
+                padding: var(--spacing-md);
+            }
             .submission-stats-grid {
                 grid-template-columns: 1fr;
-            }
-            .submissions-dashboard {
-                padding: var(--spacing-lg);
             }
             .submissions-filters {
                 flex-direction: column;
@@ -896,6 +904,13 @@
             .filter-actions button {
                 flex: 1;
             }
+            .action-buttons {
+                flex-direction: column;
+            }
+            .action-btn {
+                width: 100%;
+                justify-content: center;
+            }
             #submissionMap {
                 height: 300px;
             }
@@ -906,19 +921,9 @@
                 width: 100%;
                 margin-bottom: var(--spacing-xs);
             }
-            .action-buttons {
-                flex-direction: column;
-            }
-            .action-btn {
-                width: 100%;
-                justify-content: center;
-            }
         }
 
         @media (max-width: 480px) {
-            .submission-stats-grid {
-                grid-template-columns: 1fr;
-            }
             .stat-card {
                 padding: var(--spacing-lg);
             }
@@ -935,40 +940,37 @@
 </head>
 <body>
     <div class="layout">
-        <!-- SIDEBAR (same as Dashboard) -->
+        <!-- SIDEBAR -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>
                     <i class="fas fa-map-marked-alt"></i>
                     <span>MappingTrace</span>
                 </h2>
-                <button class="sidebar-toggle" id="sidebarToggle">
-                    <i class="fas fa-bars"></i>
-                </button>
             </div>
             <nav class="menu">
-                <a href="../Dashboard.html" data-title="Dashboard">
+                <a href="../Dashboard.html">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="../LiveMapping/live-mapping.html" data-title="Live Mapping">
+                <a href="../LiveMapping/live-mapping.html">
                     <i class="fas fa-map"></i>
                     <span>Live Mapping</span>
                 </a>
-                <a href="#" class="active" data-title="Submissions">
+                <a href="#" class="active">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Submissions</span>
                 </a>
-                <a href="../QualityAlerts/quality-alerts.html" data-title="Quality Alerts">
+                <a href="../QualityAlerts/quality-alerts.html">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Quality Alerts</span>
                 </a>
-                <a href="../Exports/exports.html" data-title="Exports">
+                <a href="../Exports/exports.html">
                     <i class="fas fa-file-export"></i>
                     <span>Exports</span>
                 </a>
                 <div class="menu-bottom">
-                    <a href="#" id="logoutBtn" data-title="Logout">
+                    <a href="#" id="logoutBtn">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>Logout</span>
                     </a>
@@ -978,7 +980,6 @@
 
         <!-- MAIN CONTENT -->
         <main class="main">
-            <!-- HEADER (same as Dashboard) -->
             <header class="main-header">
                 <div class="header-title">
                     <h1><i class="fas fa-clipboard-list"></i> Submissions</h1>
@@ -1005,36 +1006,28 @@
                 <!-- Stats Cards -->
                 <div class="submission-stats-grid">
                     <div class="stat-card total">
-                        <div class="stat-icon">
-                            <i class="fas fa-clipboard-list"></i>
-                        </div>
+                        <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
                         <div class="stat-content">
                             <span class="stat-label">Total Submissions</span>
                             <span class="stat-value" id="totalSubmissions">0</span>
                         </div>
                     </div>
                     <div class="stat-card validated">
-                        <div class="stat-icon">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
+                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
                         <div class="stat-content">
                             <span class="stat-label">Validated</span>
                             <span class="stat-value" id="validatedCount">0</span>
                         </div>
                     </div>
                     <div class="stat-card pending">
-                        <div class="stat-icon">
-                            <i class="fas fa-clock"></i>
-                        </div>
+                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
                         <div class="stat-content">
                             <span class="stat-label">Pending</span>
                             <span class="stat-value" id="pendingCount">0</span>
                         </div>
                     </div>
                     <div class="stat-card rejected">
-                        <div class="stat-icon">
-                            <i class="fas fa-times-circle"></i>
-                        </div>
+                        <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
                         <div class="stat-content">
                             <span class="stat-label">Rejected</span>
                             <span class="stat-value" id="rejectedCount">0</span>
@@ -1064,15 +1057,9 @@
                         </select>
                     </div>
                     <div class="filter-actions">
-                        <button class="btn-primary" id="applyFiltersBtn">
-                            <i class="fas fa-search"></i> Apply
-                        </button>
-                        <button class="btn-secondary" id="clearFiltersBtn">
-                            <i class="fas fa-times"></i> Clear
-                        </button>
-                        <button class="btn-secondary" id="exportBtn">
-                            <i class="fas fa-download"></i> Export
-                        </button>
+                        <button class="btn-primary" id="applyFiltersBtn"><i class="fas fa-search"></i> Apply</button>
+                        <button class="btn-secondary" id="clearFiltersBtn"><i class="fas fa-times"></i> Clear</button>
+                        <button class="btn-secondary" id="exportBtn"><i class="fas fa-download"></i> Export</button>
                     </div>
                 </div>
 
@@ -1080,9 +1067,7 @@
                 <div class="submissions-table-container">
                     <div class="table-header">
                         <h3><i class="fas fa-list"></i> Farm Submissions</h3>
-                        <button class="btn-icon" id="refreshTableBtn" title="Refresh">
-                            <i class="fas fa-redo-alt"></i>
-                        </button>
+                        <button class="btn-icon" id="refreshTableBtn" title="Refresh"><i class="fas fa-redo-alt"></i></button>
                     </div>
                     <div class="table-container">
                         <table>
@@ -1101,19 +1086,15 @@
                             <tbody id="tableBody">
                                 <tr><td colspan="8" style="text-align:center;padding:60px;">
                                     <i class="fas fa-spinner fa-spin" style="font-size:48px;color:var(--primary-color);"></i>
-                                    <p style="margin-top:15px;">Loading submissions from database...</p>
+                                    <p style="margin-top:15px;">Loading submissions...</p>
                                 </td></tr>
                             </tbody>
                         </table>
                     </div>
                     <div class="submissions-pagination">
-                        <button class="pagination-btn" id="prevPageBtn" disabled>
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
+                        <button class="pagination-btn" id="prevPageBtn" disabled><i class="fas fa-chevron-left"></i></button>
                         <span id="pageInfo">Page 1 of 1</span>
-                        <button class="pagination-btn" id="nextPageBtn" disabled>
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
+                        <button class="pagination-btn" id="nextPageBtn" disabled><i class="fas fa-chevron-right"></i></button>
                     </div>
                 </div>
             </div>
