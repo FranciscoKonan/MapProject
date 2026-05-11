@@ -1,6 +1,5 @@
 // ===========================================
-// SUBMISSIONS - WITH MAP VISUALIZATION
-// Loads farms from Supabase with map view
+// SUBMISSIONS - MATCHING QUALITY ALERTS PATTERN
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -316,11 +315,8 @@ function renderTable() {
             <td>${formatDate(sub.submission_date)}</td>
             <td><span class="status-badge ${sub.status}">${sub.status}</span></td>
             <td class="action-buttons">
-                <button class="action-btn view" onclick="viewOnMap('${sub.id}')">
+                <button class="action-btn view-map" onclick="viewOnMap('${sub.id}')">
                     <i class="fas fa-map-marker-alt"></i> View Map
-                </button>
-                <button class="action-btn view" onclick="viewSubmissionDetails('${sub.id}')">
-                    <i class="fas fa-info-circle"></i> Details
                 </button>
                 ${sub.status === 'pending' ? `
                     <button class="action-btn validate" onclick="updateStatus('${sub.id}', 'validated')">
@@ -379,7 +375,6 @@ function showSubmissionMapModal(submission) {
     const existing = document.querySelector('.modal-overlay');
     if (existing) existing.remove();
     
-    // Determine color based on status
     const statusColor = submission.status === 'validated' ? '#22c55e' : 
                         submission.status === 'pending' ? '#eab308' : '#ef4444';
     
@@ -407,10 +402,7 @@ function showSubmissionMapModal(submission) {
                     <div id="submissionMap"></div>
                     <div class="map-info">
                         <i class="fas fa-info-circle"></i> 
-                        <strong>Farm boundary displayed on map.</strong> Use + / - buttons to zoom, click and drag to pan.
-                        <br>Color code: <span style="color:#22c55e;">■ Green</span> = Validated, 
-                        <span style="color:#eab308;">■ Yellow</span> = Pending, 
-                        <span style="color:#ef4444;">■ Red</span> = Rejected
+                        <strong>Farm boundary displayed on map.</strong> Use + / - to zoom, click and drag to pan.
                     </div>
                 </div>
                 <div class="modal-actions">
@@ -438,117 +430,40 @@ function initSubmissionMap(submission, statusColor) {
     
     if (currentMap) currentMap.remove();
     
-    // Create map
     currentMap = L.map('submissionMap').setView([7.539989, -5.547080], 14);
     L.control.zoom({ position: 'topright' }).addTo(currentMap);
     
-    // Google Satellite tiles
     L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
         maxZoom: 22,
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(currentMap);
     
-    // Draw farm polygon
     if (submission.geometry?.coordinates) {
         try {
             const coords = convertToLeafletCoords(submission.geometry.coordinates);
-            let polygon;
+            const polygon = L.polygon(coords, {
+                color: statusColor,
+                weight: 3,
+                fillColor: statusColor,
+                fillOpacity: 0.4
+            }).addTo(currentMap);
             
-            if (coords[0] && Array.isArray(coords[0][0])) {
-                polygon = L.polygon(coords, {
-                    color: statusColor,
-                    weight: 3,
-                    fillColor: statusColor,
-                    fillOpacity: 0.4
-                }).addTo(currentMap);
-            } else {
-                polygon = L.polygon(coords, {
-                    color: statusColor,
-                    weight: 3,
-                    fillColor: statusColor,
-                    fillOpacity: 0.4
-                }).addTo(currentMap);
-            }
-            
-            // Calculate center and zoom
             if (polygon.getBounds && polygon.getBounds().isValid()) {
                 currentMap.fitBounds(polygon.getBounds(), { padding: [50, 50] });
             }
             
-            // Add popup
             polygon.bindPopup(`
                 <b>${escapeHtml(submission.farmer_name)}</b><br>
                 Area: ${submission.area.toFixed(2)} ha<br>
                 Status: ${submission.status}
-            `).openPopup();
+            `);
             
         } catch(e) {
             console.warn('Error drawing polygon:', e);
-            showNotification('Error displaying farm boundary', 'error');
         }
     }
     
-    // Add scale bar
     L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(currentMap);
-}
-
-// ===========================================
-// SUBMISSION DETAILS MODAL
-// ===========================================
-
-function viewSubmissionDetails(submissionId) {
-    const submission = allSubmissions.find(s => s.id === submissionId);
-    if (!submission) return;
-    
-    const existing = document.querySelector('.modal-overlay');
-    if (existing) existing.remove();
-    
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-tractor"></i> Submission Details</h3>
-                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="modal-body">
-                <div class="modal-section">
-                    <div class="modal-section-title"><i class="fas fa-user"></i> Farmer Information</div>
-                    <div class="modal-grid">
-                        <div class="modal-row"><div class="modal-label">Farmer Name:</div><div class="modal-value">${escapeHtml(submission.farmer_name)}</div></div>
-                        <div class="modal-row"><div class="modal-label">Farmer ID:</div><div class="modal-value">${escapeHtml(submission.farmer_id)}</div></div>
-                        <div class="modal-row"><div class="modal-label">Cooperative:</div><div class="modal-value">${escapeHtml(submission.cooperative)}</div></div>
-                        <div class="modal-row"><div class="modal-label">Supplier:</div><div class="modal-value">${escapeHtml(submission.supplier)}</div></div>
-                    </div>
-                </div>
-                <div class="modal-section">
-                    <div class="modal-section-title"><i class="fas fa-chart-pie"></i> Farm Metrics</div>
-                    <div class="modal-grid">
-                        <div class="modal-row"><div class="modal-label">Area:</div><div class="modal-value">${submission.area.toFixed(2)} hectares</div></div>
-                        <div class="modal-row"><div class="modal-label">Status:</div><div class="modal-value"><span class="status-badge ${submission.status}">${submission.status}</span></div></div>
-                        <div class="modal-row"><div class="modal-label">Enumerator:</div><div class="modal-value">${escapeHtml(submission.enumerator)}</div></div>
-                        <div class="modal-row"><div class="modal-label">Submission Date:</div><div class="modal-value">${new Date(submission.submission_date).toLocaleString()}</div></div>
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button class="modal-btn secondary" onclick="viewOnMap('${submission.id}'); this.closest('.modal-overlay').remove()">
-                        <i class="fas fa-map-marker-alt"></i> View on Map
-                    </button>
-                    ${submission.status === 'pending' ? `
-                        <button class="modal-btn primary" onclick="updateStatus('${submission.id}', 'validated'); document.querySelector('.modal-overlay')?.remove()">
-                            <i class="fas fa-check"></i> Validate
-                        </button>
-                        <button class="modal-btn danger" onclick="updateStatus('${submission.id}', 'rejected'); document.querySelector('.modal-overlay')?.remove()">
-                            <i class="fas fa-times"></i> Reject
-                        </button>
-                    ` : ''}
-                    <button class="modal-btn secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
 }
 
 // ===========================================
@@ -566,14 +481,12 @@ async function updateStatus(submissionId, newStatus) {
         
         if (error) throw error;
         
-        // Update local data
         const submission = allSubmissions.find(s => s.id === submissionId);
         if (submission) submission.status = newStatus;
         
         showNotification(`Submission ${newStatus} successfully`, 'success');
         applyFilters();
         
-        // Close any open modal
         const modal = document.querySelector('.modal-overlay');
         if (modal) modal.remove();
         
@@ -648,10 +561,9 @@ function escapeHtml(str) {
 
 function showNotification(message, type = 'info') {
     const colors = { success: '#4CAF50', error: '#F44336', warning: '#FFC107', info: '#2196F3' };
-    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
     const notification = document.createElement('div');
     notification.style.cssText = `position:fixed;bottom:20px;right:20px;padding:12px 24px;background:${colors[type]};color:white;border-radius:8px;z-index:10001;font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);`;
-    notification.innerHTML = `<i class="fas ${icons[type]}"></i> ${message}`;
+    notification.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${message}`;
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 3000);
 }
@@ -709,11 +621,10 @@ function setupEventListeners() {
 // Make functions global
 window.sortTable = sortTable;
 window.viewOnMap = viewOnMap;
-window.viewSubmissionDetails = viewSubmissionDetails;
 window.updateStatus = updateStatus;
 window.applyFilters = applyFilters;
 window.clearFilters = clearFilters;
 window.exportToCSV = exportToCSV;
 window.refreshData = refreshData;
 
-console.log('✅ Submissions page ready with map visualization');
+console.log('✅ Submissions page ready');
