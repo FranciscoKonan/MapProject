@@ -1,5 +1,5 @@
 // ===========================================
-// SUBMISSIONS PAGE - MAPPINGTRACE
+// SUBMISSIONS PAGE - MAPPINGTRACE (FIXED)
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -31,9 +31,13 @@ function loadUserData() {
     const userData = localStorage.getItem('mappingtrace_user');
     if (userData) {
         const user = JSON.parse(userData);
-        document.getElementById('userName').textContent = user.fullName || 'User';
-        document.getElementById('userRole').textContent = user.role || 'User';
-        document.getElementById('userAvatar').textContent = user.avatar || 'U';
+        const userNameEl = document.getElementById('userName');
+        const userRoleEl = document.getElementById('userRole');
+        const userAvatarEl = document.getElementById('userAvatar');
+        
+        if (userNameEl) userNameEl.textContent = user.fullName || 'User';
+        if (userRoleEl) userRoleEl.textContent = user.role || 'User';
+        if (userAvatarEl) userAvatarEl.textContent = user.avatar || 'U';
     }
 }
 
@@ -150,19 +154,24 @@ async function loadSubmissionsFromSupabase() {
             
         } else {
             console.log('⚠️ No farms found in database');
-            tableBody.innerHTML = `
-                <tr><td colspan="8" style="text-align:center;padding:60px;">
-                    <i class="fas fa-check-circle" style="font-size:48px;color:#22c55e;"></i>
-                    <h3>No Submissions Found</h3>
-                    <p style="color:#64748b;">No farms have been submitted yet.</p>
-                </td></tr>
-            `;
+            if (tableBody) {
+                tableBody.innerHTML = `
+                    <tr><td colspan="8" style="text-align:center;padding:60px;">
+                        <i class="fas fa-check-circle" style="font-size:48px;color:#22c55e;"></i>
+                        <h3>No Submissions Found</h3>
+                        <p style="color:#64748b;">No farms have been submitted yet.</p>
+                    </td></tr>
+                `;
+            }
+            // Still update stats to zeros
+            updateStats();
         }
         
     } catch (error) {
         console.error('Error loading submissions:', error);
         showNotification('Error loading submissions: ' + error.message, 'error');
         
+        const tableBody = document.getElementById('tableBody');
         if (tableBody) {
             tableBody.innerHTML = `
                 <tr><td colspan="8" style="text-align:center;padding:60px;">
@@ -235,14 +244,20 @@ function applyFiltersAndRender() {
 }
 
 function updateStats() {
+    // Safe update with null checks
+    const totalSubmissionsEl = document.getElementById('totalSubmissions');
+    const validatedCountEl = document.getElementById('validatedCount');
+    const pendingCountEl = document.getElementById('pendingCount');
+    const rejectedCountEl = document.getElementById('rejectedCount');
+    
     const validated = filteredSubmissions.filter(s => s.status === 'validated').length;
     const pending = filteredSubmissions.filter(s => s.status === 'pending').length;
     const rejected = filteredSubmissions.filter(s => s.status === 'rejected').length;
     
-    document.getElementById('totalSubmissions').textContent = filteredSubmissions.length;
-    document.getElementById('validatedCount').textContent = validated;
-    document.getElementById('pendingCount').textContent = pending;
-    document.getElementById('rejectedCount').textContent = rejected;
+    if (totalSubmissionsEl) totalSubmissionsEl.textContent = filteredSubmissions.length;
+    if (validatedCountEl) validatedCountEl.textContent = validated;
+    if (pendingCountEl) pendingCountEl.textContent = pending;
+    if (rejectedCountEl) rejectedCountEl.textContent = rejected;
 }
 
 function sortTable(column) {
@@ -269,8 +284,10 @@ function renderTable() {
                 <p style="margin-top:15px;color:#64748b;">No submissions found</p>
             </td></tr>
         `;
-        document.getElementById('showingCount').textContent = '0';
-        document.getElementById('totalCount').textContent = filteredSubmissions.length;
+        const showingCountEl = document.getElementById('showingCount');
+        const totalCountEl = document.getElementById('totalCount');
+        if (showingCountEl) showingCountEl.textContent = '0';
+        if (totalCountEl) totalCountEl.textContent = filteredSubmissions.length;
         return;
     }
     
@@ -299,13 +316,17 @@ function renderTable() {
         </tr>
     `).join('');
     
-    document.getElementById('showingCount').textContent = `${start + 1}-${Math.min(start + rowsPerPage, filteredSubmissions.length)}`;
-    document.getElementById('totalCount').textContent = filteredSubmissions.length;
+    const showingCountEl = document.getElementById('showingCount');
+    const totalCountEl = document.getElementById('totalCount');
+    if (showingCountEl) showingCountEl.textContent = `${start + 1}-${Math.min(start + rowsPerPage, filteredSubmissions.length)}`;
+    if (totalCountEl) totalCountEl.textContent = filteredSubmissions.length;
 }
 
 function updatePagination() {
     const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
     const pageNumbers = document.getElementById('pageNumbers');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
     
     if (!pageNumbers) return;
     
@@ -324,8 +345,8 @@ function updatePagination() {
     
     pageNumbers.innerHTML = pagesHtml;
     
-    document.getElementById('prevBtn').disabled = currentPage === 1;
-    document.getElementById('nextBtn').disabled = currentPage === totalPages || totalPages === 0;
+    if (prevBtn) prevBtn.disabled = currentPage === 1;
+    if (nextBtn) nextBtn.disabled = currentPage === totalPages || totalPages === 0;
 }
 
 // ===========================================
@@ -349,6 +370,10 @@ async function updateStatus(submissionId, newStatus) {
         
         showNotification(`Submission ${newStatus} successfully`, 'success');
         applyFiltersAndRender();
+        
+        // Also update any open modals
+        const modal = document.querySelector('.modal-overlay');
+        if (modal) modal.remove();
         
     } catch (error) {
         console.error('Error updating status:', error);
@@ -387,10 +412,10 @@ function viewSubmission(submissionId) {
                 </div>
                 <div class="modal-actions">
                     ${submission.status === 'pending' ? `
-                        <button class="modal-btn primary" onclick="updateStatus('${submission.id}', 'validated'); document.querySelector('.modal-overlay').remove()">
+                        <button class="modal-btn primary" onclick="updateStatus('${submission.id}', 'validated'); document.querySelector('.modal-overlay')?.remove()">
                             <i class="fas fa-check"></i> Validate
                         </button>
-                        <button class="modal-btn danger" onclick="updateStatus('${submission.id}', 'rejected'); document.querySelector('.modal-overlay').remove()">
+                        <button class="modal-btn danger" onclick="updateStatus('${submission.id}', 'rejected'); document.querySelector('.modal-overlay')?.remove()">
                             <i class="fas fa-times"></i> Reject
                         </button>
                     ` : ''}
@@ -504,27 +529,38 @@ function escapeHtml(str) {
 
 function showNotification(message, type = 'info') {
     const colors = { success: '#4CAF50', error: '#F44336', warning: '#FFC107', info: '#2196F3' };
+    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
     const notification = document.createElement('div');
-    notification.style.cssText = `position:fixed;bottom:20px;right:20px;padding:12px 24px;background:${colors[type]};color:white;border-radius:8px;z-index:10001;font-size:14px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.15);`;
-    notification.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${message}`;
+    notification.style.cssText = `position:fixed;bottom:20px;right:20px;padding:12px 24px;background:${colors[type]};color:white;border-radius:8px;z-index:10001;font-size:14px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:8px;`;
+    notification.innerHTML = `<i class="fas ${icons[type]}"></i> ${message}`;
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 3000);
 }
 
 function setupEventListeners() {
-    document.getElementById('searchInput')?.addEventListener('keyup', function(e) {
-        if (e.key === 'Enter') filterSubmissions();
-    });
-    document.getElementById('supplierFilter')?.addEventListener('change', () => applyFiltersAndRender());
-    document.getElementById('statusFilter')?.addEventListener('change', () => applyFiltersAndRender());
-    document.getElementById('refreshBtn')?.addEventListener('click', () => refreshTable());
+    const searchInput = document.getElementById('searchInput');
+    const supplierFilter = document.getElementById('supplierFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
     
-    document.getElementById('logoutBtn')?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        if (supabaseClient) await supabaseClient.auth.signOut();
-        localStorage.clear();
-        window.location.href = '../login.html';
-    });
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') filterSubmissions();
+        });
+    }
+    if (supplierFilter) supplierFilter.addEventListener('change', () => applyFiltersAndRender());
+    if (statusFilter) statusFilter.addEventListener('change', () => applyFiltersAndRender());
+    if (refreshBtn) refreshBtn.addEventListener('click', () => refreshTable());
+    
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (supabaseClient) await supabaseClient.auth.signOut();
+            localStorage.clear();
+            window.location.href = '../login.html';
+        });
+    }
 }
 
 // Make functions global
