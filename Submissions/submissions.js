@@ -1,5 +1,5 @@
 // ===========================================
-// SUBMISSIONS - MATCHING QUALITY ALERTS PATTERN
+// SUBMISSIONS - MATCHING YOUR FARMS TABLE SCHEMA
 // ===========================================
 
 console.log('🚀 Submissions page loading...');
@@ -135,14 +135,18 @@ async function loadSubmissionsFromSupabase() {
                 id: farm.id,
                 farmer_id: farm.farmer_id || farm.id,
                 farmer_name: farm.farmer_name || 'Unknown Farmer',
-                cooperative: farm.cooperative_name || farm.cooperative || 'Unassigned',
+                cooperative: farm.cooperative_name || 'Unassigned',
                 supplier: farm.supplier || 'Unknown',
                 area: parseFloat(farm.area) || 0,
                 status: farm.status || 'pending',
                 enumerator: farm.enumerator || 'N/A',
                 submission_date: farm.submission_date || farm.created_at,
                 created_at: farm.created_at,
-                geometry: farm.geometry
+                geometry: farm.geometry,
+                validation_status: farm.validation_status,
+                validated_at: farm.validated_at,
+                validated_by: farm.validated_by,
+                rejection_reason: farm.rejection_reason
             }));
             
             console.log(`📊 Processed ${allSubmissions.length} submissions`);
@@ -168,8 +172,7 @@ async function loadSubmissionsFromSupabase() {
                         <i class="fas fa-check-circle" style="font-size:48px;color:#22c55e;"></i>
                         <h3>No Submissions Found</h3>
                         <p style="color:#64748b;">No farms have been submitted yet.</p>
-                    </td>
-                    </tr>
+                    </td></tr>
                 `;
             }
             updateStats();
@@ -188,8 +191,7 @@ async function loadSubmissionsFromSupabase() {
                     <button onclick="location.reload()" style="margin-top:15px;padding:8px 16px;background:#2c6e49;color:white;border:none;border-radius:6px;cursor:pointer;">
                         <i class="fas fa-redo"></i> Retry
                     </button>
-                </td>
-                </tr>
+                </td></tr>
             `;
         }
     }
@@ -398,6 +400,8 @@ function showSubmissionMapModal(submission) {
                         <div class="modal-row"><div class="modal-label">Supplier:</div><div class="modal-value">${escapeHtml(submission.supplier)}</div></div>
                         <div class="modal-row"><div class="modal-label">Area:</div><div class="modal-value">${submission.area.toFixed(2)} ha</div></div>
                         <div class="modal-row"><div class="modal-label">Status:</div><div class="modal-value"><span class="status-badge ${submission.status}">${submission.status}</span></div></div>
+                        ${submission.enumerator ? `<div class="modal-row"><div class="modal-label">Enumerator:</div><div class="modal-value">${escapeHtml(submission.enumerator)}</div></div>` : ''}
+                        ${submission.submission_date ? `<div class="modal-row"><div class="modal-label">Submission Date:</div><div class="modal-value">${new Date(submission.submission_date).toLocaleDateString()}</div></div>` : ''}
                     </div>
                 </div>
                 <div class="modal-section">
@@ -463,6 +467,7 @@ function initSubmissionMap(submission, statusColor) {
             
         } catch(e) {
             console.warn('Error drawing polygon:', e);
+            showNotification('Error displaying farm boundary', 'error');
         }
     }
     
@@ -470,23 +475,49 @@ function initSubmissionMap(submission, statusColor) {
 }
 
 // ===========================================
-// CRUD OPERATIONS - FIXED (removed updated_at)
+// CRUD OPERATIONS - MATCHING YOUR TABLE SCHEMA
 // ===========================================
 
 async function updateStatus(submissionId, newStatus) {
     console.log(`Updating submission ${submissionId} to ${newStatus}`);
     
     try {
-        // Remove updated_at since it doesn't exist in the table
+        // Get current user info for validated_by
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const currentUser = session?.user?.email || 'system';
+        
+        // Prepare update data based on new status
+        let updateData = { status: newStatus };
+        
+        if (newStatus === 'validated') {
+            updateData.validation_status = 'validated';
+            updateData.validated_at = new Date().toISOString();
+            updateData.validated_by = currentUser;
+            updateData.rejection_reason = null;
+        } else if (newStatus === 'rejected') {
+            updateData.validation_status = 'rejected';
+            updateData.rejection_reason = 'Rejected by validator';
+        }
+        
         const { error } = await supabaseClient
             .from('farms')
-            .update({ status: newStatus })
+            .update(updateData)
             .eq('id', submissionId);
         
         if (error) throw error;
         
+        // Update local data
         const submission = allSubmissions.find(s => s.id === submissionId);
-        if (submission) submission.status = newStatus;
+        if (submission) {
+            submission.status = newStatus;
+            if (newStatus === 'validated') {
+                submission.validation_status = 'validated';
+                submission.validated_at = new Date().toISOString();
+                submission.validated_by = currentUser;
+            } else if (newStatus === 'rejected') {
+                submission.validation_status = 'rejected';
+            }
+        }
         
         showNotification(`Submission ${newStatus} successfully`, 'success');
         applyFilters();
@@ -519,7 +550,7 @@ function exportToCSV() {
         sub.area.toFixed(2),
         sub.status,
         sub.enumerator,
-        new Date(sub.submission_date).toLocaleDateString()
+        sub.submission_date ? new Date(sub.submission_date).toLocaleDateString() : 'N/A'
     ]);
     
     const csvContent = [headers, ...rows].map(row => 
@@ -631,4 +662,4 @@ window.clearFilters = clearFilters;
 window.exportToCSV = exportToCSV;
 window.refreshData = refreshData;
 
-console.log('✅ Submissions page ready');
+console.log('✅ Submissions page ready with full table schema support');
