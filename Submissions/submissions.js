@@ -110,7 +110,8 @@ async function loadSubmissionsFromSupabase() {
             <tr><td colspan="8" style="text-align:center;padding:60px;">
                 <i class="fas fa-spinner fa-spin" style="font-size:48px;color:#2c6e49;"></i>
                 <p style="margin-top:15px;">Loading farms from database...</p>
-            </td></tr>
+            </td>
+            </tr>
         `;
     }
     
@@ -167,7 +168,8 @@ async function loadSubmissionsFromSupabase() {
                         <i class="fas fa-check-circle" style="font-size:48px;color:#22c55e;"></i>
                         <h3>No Submissions Found</h3>
                         <p style="color:#64748b;">No farms have been submitted yet.</p>
-                    </td></tr>
+                    </td>
+                    </tr>
                 `;
             }
             updateStats();
@@ -186,7 +188,8 @@ async function loadSubmissionsFromSupabase() {
                     <button onclick="location.reload()" style="margin-top:15px;padding:8px 16px;background:#2c6e49;color:white;border:none;border-radius:6px;cursor:pointer;">
                         <i class="fas fa-redo"></i> Retry
                     </button>
-                </td></tr>
+                </td>
+                </tr>
             `;
         }
     }
@@ -467,16 +470,17 @@ function initSubmissionMap(submission, statusColor) {
 }
 
 // ===========================================
-// CRUD OPERATIONS
+// CRUD OPERATIONS - FIXED (removed updated_at)
 // ===========================================
 
 async function updateStatus(submissionId, newStatus) {
     console.log(`Updating submission ${submissionId} to ${newStatus}`);
     
     try {
+        // Remove updated_at since it doesn't exist in the table
         const { error } = await supabaseClient
             .from('farms')
-            .update({ status: newStatus, updated_at: new Date().toISOString() })
+            .update({ status: newStatus })
             .eq('id', submissionId);
         
         if (error) throw error;
